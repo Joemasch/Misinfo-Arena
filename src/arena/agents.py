@@ -21,7 +21,14 @@ from arena.types import AgentRole, Message, Turn, Citation, AgentConfig
 # - Enables prompt snapshot persistence for reproducibility
 # - Allows future prompt customization without code changes
 # - Maintains exact same behavior as before (no logic changes)
-DEFAULT_USER_PROMPT_TEMPLATE = "Debate claim: {topic}\nOpponent last message:\n{opponent_text}\n\nWrite your next reply:"
+# Role-specific user prompt templates.
+# The neutral "Debate claim:" phrasing caused GPT-4o to default to the factually
+# correct position regardless of role. Explicit framing ensures role adherence.
+SPREADER_USER_PROMPT_TEMPLATE = "You are arguing IN FAVOR of this claim: {topic}\n\nOpponent's last message:\n{opponent_text}\n\nWrite your next argument defending the claim:"
+DEBUNKER_USER_PROMPT_TEMPLATE = "You are arguing AGAINST this claim: {topic}\n\nOpponent's last message:\n{opponent_text}\n\nWrite your next rebuttal countering the claim:"
+
+# Legacy alias for backward compat
+DEFAULT_USER_PROMPT_TEMPLATE = SPREADER_USER_PROMPT_TEMPLATE
 
 # ===================================================================
 # STREAMLIT IMPORT FOR ERROR REPORTING
@@ -281,9 +288,12 @@ class OpenAIAgent(BaseAgent):
             _raw_system_prompt = context.get("system_prompt", "")
             _topic = context.get("topic", "")
             _system_prompt = _raw_system_prompt.replace("{claim}", _topic) if _topic else _raw_system_prompt
+
+            # Use role-specific user prompt to reinforce role adherence
+            _user_template = SPREADER_USER_PROMPT_TEMPLATE if self.role == AgentRole.SPREADER else DEBUNKER_USER_PROMPT_TEMPLATE
             messages = [
                 {"role": "system", "content": _system_prompt},
-                {"role": "user", "content": DEFAULT_USER_PROMPT_TEMPLATE.format(
+                {"role": "user", "content": _user_template.format(
                     topic=context.get('topic', ''),
                     opponent_text=context.get('last_opponent_text', '')
                 )}
@@ -349,12 +359,12 @@ class AnthropicAgent(BaseAgent):
             if self._client is None:
                 self._client = anthropic.Anthropic(api_key=api_key)
 
-            # Substitute {claim} placeholder
             _raw_system_prompt = context.get("system_prompt", "")
             _topic = context.get("topic", "")
             _system_prompt = _raw_system_prompt.replace("{claim}", _topic) if _topic else _raw_system_prompt
 
-            user_content = DEFAULT_USER_PROMPT_TEMPLATE.format(
+            _user_template = SPREADER_USER_PROMPT_TEMPLATE if self.role == AgentRole.SPREADER else DEBUNKER_USER_PROMPT_TEMPLATE
+            user_content = _user_template.format(
                 topic=context.get("topic", ""),
                 opponent_text=context.get("last_opponent_text", ""),
             )
@@ -419,7 +429,8 @@ class GeminiAgent(BaseAgent):
             _topic = context.get("topic", "")
             _system_prompt = _raw_system_prompt.replace("{claim}", _topic) if _topic else _raw_system_prompt
 
-            user_content = DEFAULT_USER_PROMPT_TEMPLATE.format(
+            _user_template = SPREADER_USER_PROMPT_TEMPLATE if self.role == AgentRole.SPREADER else DEBUNKER_USER_PROMPT_TEMPLATE
+            user_content = _user_template.format(
                 topic=context.get("topic", ""),
                 opponent_text=context.get("last_opponent_text", ""),
             )
@@ -485,7 +496,8 @@ class GrokAgent(BaseAgent):
             _topic = context.get("topic", "")
             _system_prompt = _raw_system_prompt.replace("{claim}", _topic) if _topic else _raw_system_prompt
 
-            user_content = DEFAULT_USER_PROMPT_TEMPLATE.format(
+            _user_template = SPREADER_USER_PROMPT_TEMPLATE if self.role == AgentRole.SPREADER else DEBUNKER_USER_PROMPT_TEMPLATE
+            user_content = _user_template.format(
                 topic=context.get("topic", ""),
                 opponent_text=context.get("last_opponent_text", ""),
             )

@@ -8,7 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 # Test the constant
-from arena.agents import DEFAULT_USER_PROMPT_TEMPLATE
+from arena.agents import SPREADER_USER_PROMPT_TEMPLATE, DEBUNKER_USER_PROMPT_TEMPLATE, DEFAULT_USER_PROMPT_TEMPLATE
 
 # Test the types
 from arena.types import MatchResult, AgentConfig
@@ -21,10 +21,12 @@ def test_constants():
     """Test that constants are properly exposed"""
     print("=== TESTING CONSTANTS ===")
 
-    # Test user prompt template
-    expected = "Debate claim: {topic}\nOpponent last message:\n{opponent_text}\n\nWrite your next reply:"
-    assert DEFAULT_USER_PROMPT_TEMPLATE == expected, f"Template mismatch: {DEFAULT_USER_PROMPT_TEMPLATE} != {expected}"
-    print("✅ DEFAULT_USER_PROMPT_TEMPLATE matches expected value")
+    # Test role-specific user prompt templates
+    assert "IN FAVOR" in SPREADER_USER_PROMPT_TEMPLATE, "Spreader template must say IN FAVOR"
+    assert "AGAINST" in DEBUNKER_USER_PROMPT_TEMPLATE, "Debunker template must say AGAINST"
+    assert "{topic}" in SPREADER_USER_PROMPT_TEMPLATE, "Spreader template must have {topic}"
+    assert "{topic}" in DEBUNKER_USER_PROMPT_TEMPLATE, "Debunker template must have {topic}"
+    print("✅ Role-specific user prompt templates are correct")
 
     # Test system prompts exist
     assert SPREADER_SYSTEM_PROMPT.startswith("You are a misinformation spreader"), "Spreader prompt format wrong"
@@ -38,11 +40,12 @@ def test_template_formatting():
     topic = "vaccines cause autism"
     opponent_text = "Vaccines are safe."
 
-    formatted = DEFAULT_USER_PROMPT_TEMPLATE.format(topic=topic, opponent_text=opponent_text)
-    expected = "Debate claim: vaccines cause autism\nOpponent last message:\nVaccines are safe.\n\nWrite your next reply:"
+    spr_formatted = SPREADER_USER_PROMPT_TEMPLATE.format(topic=topic, opponent_text=opponent_text)
+    deb_formatted = DEBUNKER_USER_PROMPT_TEMPLATE.format(topic=topic, opponent_text=opponent_text)
 
-    assert formatted == expected, f"Formatting failed: {formatted} != {expected}"
-    print("✅ Template formatting works correctly")
+    assert "IN FAVOR" in spr_formatted and topic in spr_formatted, f"Spreader format failed: {spr_formatted}"
+    assert "AGAINST" in deb_formatted and topic in deb_formatted, f"Debunker format failed: {deb_formatted}"
+    print("✅ Template formatting works correctly for both roles")
 
 def test_build_snapshot():
     """Test the build_prompt_snapshot function"""

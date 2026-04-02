@@ -37,6 +37,28 @@ _METRIC_ALIASES = {
 }
 
 
+def _build_run_label(claim: str | None, created_at: str | None, run_id: str) -> str:
+    """Build a human-readable label like 'Vaccines cause autism (Apr 2)'."""
+    claim_part = (claim or "")[:45]
+    if len(claim or "") > 45:
+        claim_part += "..."
+    if not claim_part:
+        claim_part = run_id
+
+    date_part = ""
+    if created_at and len(created_at) >= 10:
+        try:
+            from datetime import datetime
+            dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+            date_part = dt.strftime("%b %-d")
+        except Exception:
+            date_part = created_at[:10]
+
+    if date_part:
+        return f"{claim_part} ({date_part})"
+    return claim_part
+
+
 def _sanitize_metric_key(name: str) -> str:
     """Make metric name safe for use as column suffix (alphanumeric + underscore)."""
     if not name:
@@ -204,6 +226,8 @@ def episode_to_row(
         # Temperature (for auditability, not analysis)
         "temperature_spreader": spr_agent.get("temperature") if isinstance(spr_agent, dict) else None,
         "temperature_debunker": deb_agent.get("temperature") if isinstance(deb_agent, dict) else None,
+        # Human-readable run label (claim preview + date)
+        "run_label": _build_run_label(ep.get("claim"), ep.get("created_at"), run_id),
         # Existing
         "summary_version": (ep.get("summaries") or {}).get("version"),
         "arena_type": run_meta.get("arena_type"),
@@ -448,6 +472,7 @@ def episode_to_strategy_long_rows(
 
     base = {
         "run_id": run_id,
+        "run_label": _build_run_label(ep.get("claim"), ep.get("created_at"), run_id),
         "episode_id": ep.get("episode_id") or ep_index,
         "episode_index": ep_index,
         "claim": ep.get("claim"),

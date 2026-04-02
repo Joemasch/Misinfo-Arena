@@ -474,7 +474,7 @@ def render_claim_analysis_page():
 
     drill = df_f[mask].copy()
     keep_cols = [c for c in [
-        "run_id", "episode_id", "claim", "winner", "judge_confidence",
+        "run_label", "episode_id", "claim", "winner", "judge_confidence",
         "abs_margin", "completed_turn_pairs", "planned_max_turns",
         "end_trigger", "claim_type", "claim_domain", "claim_complexity",
     ] if c in drill.columns]

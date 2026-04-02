@@ -85,6 +85,48 @@ def inject_debate_chat_css():
             font-weight: 700;
           }
 
+          /* ---- Turn summary card ---- */
+          .turn-summary {
+            display: flex;
+            gap: 0;
+            margin: 18px 0 6px 0;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(0,0,0,0.08);
+            background: #fff;
+          }
+          .turn-summary-header {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            padding: 6px 10px 2px 10px;
+            color: #9ca3af;
+          }
+          .turn-summary-side {
+            flex: 1;
+            padding: 4px 12px 8px 12px;
+            font-size: 0.82rem;
+            line-height: 1.45;
+            color: #374151;
+          }
+          .turn-summary-side.spr {
+            border-right: 1px solid rgba(0,0,0,0.06);
+            background: rgba(229,57,53,0.03);
+          }
+          .turn-summary-side.fc {
+            background: rgba(33,150,243,0.03);
+          }
+          .turn-summary-side .ts-role {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+          }
+          .turn-summary-side.spr .ts-role { color: #e53935; }
+          .turn-summary-side.fc .ts-role { color: #1e88e5; }
+
           /* ---- Bubble Meta ---- */
           .bubble-meta {
             font-size: 0.75rem;
@@ -258,15 +300,121 @@ def _format_for_display(raw: str) -> str:
     return '<div style="margin-bottom:0.5rem"></div>'.join(formatted_paragraphs)
 
 
+def _detect_tactics(content: str, role: str) -> str:
+    """
+    Detect rhetorical tactics in a message using regex (no API call).
+    Returns a short human-readable label like "emotional appeal + vague sources".
+    """
+    if not content:
+        return ""
+
+    # Tactic patterns → human-readable labels (ordered by salience)
+    _TACTIC_PATTERNS = [
+        (_re.compile(r"\b(cover\s*up|hidden\s+truth|they\s+don'?t\s+want|mainstream\s+media|suppressed)\b", _re.I),
+         "conspiracy framing"),
+        (_re.compile(r"\b(fear|corrupt|agenda|dangerous|threat|protect|alarming|devastating)\b", _re.I),
+         "emotional appeal"),
+        (_re.compile(r"\b(experts\s+say|people\s+say|research\s+shows?|studies\s+show|it'?s\s+known)\b", _re.I),
+         "vague sources"),
+        (_re.compile(r"\b(CDC|WHO|NIH|FDA|according\s+to|journal|university|published)\b", _re.I),
+         "named sources"),
+        (_re.compile(r"\d+%|\d+\s*(?:million|billion|percent)", _re.I),
+         "specific data"),
+        (_re.compile(r"\b(claim\s+is\s+false|evidence\s+shows|in\s+fact|the\s+evidence|debunked)\b", _re.I),
+         "direct refutation"),
+        (_re.compile(r"\b(fallacy|logical\s+error|manipulation|tactic|technique|exploiting)\b", _re.I),
+         "named manipulation tactic"),
+        (_re.compile(r"\b(however|although|on\s+the\s+other\s+hand|that\s+said)\b", _re.I),
+         "counterargument"),
+        (_re.compile(r"\b(because|therefore|thus|leads?\s+to|result(s|ing)\s+in)\b", _re.I),
+         "causal reasoning"),
+    ]
+
+    detected = []
+    for pattern, label in _TACTIC_PATTERNS:
+        if pattern.search(content):
+            detected.append(label)
+        if len(detected) >= 3:
+            break
+
+    if not detected:
+        return ""
+    return " + ".join(detected)
+
+
+def _extract_key_move(content: str) -> str:
+    """
+    Extract the opening thesis / key move from a message for the turn summary.
+    Returns the full first sentence — no truncation.
+    """
+    if not content:
+        return ""
+    text = content.strip()
+    # Find first sentence boundary
+    match = _re.match(r'^(.+?[.!?])(?:\s|$)', text, _re.DOTALL)
+    if match:
+        return html_escape(match.group(1).strip())
+    # No sentence boundary found — use first 200 chars
+    if len(text) > 200:
+        trimmed = text[:200].rsplit(' ', 1)[0]
+        return html_escape(trimmed) + "..."
+    return html_escape(text)
+
+
 def _build_chat_html(messages: List[Dict[str, Any]]) -> str:
-    """Build HTML for debate chat."""
+    """Build HTML for debate chat with per-turn summary cards."""
     rows = []
+
+    # Group messages into turn pairs for summary cards
+    turn_pairs: dict[int, dict] = {}
+    for msg in messages:
+        turn = msg.get("turn", 1)
+        speaker = msg.get("speaker", "").lower()
+        if msg.get("status") == "typing":
+            continue
+        if turn not in turn_pairs:
+            turn_pairs[turn] = {}
+        turn_pairs[turn][speaker] = msg.get("content", "")
+
+    rendered_summaries: set[int] = set()
 
     for msg in messages:
         speaker = msg.get("speaker", "").lower()
         content = msg.get("content", "")
         turn = msg.get("turn", 1)
         status = msg.get("status", "final")
+
+        # Insert turn summary card before the first message of each turn pair
+        # (only when both sides have spoken)
+        if turn not in rendered_summaries and turn in turn_pairs:
+            pair = turn_pairs[turn]
+            spr_text = pair.get("spreader", "")
+            fc_text = pair.get("debunker", "")
+            if spr_text and fc_text:
+                spr_move = _extract_key_move(spr_text)
+                fc_move = _extract_key_move(fc_text)
+                spr_tactics = _detect_tactics(spr_text, "spreader")
+                fc_tactics = _detect_tactics(fc_text, "debunker")
+                spr_tactic_html = f'<div style="font-size:0.72rem;color:#e53935;margin-top:3px;font-style:italic">{spr_tactics}</div>' if spr_tactics else ''
+                fc_tactic_html = f'<div style="font-size:0.72rem;color:#1e88e5;margin-top:3px;font-style:italic">{fc_tactics}</div>' if fc_tactics else ''
+                summary_html = (
+                    f'<div class="turn-summary">'
+                    f'<div class="turn-summary-side spr">'
+                    f'<div class="turn-summary-header">Turn {turn}</div>'
+                    f'<div class="ts-role">Spreader</div>'
+                    f'{spr_move}'
+                    f'{spr_tactic_html}'
+                    f'</div>'
+                    f'<div class="turn-summary-side fc">'
+                    f'<div class="turn-summary-header">&nbsp;</div>'
+                    f'<div class="ts-role">Fact-checker</div>'
+                    f'{fc_move}'
+                    f'{fc_tactic_html}'
+                    f'</div>'
+                    f'</div>'
+                )
+                rows.append(summary_html)
+                rendered_summaries.add(turn)
 
         if speaker == "spreader":
             row_class = "bubble-row right"

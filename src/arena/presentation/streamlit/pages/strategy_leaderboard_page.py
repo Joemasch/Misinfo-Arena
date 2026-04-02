@@ -607,13 +607,18 @@ def render_strategy_leaderboard_page():
 
         disp = run_report.copy()
         disp["strategy_label"] = disp["strategy_label"].apply(_label)
+        # Use run_label if available, fallback to run_id
+        _run_col = "run_label" if "run_label" in disp.columns else "run_id"
         disp = disp.rename(columns={
-            "run_id":          "Run",
+            _run_col:          "Run",
             "strategy_label":  "Strategy",
             "strategy_count":  "Count",
             "wins":            "Wins",
             "win_rate":        "Win rate",
         })
+        # Drop raw run_id if run_label was used
+        if "run_id" in disp.columns and "Run" in disp.columns:
+            disp = disp.drop(columns=["run_id"])
 
         styled = (
             disp.style

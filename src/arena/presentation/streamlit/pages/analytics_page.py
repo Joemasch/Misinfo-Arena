@@ -62,7 +62,8 @@ METRIC_DESCRIPTIONS = {
 }
 
 EPISODE_TABLE_RENAME = {
-    "run_id":               "Run",
+    "run_label":            "Run",
+    "run_id":               "Run ID",
     "episode_id":           "Episode",
     "winner":               "Winner",
     "judge_confidence":     "Confidence",
@@ -81,7 +82,7 @@ END_TRIGGER_LABELS = {
 }
 
 PREVIEW_COLUMNS = [
-    "run_id", "episode_id", "winner", "judge_confidence", "abs_margin",
+    "run_label", "episode_id", "winner", "judge_confidence", "abs_margin",
     "planned_max_turns", "completed_turn_pairs", "end_trigger", "error_flag",
 ]
 
