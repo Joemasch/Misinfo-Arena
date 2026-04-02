@@ -1,722 +1,319 @@
-# CLAUDE.md — Misinformation Arena v2: Full Project Audit
+# CLAUDE.md — Misinformation Arena v2
 
-> **Purpose of this file:** This document is a complete technical audit of the Misinformation Arena v2 codebase. It is intended to give a Claude agent instant, authoritative context about how the project works, what has been built, what needs improvement, and what the owner's goals are — without needing to re-explore the codebase from scratch.
-
----
-
-## Table of Contents
-
-1. [Project Purpose](#1-project-purpose)
-2. [Owner Goals & Improvement Directives](#2-owner-goals--improvement-directives)
-3. [Technology Stack](#3-technology-stack)
-4. [Folder & File Structure](#4-folder--file-structure)
-5. [Core Data Models](#5-core-data-models)
-6. [How a Debate Works End-to-End](#6-how-a-debate-works-end-to-end)
-7. [The Judge System](#7-the-judge-system)
-8. [Agent System](#8-agent-system)
-9. [Storage & Persistence Layer](#9-storage--persistence-layer)
-10. [UI Layer — Pages & Components](#10-ui-layer--pages--components)
-11. [Analytics System](#11-analytics-system)
-12. [Prompt Management System](#12-prompt-management-system)
-13. [Configuration & Environment](#13-configuration--environment)
-14. [State Management](#14-state-management)
-15. [Current Project Status](#15-current-project-status)
-16. [Known Issues & Technical Debt](#16-known-issues--technical-debt)
-17. [Architectural Patterns & Conventions](#17-architectural-patterns--conventions)
+> **Purpose:** Complete technical context for any Claude agent working on this codebase. Read this before exploring files.
 
 ---
 
 ## 1. Project Purpose
 
-**Misinformation Arena v2** is a research tool for studying how misinformation spreads and how it can be countered through structured debate.
+Research platform for studying how misinformation spreads and how it can be countered through structured adversarial AI debate. Built for the IME 507 graduate research project.
 
-Two AI agents debate a user-supplied claim:
-- **Spreader** — argues in favor of a misinformation claim using persuasion, emotional appeals, and selective evidence
-- **Debunker** — argues against it using facts, citations, and logical reasoning
-
-At the end of the debate, an **AI judge** (backed by an LLM) evaluates both sides across six dimensions and declares a winner. All results are persisted to disk for later analysis, replay, and research.
+- **Spreader agent** argues in favor of a misinformation claim using persuasion tactics
+- **Debunker agent** counters with evidence-based reasoning and inoculation techniques
+- **AI judge** scores both sides across 6 literature-grounded dimensions
+- **Analytics** track outcomes across runs, claims, models, and prompt variants
 
 ### Key Use Cases
 
 | Use Case | Description |
 |---|---|
-| **Interactive Arena** | Run a single live debate in real time with chat-bubble UI |
-| **Multi-Claim Batch** | Chain N claims back to back in one run |
-| **Analytics** | Review aggregated metrics, win rates, strategy patterns across all runs |
+| **Interactive Arena** | Run a single live debate with chat-bubble UI |
+| **Multi-Claim Batch** | Chain N claims in one run |
+| **Batch Experiment** | N prompt variants x M prompt variants x C claims grid |
+| **Analytics** | 11 analytics sections across win rates, model comparison, strategy taxonomy, etc. |
 | **Episode Replay** | Replay any past debate with full transcript, verdict, and scorecard |
-| **Prompt Engineering** | Edit and compare agent + judge prompts to tune behavior |
-| **Research Export** | Download episode data as CSV or JSON for external analysis |
+| **Human Annotation** | Rate transcripts, compute Cohen's kappa for judge validation |
+| **Prompt Engineering** | Edit and compare agent + judge prompts via prompt library |
 
 ---
 
-## 2. Owner Goals & Improvement Directives
+## 2. Owner Goals
 
-The owner (Joe) has installed Claude to improve the project. His explicit goals are:
+Joe is a graduate student researcher. His priorities:
 
-1. **Better UI across the entire app** — the current interface lacks polish and professionalism
-2. **Improved analytics graphs** — charts need to be clearer, more visually engaging, and easier to interpret for non-technical users
-3. **The results of debates should be easy to understand** — users should be able to look at a finished debate and quickly grasp who won, why, and what the key moments were
-
-When making changes, default to:
-- Professional, clean visual design using Streamlit's native components where possible
-- Clear labeling and plain-English explanations on all charts and data tables
-- Consistent styling across all pages (colors, spacing, typography)
-- Replacing raw matplotlib figures with styled alternatives where feasible
-- Adding contextual "how to read this" captions and explainer text to all charts
+1. **Research credibility** — literature-grounded scoring, pre-registerable experiment design
+2. **Professional UI** — clean dashboard aesthetic, readable debate transcripts
+3. **Experiment efficiency** — CSV import, batch runs, multi-provider model comparison
 
 ---
 
 ## 3. Technology Stack
 
-| Layer | Technology | Version | Notes |
-|---|---|---|---|
-| **Web UI** | Streamlit | ≥1.28.0 | All pages, charts, state |
-| **LLM API** | OpenAI SDK | ≥1.0.0 | Agents, Judge, Insights |
-| **Data** | Pandas | ≥2.0.0 | DataFrames for analytics |
-| **Charts** | Matplotlib | installed | Currently used for radar, bar, scatter, box plots |
-| **Language** | Python | 3.8–3.13 | Tested on 3.13 |
-| **Packaging** | setuptools | ≥61.0 | `pyproject.toml` based |
-| **Testing** | pytest | ≥7.0.0 | Suite lives in `tests/` |
-| **Linting** | flake8 + black + mypy | dev deps | Code style enforcement |
+| Layer | Technology |
+|---|---|
+| **Web UI** | Streamlit >=1.28.0 |
+| **LLM Providers** | OpenAI, Anthropic, Google GenAI, xAI (Grok) |
+| **Charts** | Plotly |
+| **Data** | Pandas |
+| **Language** | Python 3.8–3.13 |
+| **Testing** | pytest (47 tests) |
 
-**Key env vars:**
+### API Key Resolution (priority order)
 
-| Variable | Purpose | Default |
-|---|---|---|
-| `OPENAI_API_KEY` | OpenAI API access for agents + judge | Required |
-| `JUDGE_MODE` | `"agent"` (LLM) or `"heuristic"` | `"agent"` |
-| `AGENT_JUDGE_MODEL` | Model for the AgentJudge | `"gpt-4o-mini"` |
-| `DEBUG_ARENA` | Enable verbose console debug output | `"0"` |
+1. `.streamlit/secrets.toml`
+2. Environment variables
+3. Sidebar paste (session only)
 
-**API key loading priority** (in `src/arena/utils/openai_config.py`):
-1. `OPENAI_API_KEY` environment variable
-2. `local_secrets.py` (dev-only, gitignored)
-3. Streamlit session state (set via UI)
+Managed centrally in `src/arena/utils/api_keys.py`.
 
 ---
 
-## 4. Folder & File Structure
+## 4. Folder Structure
 
 ```
 misinfo_arena_v2/
-│
-├── app.py                          # Main Streamlit entry point (~3,341 lines)
-├── pyproject.toml                  # Package config & dependencies
-├── requirements.txt                # Pip dependencies
-├── prompt_library.json             # Saved prompt variants (user-editable)
-├── prompts.json                    # Active prompt references
-├── local_secrets.py                # Dev API key injection [GITIGNORED]
+├── app.py                          # Entry point (1,416 lines)
+├── pyproject.toml
 ├── CLAUDE.md                       # This file
+├── README.md
 │
-├── src/arena/                      # PRIMARY APPLICATION PACKAGE
-│   ├── types.py                    # Core data models (Message, Turn, JudgeDecision, etc.)
-│   ├── config.py                   # Constants: models, defaults, system prompts
-│   ├── app_config.py               # App-level paths and constants
-│   ├── agents.py                   # DummyAgent + OpenAIAgent implementations
-│   ├── judge.py                    # HeuristicJudge + AgentJudge (PRIMARY)
-│   ├── judge_base.py               # Abstract BaseJudge interface
-│   ├── judge_explain.py            # Judge explanation utilities
-│   ├── factories.py                # Factory functions (create_agent, create_judge, etc.)
-│   ├── compat.py                   # Compatibility shims for legacy imports
-│   ├── state.py                    # Session state initialization
-│   ├── concession.py               # Concession detection logic
-│   ├── insights.py                 # InsightsAgent: AI-generated debate summary
-│   ├── analytics.py                # Legacy analytics engine
-│   ├── storage.py                  # Legacy MatchStorage (matches.jsonl)
-│   ├── preflight.py                # Import health checks at startup
-│   ├── strategy_analyst.py         # Post-judge LLM strategy labeler
-│   ├── strategy_taxonomy.py        # Strategy label definitions
-│   ├── claim_metadata.py           # Claim enrichment (category, domain, etc.)
-│   ├── replay_summary_agent.py     # On-demand debate summary generator
+├── src/arena/                      # Application package
+│   ├── types.py                    #   Canonical types: JudgeDecision, MetricScore, Turn, Message
+│   ├── config.py                   #   11 models, temperature presets, IME507 system prompts
+│   ├── agents.py                   #   5 agent classes: OpenAI, Anthropic, Gemini, Grok, Dummy
+│   ├── judge.py                    #   HeuristicJudge + AgentJudge (with consistency runs)
+│   ├── judge_base.py               #   Abstract BaseJudge interface
+│   ├── batch_runner.py             #   N×M×C experiment grid engine
+│   ├── state.py                    #   Session state initialization
+│   ├── factories.py                #   Object creation (create_agent, create_judge)
+│   ├── concession.py               #   Early-stop detection
+│   ├── insights.py                 #   AI debate summary generation
+│   ├── strategy_analyst.py         #   Post-judge LLM strategy labeler
+│   ├── strategy_taxonomy.py        #   20-label strategy taxonomy (10 spr + 10 deb)
+│   ├── claim_metadata.py           #   Claim enrichment (type, domain, complexity)
+│   ├── compat.py                   #   Legacy import shims
+│   ├── app_config.py               #   App-level paths and constants
 │   │
-│   ├── io/                         # Persistence I/O
-│   │   ├── run_store.py            # JSONL append, run metadata writer
-│   │   ├── run_store_v2_read.py    # JSON v2 reader (list_runs, load_episodes)
-│   │   └── prompts_store.py        # Prompt file read/write
+│   ├── prompts/
+│   │   ├── judge_static_prompt.py  #   Judge rubric v2 (Wachsmuth 2017, D2D 2025, inoculation theory)
+│   │   └── prompt_library.py       #   Named prompt variant CRUD
 │   │
-│   ├── analysis/                   # Analytics & data processing
-│   │   ├── episode_dataset.py      # DataFrame builders from episodes.jsonl
-│   │   ├── research_analytics.py   # Aggregated research metrics
-│   │   ├── claim_analysis.py       # Claim-level breakdowns
-│   │   ├── strategy_lens.py        # Regex strategy signal detection
-│   │   ├── replay_summary.py       # Replay summary generation
-│   │   ├── replay_summary_helper.py
-│   │   └── anomaly_detection.py    # IQR + MAD outlier detection
+│   ├── analysis/
+│   │   ├── episode_dataset.py      #   DataFrame builders (wide + long + strategy long)
+│   │   ├── research_analytics.py   #   Filterable research metrics
+│   │   ├── anomaly_detection.py    #   IQR + MAD outlier detection
+│   │   ├── claim_analysis.py       #   Claim difficulty index, turn sensitivity
+│   │   ├── strategy_lens.py        #   Regex-based per-turn tactic detection
+│   │   └── citation_tracker.py     #   Citation credibility analysis
 │   │
-│   ├── prompts/                    # Prompt management
-│   │   ├── judge_static_prompt.py  # AgentJudge system prompt (editable)
-│   │   └── prompt_library.py       # Prompt library CRUD
+│   ├── application/use_cases/
+│   │   └── execute_next_turn.py    #   Core debate pipeline (judge → strategy → persist)
 │   │
-│   ├── application/                # Use-case layer (clean architecture)
-│   │   ├── types.py
-│   │   └── use_cases/
-│   │       └── execute_next_turn.py  # Core debate turn pipeline
+│   ├── presentation/streamlit/
+│   │   ├── pages/
+│   │   │   ├── arena_page.py       #   Live debate UI (extracted from app.py)
+│   │   │   ├── analytics_page.py   #   11-section analytics dashboard
+│   │   │   ├── replay_page.py      #   7-tab episode replay viewer
+│   │   │   ├── claim_analysis_page.py
+│   │   │   ├── strategy_leaderboard_page.py
+│   │   │   ├── citation_page.py
+│   │   │   ├── prompts_page.py
+│   │   │   ├── experiment_page.py  #   Batch experiment UI with CSV import
+│   │   │   ├── annotation_page.py  #   Human annotation with Cohen's kappa
+│   │   │   └── guide_page.py
+│   │   └── components/arena/
+│   │       ├── judge_report.py     #   Styled verdict card + scorecard
+│   │       └── debate_insights.py  #   AI-generated strategic analysis
 │   │
-│   ├── presentation/               # UI layer
-│   │   └── streamlit/
-│   │       ├── pages/
-│   │       │   ├── analytics_page.py          # Analytics dashboard
-│   │       │   ├── replay_page.py             # Episode replay viewer
-│   │       │   ├── claim_analysis_page.py     # Per-claim deep dive
-│   │       │   ├── guide_page.py              # User guide
-│   │       │   ├── prompts_page.py            # Prompt editor & library
-│   │       │   └── strategy_leaderboard_page.py  # Strategy rankings
-│   │       ├── components/
-│   │       │   └── arena/
-│   │       │       ├── judge_report.py        # Judge decision render component
-│   │       │       ├── debate_insights.py     # Insights display component
-│   │       │       └── replay_styles.py       # CSS injection + verdict card HTML
-│   │       └── state/
-│   │           └── runs_refresh.py            # Auto-load run IDs helper
+│   ├── io/
+│   │   ├── run_store.py            #   JSONL append, run metadata writer
+│   │   ├── run_store_v2_read.py    #   JSON v2 reader (list_runs, load_episodes)
+│   │   └── prompts_store.py        #   Prompt file read/write
 │   │
-│   ├── ui/                         # Older UI utilities (partially deprecated)
-│   │   ├── debate_chat.py          # Live chat bubble renderer
-│   │   ├── run_planner.py          # Multi-claim run scheduler UI
-│   │   └── claim_ingest.py         # CSV/XLSX claim upload
+│   ├── ui/
+│   │   ├── debate_chat.py          #   Live chat bubbles + turn summary cards + tactic detection
+│   │   ├── run_planner.py          #   Multi-episode turn scheduler
+│   │   └── claim_ingest.py         #   CSV/XLSX claim upload
 │   │
 │   └── utils/
-│       ├── openai_config.py        # API key resolution
-│       ├── serialization.py        # JSON/object serialization helpers
+│       ├── api_keys.py             #   4-provider centralized key management
+│       ├── openai_config.py        #   Backward compat shim → api_keys.py
+│       ├── serialization.py        #   JSON serialization helpers
 │       ├── transcript_conversion.py
-│       └── normalize.py            # Text normalization
+│       └── normalize.py
 │
-├── runs/                           # Auto-created run output directory
-│   └── <run_id>/
-│       ├── run.json                # Run-level metadata
-│       └── episodes.jsonl          # One JSON line per completed episode
-│
-├── data/
-│   ├── golden_set_v0.jsonl         # Validation benchmark v0
-│   └── golden_set_v1.jsonl         # Validation benchmark v1
-│
-├── tests/                          # Pytest test suite
-├── scripts/                        # Standalone research/evaluation scripts
-├── tools/                          # Operational tools (cleanup, inspection)
-├── docs/                           # Architecture docs and audit reports (56+ files)
-└── artifacts/                      # Evaluation report outputs
+├── tests/                          # 47 tests, 15 files
+├── scripts/                        # Dev tools, golden set evaluation (21 files)
+├── data/                           # Golden set benchmarks (v0, v1)
+├── runs/                           # Runtime episode output (gitignored)
+└── runs_archive/                   # Archived test/pilot runs (gitignored)
 ```
 
 ---
 
 ## 5. Core Data Models
 
-All defined in `src/arena/types.py` and `src/arena/judge.py`.
+All canonical definitions in `src/arena/types.py`:
 
-### `AgentRole` (Enum)
-```python
-SPREADER = "spreader"
-DEBUNKER = "debunker"
-```
+- **`JudgeDecision`** — winner, confidence, reason, totals dict, scorecard (List[MetricScore])
+- **`MetricScore`** — metric name, spreader score, debunker score, weight
+- **`Turn`** — turn_index, spreader_message, debunker_message, meta
+- **`Message`** — role (AgentRole), content, citations, timestamp
+- **`MatchConfig`** — max_turns, topic, concession_phrases, judge_weights
 
-### `Message`
-The atomic unit of debate communication.
-```python
-role: AgentRole
-content: str
-citations: List[Citation]   # Structured evidence references (mostly empty today)
-timestamp: datetime
-```
-
-### `Turn`
-One exchange in the debate (one spreader message + one debunker message, keyed by `turn_index`).
-```python
-turn_index: int
-spreader_message: Optional[Any]
-debunker_message: Optional[Any]
-meta: Optional[Dict]
-```
-
-### `JudgeDecision`
-The output of a completed judge evaluation.
-```python
-winner: str               # "spreader", "debunker", or "draw"
-confidence: float         # 0.0–1.0
-reason: str               # Plain-English explanation
-totals: Dict[str, float]  # {"spreader": X, "debunker": Y}
-scorecard: List[MetricScore]  # Per-dimension scores
-```
-
-### `MetricScore`
-One row of the scorecard.
-```python
-metric: str      # e.g. "evidence_quality"
-spreader: float  # 0–10
-debunker: float  # 0–10
-weight: float    # contribution weight
-```
-
-### `MatchConfig` / `DebateConfig`
-Controls how a debate runs (imported via `factories.py`):
-- `max_turns` (default 5, configurable up to 10)
-- `topic` — the claim being debated
-- `concession_phrases` — keyword triggers for early stop
+Types are defined once in `types.py` and imported everywhere. `judge.py` imports from `types.py`, not vice versa.
 
 ---
 
-## 6. How a Debate Works End-to-End
+## 6. Judge System (v2)
 
-### Flow Summary
+### Scoring Dimensions (equal weights, 1/6 each)
 
-```
-User configures agents & selects claim
-          ↓
-   "Start Run" creates a run_id
-          ↓
-   Loop: execute_next_turn() called per turn
-     ├── Active agent generates message (OpenAI API)
-     ├── Message appended to session transcript
-     ├── Concession check (keywords / max turns)
-     └── If match over:
-           ├── AgentJudge evaluates transcript → JudgeDecision
-           │     (falls back to HeuristicJudge on failure)
-           ├── StrategyAnalyst labels tactics used
-           └── Episode persisted to runs/<run_id>/episodes.jsonl
-          ↓
-   Results displayed in Arena tab
-   (judge report, insights, scorecard)
-```
-
-### `execute_next_turn.py` — The Core Pipeline
-
-Located at `src/arena/application/use_cases/execute_next_turn.py`. This is the most critical file in the project. It:
-
-1. Determines whose turn it is (spreader on odd indices, debunker on even)
-2. Calls the correct `OpenAIAgent.generate()` with conversation history
-3. Appends the new message to `st.session_state["messages"]` and `["turns"]`
-4. Checks concession conditions
-5. On match completion:
-   - Tries `AgentJudge.evaluate_match()` first
-   - Falls back to `HeuristicJudge.evaluate_match()` on failure
-   - Runs `StrategyAnalyst` to label argument tactics
-   - Calls `_persist_completed_match()` to write the episode to disk
-
-### Multi-Claim Chaining
-
-When multiple claims are queued (via the run planner), the app auto-advances: once an episode completes and persists, it resets the transcript and `turn_idx`, loads the next claim, and begins a new episode within the same `run_id`.
-
----
-
-## 7. The Judge System
-
-### AgentJudge (Primary)
-
-**File:** `src/arena/judge.py` — class `AgentJudge`
-
-The primary judge. Uses an LLM (`gpt-4o-mini` by default, configurable via `AGENT_JUDGE_MODEL`) to evaluate the full debate transcript and return structured JSON scores.
-
-**Evaluation prompt** is loaded from `src/arena/prompts/judge_static_prompt.py`. This prompt is **user-editable** in the Prompts page of the UI — the active prompt is stored in `st.session_state["judge_static_prompt"]` and injected at judge call time.
-
-**Output format** (parsed from LLM JSON response):
-```json
-{
-  "winner": "debunker",
-  "confidence": 0.78,
-  "reason": "Debunker provided stronger evidence...",
-  "totals": {"spreader": 4.2, "debunker": 6.1},
-  "scorecard": [
-    {"metric": "evidence_quality", "spreader": 4, "debunker": 8},
-    ...
-  ]
-}
-```
-
-**Validation** (`_validate_judge_decision`): Enforces that the response contains exactly 6 expected metrics, scores are 0–10, and winner is a valid value. Raises `RuntimeError` on failure to trigger heuristic fallback.
-
-### HeuristicJudge (Fallback)
-
-**File:** `src/arena/judge.py` — class `HeuristicJudge`
-
-Used when `JUDGE_MODE=heuristic` is set, or when `AgentJudge` fails. Uses regex pattern matching to score without any LLM call. Fast, deterministic, but less accurate.
-
-### Judge Routing Logic
-
-```python
-# In execute_next_turn.py
-judge_mode = os.getenv("JUDGE_MODE", "agent").lower()
-
-if judge_mode == "agent":
-    try:
-        agent_judge = AgentJudge(model=agent_model, ...)
-        decision = agent_judge.evaluate_match(turns, config)
-        ss["judge_mode"] = "agent"
-    except Exception:
-        # Fallback to heuristic
-        decision = ss["judge"].evaluate_match(turns, config)
-        ss["judge_mode"] = "heuristic_fallback"
-else:
-    decision = ss["judge"].evaluate_match(turns, config)
-    ss["judge_mode"] = "heuristic"
-```
-
-### The Six Scoring Dimensions
-
-| Metric | Description | Weight |
+| Dimension | Source | Measures |
 |---|---|---|
-| `truthfulness_proxy` | Factual grounding, avoidance of absolutist claims | 0.25 |
-| `evidence_quality` | Use of citations, sources, concrete data | 0.20 |
-| `reasoning_quality` | Logical structure, avoidance of fallacies | 0.20 |
-| `responsiveness` | Directly addresses opponent's points | 0.15 |
-| `persuasion` | Rhetorical strength and argumentative skill | 0.15 |
-| `civility` | Professional tone, avoidance of personal attacks | 0.05 |
+| `factuality` | D2D (EMNLP 2025) | Narrative consistency (spr) / factual grounding (deb) |
+| `source_credibility` | D2D (EMNLP 2025) | Specificity and checkability of sources |
+| `reasoning_quality` | Wachsmuth 2017 — Cogency | Logical structure |
+| `responsiveness` | Wachsmuth 2017 — Reasonableness | Direct engagement with opponent |
+| `persuasion` | Wachsmuth 2017 — Effectiveness | Convincingness to uncommitted reader |
+| `manipulation_awareness` | Inoculation theory | Penalizes manipulation (spr) / rewards naming tactics (deb) |
 
-### Golden Sets
+### Key Design Choices
 
-`data/golden_set_v0.jsonl` and `golden_set_v1.jsonl` are human-curated validation debates used to benchmark the AgentJudge. The eval harness in `scripts/judge_eval.py` runs the judge against these and reports accuracy/consistency. These were created *to test how well the AgentJudge performs*, not as training data.
+- **Role-relative scoring** — spreader scored on persuasive execution, not factual accuracy
+- **Equal weights** — per Wachsmuth's argument that fixed unequal weights are unjustified
+- **Consistency runs** — AgentJudge can run N times and average scores (configurable in sidebar)
+- **Heuristic fallback** — if AgentJudge fails, HeuristicJudge provides regex-based scores (excluded from research analytics by default)
+- **Prompt version**: `judge_static_v2` (defined in `prompts/judge_static_prompt.py`)
 
----
+### AgentJudge flow
 
-## 8. Agent System
-
-**File:** `src/arena/agents.py`
-
-### `OpenAIAgent`
-
-Used in production. Calls `client.chat.completions.create()` with:
-- The agent's system prompt (role persona)
-- The full conversation history formatted as OpenAI messages
-- Configurable model and temperature
-
-### `DummyAgent`
-
-Used for testing only. Returns deterministic responses based on a hash of conversation history. No API calls. Fast and free.
-
-### Agent Creation
-
-Always via `factories.create_agent()`, never instantiated directly. The factory reads from session state to configure model, temperature, and system prompt.
-
----
-
-## 9. Storage & Persistence Layer
-
-### JSON v2 Format (Current)
-
-Each run lives in `runs/<run_id>/`:
-
-**`run.json`** — Run-level metadata:
-```json
-{
-  "run_id": "20260312_150537_ebf9",
-  "created_at": "2026-03-12T15:05:37",
-  "claim_preview": "Vaccines cause autism",
-  "episode_count": 3
-}
+```
+AgentJudge.evaluate_match(turns, config)
+  → _build_evaluation_prompt(turns)  # insert transcript into rubric
+  → _call_llm(prompt)                # system=rubric, user=transcript
+  → _parse_agent_judgment(response)  # JSON → JudgeDecision
+  → _validate_judge_decision()       # 6 metrics, 0-10, valid winner
+  (repeat N times if consistency_runs > 1, then average)
 ```
 
-**`episodes.jsonl`** — One JSON object per line, one line per completed episode:
-```json
-{
-  "episode_id": 0,
-  "claim": "Vaccines cause autism",
-  "claim_index": 0,
-  "total_claims": 1,
-  "created_at": "...",
-  "config_snapshot": { "planned_max_turns": 5, "model_spreader": "gpt-4o", ... },
-  "results": {
-    "winner": "debunker",
-    "judge_confidence": 0.82,
-    "completed_turn_pairs": 5,
-    "totals": { "spreader": 3.9, "debunker": 6.4 },
-    "scorecard": [ ... ],
-    "reason": "..."
-  },
-  "concession": { "trigger": "max_turns", "early_stop": false },
-  "summaries": { "abridged": "...", "full": "...", "version": "summary_v1" },
-  "turns": [ ... ],
-  "judge_audit": { "status": "success", "mode": "agent", "version": "v2" },
-  "strategy_analysis": { "spreader_labels": [...], "debunker_labels": [...] }
-}
-```
+---
 
-### Key I/O Files
+## 7. Agent System
 
-| File | Purpose |
-|---|---|
-| `src/arena/io/run_store.py` | Writes new episodes to `episodes.jsonl`, creates `run.json` |
-| `src/arena/io/run_store_v2_read.py` | Reads runs: `list_runs()`, `load_episodes()` |
-| `src/arena/io/prompts_store.py` | Reads/writes `prompts.json` |
+### 5 Agent Classes (all in `agents.py`)
 
-### Legacy Storage
+| Class | Provider | Notes |
+|---|---|---|
+| `OpenAIAgent` | OpenAI | GPT-4o, GPT-4o-mini, etc. |
+| `AnthropicAgent` | Anthropic | Claude Sonnet, Claude Haiku |
+| `GeminiAgent` | Google | Gemini 2.0 Flash, 2.5 Pro/Flash |
+| `GrokAgent` | xAI | Grok 3, Grok 3 Mini (OpenAI-compatible API) |
+| `DummyAgent` | None | Deterministic testing, blocked in production |
 
-`runs/matches.jsonl` — An older single-file format. Still readable via the legacy expander on the Analytics page. Being phased out in favor of the per-run JSON v2 format.
+### Model Routing
+
+Factory auto-routes by model name prefix:
+- `claude-*` → AnthropicAgent
+- `gemini-*` → GeminiAgent
+- `grok-*` → GrokAgent
+- everything else → OpenAIAgent
+
+### 11 Available Models
+
+Tier 1 (cheap): `gemini-2.0-flash`, `gpt-4o-mini`, `grok-3-mini`
+Tier 2 (mid): `claude-haiku-4-5`, `gemini-2.5-flash`
+Tier 3 (premium): `gpt-4o`, `gemini-2.5-pro`, `claude-sonnet-4`, `grok-3`
+
+### Role-Specific User Prompts
+
+Spreader gets: "You are arguing IN FAVOR of this claim: {topic}"
+Debunker gets: "You are arguing AGAINST this claim: {topic}"
+
+This prevents GPT-4o from defaulting to the factually correct position regardless of role.
 
 ---
 
-## 10. UI Layer — Pages & Components
+## 8. Storage
 
-The app is launched as a multi-tab Streamlit app from `app.py`. Each tab renders a page module.
+### JSON v2 Format (current, canonical)
 
-### Tab Structure
+Each run: `runs/<run_id>/run.json` + `runs/<run_id>/episodes.jsonl`
+
+Episode fields: schema_version, run_id, episode_id, claim, claim_index, config_snapshot (agents, weights, prompts), results (winner, confidence, totals, scorecard), concession, turns, judge_audit, strategy_analysis, claim metadata.
+
+### Legacy Format
+
+`runs/matches.jsonl` — **off by default** (`WRITE_LEGACY_MATCHES=0`). Can be re-enabled with env var.
+
+---
+
+## 9. UI — 10 Tabs
 
 | Tab | Module | Description |
 |---|---|---|
-| **Arena** | Inline in `app.py` | Live debate setup, execution, and results |
-| **Analytics** | `analytics_page.py` | Aggregated metrics, charts, anomaly explorer |
-| **Episode Replay** | `replay_page.py` | Browse and replay any stored debate |
-| **Claim Analysis** | `claim_analysis_page.py` | Per-claim breakdown and patterns |
-| **Strategy Leaderboard** | `strategy_leaderboard_page.py` | Rankings by argument strategy |
-| **Prompt Library** | `prompts_page.py` | Edit and manage agent/judge prompts |
-| **Guide** | `guide_page.py` | User-facing documentation |
+| Home | `guide_page.py` | User guide with research context |
+| Arena | `arena_page.py` | Live debate: config → claim → debate → results |
+| Analytics | `analytics_page.py` | 11-section dashboard (Parts I–XI) |
+| Run Replay | `replay_page.py` | 7-tab episode detail viewer |
+| Claim Analysis | `claim_analysis_page.py` | Per-claim breakdown, difficulty index |
+| Strategy Leaderboard | `strategy_leaderboard_page.py` | Strategy frequency, win rates, co-occurrence |
+| Citation Tracker | `citation_page.py` | Citation credibility analysis |
+| Prompts | `prompts_page.py` | Prompt editor + library |
+| Experiment | `experiment_page.py` | Batch grid with CSV import |
+| Annotate | `annotation_page.py` | Human rating + Cohen's kappa |
 
-### Arena Tab (app.py)
+### Analytics Sections (Parts I–XI)
 
-The main interactive page. Handles:
-- Agent model/temperature/prompt configuration in the sidebar
-- Claim input (single or multi-claim via `run_planner.py`)
-- Turn execution buttons and live chat display (via `debate_chat.py`)
-- Judge report rendering (via `judge_report.py` component)
-- Insights panel (via `debate_insights.py` component)
-
-### Replay Tab (`replay_page.py`)
-
-7-tab detail view for a selected episode:
-1. **Summary** — AI-generated narrative overview (on demand via `replay_summary_agent`)
-2. **Transcript** — Full turn-by-turn conversation (text areas, copyable)
-3. **Verdict & Scorecard** — Winner card, scorecard table, top decision drivers bar chart
-4. **Strategy Lens** — Regex-detected argument signals per side
-5. **Audit** — Raw `judge_audit` JSON for debugging
-6. **Config** — Stored `config_snapshot` for this episode
-7. **Export** — Download episode JSON, raw JSONL, or full run
-
-### Analytics Tab (`analytics_page.py`)
-
-Sections:
-1. **Dataset Overview** — Episode/run counts, win rate, avg confidence, error rate
-2. **Research Analytics** — Filterable; strength fingerprint (radar + bar), episode trajectories
-3. **Anomaly Explorer** — IQR/MAD outlier detection, box-whisker plot, scatter explorer, link to Replay
-
-### Key Styling
-
-CSS is injected via `src/arena/presentation/streamlit/components/replay_styles.py`. The verdict card uses custom HTML. Most charts use raw `matplotlib` rendered via `st.pyplot()`.
+I: Win distribution, II: Metric performance, III: Anomaly detection, IV: Claim difficulty, V: Strategy×outcome, VI: Model comparison, VII: Prompt A/B, VIII: Concession analysis, IX: Response length, X: Longitudinal trends, XI: Judge calibration
 
 ---
 
-## 11. Analytics System
+## 10. Experiment Design
 
-### Data Pipeline
+### CSV Formats
 
-```
-runs/<run_id>/episodes.jsonl
-      ↓
-episode_dataset.py → build_episode_df()    → wide DataFrame (one row per episode)
-                   → build_episode_long_df() → long DataFrame (one row per metric per episode)
-      ↓
-research_analytics.py → apply_research_filters()
-                      → compute_strength_fingerprint()  → radar + bar chart data
-                      → compute_episode_trajectory()    → line chart data
-                      → compute_transparency_summary()  → count breakdowns
-      ↓
-anomaly_detection.py → compute_iqr_outliers() / compute_mad_outliers()
+**Single-claim Arena:**
+```csv
+claim,run,claim_type,max_turns
+Vaccines cause autism,1,Health / Vaccine,2
+Vaccines cause autism,1,Health / Vaccine,4
 ```
 
-### Key DataFrame Columns (wide format)
-
-| Column | Description |
-|---|---|
-| `run_id` | Which run the episode belongs to |
-| `episode_id` | Sequential index within the run |
-| `winner` | `"spreader"`, `"debunker"`, or `"draw"` |
-| `judge_confidence` | Float 0–1 |
-| `abs_margin` | Absolute score difference between sides |
-| `completed_turn_pairs` | How many full turn pairs ran |
-| `planned_max_turns` | What was configured |
-| `end_trigger` | `"max_turns"`, `"concession"`, etc. |
-| `error_flag` | Boolean, true if judge failed |
-| `judge_mode` | `"agent"`, `"heuristic"`, `"heuristic_fallback"` |
-| `model_spreader` | OpenAI model name used for spreader |
-| `model_debunker` | OpenAI model name used for debunker |
-| `metric_<name>_spreader` | Per-metric score for spreader |
-| `metric_<name>_debunker` | Per-metric score for debunker |
-| `metric_<name>_delta` | debunker − spreader for that metric |
-
-### Current Chart Implementations
-
-All charts currently use `matplotlib` via `st.pyplot()`:
-- **Radar chart** — Strength fingerprint (polar projection, spreader red / debunker blue)
-- **Bar chart** — Strength fingerprint side-by-side or delta view
-- **Line chart** — Episode trajectories per metric
-- **Box-and-whisker** — Anomaly explorer
-- **Scatter plot** — abs_margin vs judge_confidence, colored by winner
-
----
-
-## 12. Prompt Management System
-
-### Agent Prompts
-
-Default prompts for spreader and debunker are defined in `src/arena/config.py` as `SPREADER_SYSTEM_PROMPT` and `DEBUNKER_SYSTEM_PROMPT`.
-
-Active prompts are stored in `st.session_state["spreader_prompt"]` and `st.session_state["debunker_prompt"]`.
-
-### Judge Prompt
-
-Defined in `src/arena/prompts/judge_static_prompt.py` via `get_judge_static_prompt()`. This returns the canonical system prompt used by `AgentJudge`. It includes a `<TRANSCRIPT_PLACEHOLDER>` that gets replaced at runtime with the formatted debate transcript.
-
-The judge prompt is editable in the Prompts page. The active version is stored in `st.session_state["judge_static_prompt"]`. The app records whether a custom prompt was used via `ss["judge_prompt_customized"]`.
-
-### Prompt Library
-
-`prompt_library.json` stores named prompt variants per agent role. Users can:
-- Save multiple named prompts per role
-- Mark one as "active" (it gets injected into the agent/judge)
-- Add notes/observations per prompt variant
-- Delete old variants
-
-CRUD operations in `src/arena/prompts/prompt_library.py`.
-
----
-
-## 13. Configuration & Environment
-
-### `pyproject.toml`
-
-```toml
-[project]
-name = "misinfo-arena"
-version = "2.0.0"
-requires-python = ">=3.8"
-dependencies = ["streamlit>=1.28.0", "pandas>=2.0.0", "openai>=1.0.0"]
-
-[project.optional-dependencies]
-dev = ["pytest>=7.0.0", "black>=22.0.0", "flake8>=4.0.0", "mypy>=0.950"]
+**Multi-claim Arena:**
+```csv
+claim,run,claim_type
+Vaccines cause autism,1,Health / Vaccine
+Climate change is a hoax,2,Environmental
 ```
 
-### `.streamlit/` Config
-
-A `.streamlit/` directory exists (untracked). Likely contains `config.toml` for theme and server settings. Check this file when adjusting Streamlit theme colors.
-
-### `app_config.py`
-
-Defines key filesystem paths:
-- `DEFAULT_MATCHES_PATH` — legacy `runs/matches.jsonl`
-- `SPREADER_SYSTEM_PROMPT` / `DEBUNKER_SYSTEM_PROMPT` — default agent prompts
-- `PROMPTS_PATH` — location of `prompts.json`
-
-### `preflight.py`
-
-Runs import health checks at startup. If key modules fail to import, it prints diagnostics rather than crashing silently. Called at the top of `app.py`.
-
----
-
-## 14. State Management
-
-All UI state is stored in `st.session_state`. Initialized in `src/arena/state.py` via `initialize_session_state()`.
-
-### Key Session State Keys
-
-| Key | Type | Purpose |
-|---|---|---|
-| `messages` | `List[dict]` | Chat messages for live debate display |
-| `turns` | `List[Turn]` | Structured turn objects for judge |
-| `turn_idx` | `int` | Current turn counter |
-| `match_in_progress` | `bool` | Whether a debate is currently running |
-| `claim_text` | `str` | The active debate topic/claim |
-| `run_id` | `str` | Current run identifier |
-| `judge_decision` | `JudgeDecision` | Result from last judge evaluation |
-| `judge_mode` | `str` | `"agent"`, `"heuristic"`, `"heuristic_fallback"` |
-| `judge_status` | `str` | `"success"`, `"error"` |
-| `judge_error` | `str\|None` | Error message if judge failed |
-| `judge_static_prompt` | `str` | Active judge prompt text |
-| `judge_prompt_customized` | `bool` | Whether default was overridden |
-| `spreader_prompt` | `str` | Active spreader system prompt |
-| `debunker_prompt` | `str` | Active debunker system prompt |
-| `spreader_agent` | `BaseAgent` | Instantiated spreader agent |
-| `debunker_agent` | `BaseAgent` | Instantiated debunker agent |
-| `judge` | `BaseJudge` | Instantiated fallback heuristic judge |
-| `runs_refresh_token` | `float` | Cache-busting token for run list |
-| `replay_target_run_id` | `str` | Handoff from Analytics → Replay |
-| `replay_target_episode_id` | `str` | Handoff from Analytics → Replay |
-
----
-
-## 15. Current Project Status
-
-### What's Fully Built and Working
-
-- End-to-end debate loop (single and multi-claim)
-- AgentJudge with heuristic fallback
-- JSON v2 storage format with full episode schema
-- Episode replay with 7-tab detail view
-- Analytics page with strength fingerprint, trajectories, anomaly explorer
-- Prompt library with multi-variant management
-- Strategy analysis (post-judge LLM labeling)
-- Strategy leaderboard page
-- Claim analysis page
-- Golden set benchmarks and judge eval harness
-- Anomaly detection (IQR + MAD)
-
-### What Needs Improvement (Owner's Priority)
-
-1. **UI polish across all pages** — inconsistent styling, dense layouts, no visual hierarchy
-2. **Analytics charts** — raw matplotlib plots with minimal styling; need professional redesign
-3. **Debate results clarity** — judge report and scorecard need cleaner presentation
-4. **Arena tab** — debate setup and live view could be significantly more engaging
-5. **General UX** — lack of clear navigation, confusing captions, no consistent color language
-
-### Known Technical Debt
-
-- `app.py` is ~3,341 lines — the Arena tab logic has not yet been fully extracted into `presentation/streamlit/pages/arena_page.py` (that file exists but is sparse)
-- Duplicate `create_judge()` factory function defined twice in `judge.py` (lines 524 and 802)
-- `src/arena/ui/` directory contains partially deprecated utilities (`debate_chat.py`, `run_planner.py`) that haven't been fully migrated to `presentation/`
-- `src/arena/util/` (singular) and `src/arena/utils/` (plural) both exist — the singular one is legacy
-- Legacy `matches.jsonl` format still supported via analytics expander
-- Large volume of untracked audit/summary markdown files in project root and `docs/` — these can be ignored
-
----
-
-## 16. Known Issues & Technical Debt
-
-| Issue | Location | Severity |
-|---|---|---|
-| `create_judge()` defined twice | `judge.py` lines 524 + 802 | Low (no runtime impact, confusing) |
-| `app.py` is a monolith | `app.py` | Medium (hard to navigate) |
-| matplotlib charts lack styling | `analytics_page.py` | High (poor UX per owner goals) |
-| Arena tab not extracted to page module | `app.py` | Medium |
-| `util/` vs `utils/` namespace clash | `src/arena/` | Low |
-| 56+ untracked markdown audit docs | `docs/`, project root | Low (clutter) |
-| `debate_chat.py` partially superseded | `src/arena/ui/` | Low |
-
----
-
-## 17. Architectural Patterns & Conventions
-
-### Layered Architecture
-
-```
-Presentation   →  src/arena/presentation/streamlit/
-Application    →  src/arena/application/use_cases/
-Domain         →  src/arena/{types,agents,judge,concession,...}.py
-I/O            →  src/arena/io/
+**Experiment prompts:**
+```csv
+name,role,prompt_text
+IME507 Spreader,spreader,"You are a misinformation spreader agent..."
 ```
 
-### Factory Pattern
+---
 
-All major objects (`create_agent`, `create_judge`, `create_debate_engine`, `create_match_storage`) are created through `src/arena/factories.py`. Never instantiate these directly in UI code.
+## 11. Architectural Patterns
 
-### Compatibility Layer
-
-`src/arena/compat.py` provides shims so legacy import paths still work during migration. If an import fails elsewhere, check `compat.py` first.
-
-### Caching
-
-Analytics data is cached via `@st.cache_data` keyed by `(run_ids_tuple, runs_dir, refresh_token)`. The `refresh_token` is a float stored in session state and incremented to force cache invalidation when runs are added.
-
-### Fail-Safe Persistence
-
-Episode persistence (`_persist_completed_match`) is wrapped in try/except so a storage failure never crashes the debate UI. Strategy analysis is similarly optional — failures are logged but never block persistence.
+- **All 10 tabs** delegate to a single `render_*_page()` function
+- **Factory pattern** for agents, judges, storage (`factories.py`)
+- **Types defined once** in `types.py`, imported everywhere
+- **API keys** resolved centrally in `utils/api_keys.py` (secrets → env → session)
+- **Episode persistence** decomposed: `_evaluate_judge()`, `_run_strategy_analysis()`, `_build_episode_object()`, `_build_run_object()` in `execute_next_turn.py`
+- **Caching** via `@st.cache_data` keyed by `(run_ids, runs_dir, refresh_token)`
+- **Import path**: `app.py` inserts `src/` into `sys.path[0]`, so `arena.*` resolves to `src/arena/*`
 
 ### Naming Conventions
 
-- Pages: `render_<page_name>_page()` functions
-- Components: `render_<component_name>()` functions
-- Use cases: `execute_<action_name>()` functions
-- State keys: lowercase snake_case strings (`"judge_decision"`, `"run_id"`)
-- Run IDs: `YYYYMMDD_HHMMSS_<4hex>` format
-
-### Import Path
-
-Always import from `arena.*` (not relative imports). `app.py` inserts `src/` into `sys.path[0]` at startup so `arena` resolves to `src/arena`.
+- Pages: `render_<page_name>_page()`
+- Components: `render_<component_name>()`
+- Use cases: `execute_<action_name>()`
+- State keys: lowercase snake_case (`"judge_decision"`, `"run_id"`)
+- Run IDs: `YYYYMMDD_HHMMSS_<4hex>`
+- Run labels: `"Claim preview... (Apr 2)"` for human display
 
 ---
 
-*Last updated: 2026-03-30*
-*Audited by Claude Sonnet 4.6 based on full codebase exploration.*
+## 12. Known Limitations (as of April 2026)
+
+- Debunker wins 100% of episodes so far — this is a finding, not a bug
+- Judge confidence clusters at 0.9 — needs investigation with consistency_runs > 1
+- Strategy taxonomy is not explicitly cited to published literature
+- No human evaluation baseline yet (annotation page built, study not conducted)
+- `execute_next_turn.py` is still ~1,100 lines — persistence logic decomposed into sub-functions but not yet extracted to a separate module
+
+---
+
+*Last updated: 2026-04-02*
