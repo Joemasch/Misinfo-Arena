@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Environment
+.venv/
+.env
+*.env
+
+# Secrets
+local_secrets.py
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Streamlit
+.streamlit/
+
+# Runtime data (regenerated per run)
+runs/
+runs_archive/
+annotations/
+artifacts/
+
+# User data files (not source)
+prompts.json
+prompt_library.json

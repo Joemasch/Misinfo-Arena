@@ -1,0 +1,12 @@
+# Core dependencies for Misinformation Arena v2
+# Streamlit provides the web UI framework for the chat-like debate interface
+streamlit>=1.28.0
+
+# Pandas provides data manipulation capabilities for analytics and data processing
+pandas>=2.0.0
+
+# OpenAI SDK for advanced agent implementations using the Responses API
+openai>=1.0.0
+
+# Plotly for interactive, professional charts
+plotly>=5.0.0
