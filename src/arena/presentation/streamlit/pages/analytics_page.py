@@ -24,6 +24,8 @@ from arena.analysis.research_analytics import (
     compute_strength_fingerprint,
 )
 from arena.io.run_store_v2_read import list_runs
+from arena.presentation.streamlit.pages.strategy_leaderboard_page import render_strategy_leaderboard_page
+from arena.presentation.streamlit.pages.citation_page import render_citation_page
 from arena.presentation.streamlit.state.runs_refresh import get_auto_run_ids
 
 RUNS_DIR = "runs"
@@ -578,170 +580,6 @@ def _calibration_plot(df: pd.DataFrame) -> go.Figure | None:
 
 
 # ---------------------------------------------------------------------------
-# Strategy × outcome helpers
-# ---------------------------------------------------------------------------
-
-@st.cache_data(show_spinner=False)
-def _load_strategy_outcomes(run_ids: tuple, runs_dir: str, token: float) -> pd.DataFrame:
-    """Return long DataFrame: (strategy_label, role, winner) for every tagged episode."""
-    from arena.io.run_store_v2_read import load_episodes
-    rows: list[dict] = []
-    for rid in run_ids:
-        eps, _ = load_episodes(rid, runs_dir, token)
-        for ep in eps:
-            winner = (ep.get("results") or {}).get("winner", "").strip().lower()
-            sa     = ep.get("strategy_analysis") or {}
-            for lbl in (sa.get("spreader_strategies") or []):
-                if lbl and isinstance(lbl, str):
-                    rows.append({"strategy": lbl.strip(), "role": "spreader", "winner": winner})
-            for lbl in (sa.get("debunker_strategies") or []):
-                if lbl and isinstance(lbl, str):
-                    rows.append({"strategy": lbl.strip(), "role": "debunker", "winner": winner})
-    return pd.DataFrame(rows) if rows else pd.DataFrame(columns=["strategy", "role", "winner"])
-
-
-def _strategy_label(s: str) -> str:
-    return s.replace("_", " ").title()
-
-
-def _strategy_outcome_chart(so_df: pd.DataFrame, role: str, min_n: int = 2) -> "go.Figure | None":
-    """Horizontal stacked bar: for each strategy label, FC% vs Spr% vs Draw% of debates it appeared in."""
-    sub = so_df[so_df["role"] == role].copy()
-    if sub.empty:
-        return None
-
-    # Count outcome per strategy label
-    counts = sub.groupby(["strategy", "winner"]).size().unstack(fill_value=0).reset_index()
-    counts["n_total"] = counts.drop(columns="strategy").sum(axis=1)
-    counts = counts[counts["n_total"] >= min_n].copy()
-    if counts.empty:
-        return None
-
-    for col in ["debunker", "spreader", "draw"]:
-        if col not in counts.columns:
-            counts[col] = 0
-    counts["fc_pct"]  = counts["debunker"] / counts["n_total"] * 100
-    counts["spr_pct"] = counts["spreader"] / counts["n_total"] * 100
-    counts["draw_pct"]= counts.get("draw", 0) / counts["n_total"] * 100
-
-    # Sort: for spreader strategies sort by spr_pct desc; for debunker by fc_pct desc
-    sort_col = "spr_pct" if role == "spreader" else "fc_pct"
-    counts = counts.sort_values(sort_col, ascending=True)  # ascending=True because horizontal bars read bottom→top
-
-    labels = [_strategy_label(s) for s in counts["strategy"]]
-
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        name="Fact-checker wins", y=labels, x=counts["fc_pct"], orientation="h",
-        marker_color=DEBUNKER_COLOR, opacity=0.85,
-        text=[f"{v:.0f}%" if v >= 8 else "" for v in counts["fc_pct"]],
-        textposition="inside", textfont=dict(size=10, color="white"),
-        hovertemplate="%{y}<br>FC wins: <b>%{x:.0f}%</b><extra></extra>",
-    ))
-    fig.add_trace(go.Bar(
-        name="Spreader wins", y=labels, x=counts["spr_pct"], orientation="h",
-        marker_color=SPREADER_COLOR, opacity=0.85,
-        text=[f"{v:.0f}%" if v >= 8 else "" for v in counts["spr_pct"]],
-        textposition="inside", textfont=dict(size=10, color="white"),
-        hovertemplate="%{y}<br>Spr wins: <b>%{x:.0f}%</b><extra></extra>",
-    ))
-    if counts["draw_pct"].sum() > 0:
-        fig.add_trace(go.Bar(
-            name="Draw", y=labels, x=counts["draw_pct"], orientation="h",
-            marker_color=DRAW_COLOR, opacity=0.75,
-            hovertemplate="%{y}<br>Draw: <b>%{x:.0f}%</b><extra></extra>",
-        ))
-
-    # Annotate sample sizes on the right
-    for i, (_, row) in enumerate(counts.iterrows()):
-        fig.add_annotation(
-            x=101, y=labels[i], text=f"n={int(row['n_total'])}",
-            xanchor="left", showarrow=False,
-            font=dict(size=9, color="#9ca3af"),
-        )
-
-    fig.update_layout(
-        barmode="stack",
-        xaxis=dict(range=[0, 115], ticksuffix="%", showgrid=False, tickfont=dict(size=10)),
-        yaxis=dict(tickfont=dict(size=11)),
-        legend=dict(orientation="h", y=-0.18, x=0.5, xanchor="center", font=dict(size=11)),
-        margin=dict(t=10, b=55, l=10, r=55),
-        height=max(200, len(labels) * 36 + 80),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-    )
-    return fig
-
-
-# ---------------------------------------------------------------------------
-# Claim difficulty helpers
-# ---------------------------------------------------------------------------
-
-def _compute_claim_difficulty(df: pd.DataFrame) -> pd.DataFrame:
-    """Return per-claim difficulty metrics, sorted hardest→easiest."""
-    if "claim" not in df.columns or df["claim"].isna().all():
-        return pd.DataFrame()
-
-    grp = df.groupby("claim").agg(
-        n_episodes        =("winner",          "count"),
-        fc_wins           =("winner",          lambda x: (x.str.lower() == "debunker").sum()),
-        spr_wins          =("winner",          lambda x: (x.str.lower() == "spreader").sum()),
-        avg_confidence    =("judge_confidence", "mean"),
-        avg_margin        =("abs_margin",       "mean"),
-        margin_std        =("abs_margin",       "std"),
-    ).reset_index()
-
-    grp["fc_win_rate"]  = grp["fc_wins"]  / grp["n_episodes"]
-    grp["spr_win_rate"] = grp["spr_wins"] / grp["n_episodes"]
-
-    max_std = grp["margin_std"].max()
-    grp["margin_std_norm"] = (grp["margin_std"] / max_std).fillna(0) if max_std > 0 else 0.0
-
-    # Difficulty = hard to debunk: high Spr win rate + low confidence + high result variance
-    grp["difficulty_index"] = (
-        grp["spr_win_rate"].fillna(0)           * 0.45 +
-        (1 - grp["avg_confidence"].fillna(0.5)) * 0.35 +
-        grp["margin_std_norm"]                  * 0.20
-    )
-    grp["avg_confidence"] = grp["avg_confidence"].fillna(0)
-    grp["margin_std"]     = grp["margin_std"].fillna(0)
-    return grp.sort_values("difficulty_index", ascending=False).reset_index(drop=True)
-
-
-def _claim_difficulty_chart(diff_df: pd.DataFrame) -> go.Figure:
-    """Horizontal bar: difficulty index per claim, top 12."""
-    top = diff_df.head(12).copy()
-    claims = [c[:55] + "…" if len(c) > 55 else c for c in top["claim"]]
-    idx    = top["difficulty_index"].tolist()
-
-    # Color by how often spreader wins: red = spreader wins, blue = FC wins
-    colors = [
-        SPREADER_COLOR if row["spr_win_rate"] >= 0.5 else DEBUNKER_COLOR
-        for _, row in top.iterrows()
-    ]
-
-    fig = go.Figure(go.Bar(
-        y=claims[::-1], x=idx[::-1], orientation="h",
-        marker_color=colors[::-1], opacity=0.85,
-        text=[f"{v:.2f}" for v in idx[::-1]],
-        textposition="outside",
-        hovertemplate=(
-            "%{y}<br>Difficulty: <b>%{x:.2f}</b><br>"
-            "<extra></extra>"
-        ),
-    ))
-    fig.update_layout(
-        xaxis=dict(title="Difficulty index (0 = easy, 1 = very hard)",
-                   range=[0, 1.15], tickfont=dict(size=10),
-                   gridcolor="rgba(200,200,200,0.3)"),
-        yaxis=dict(tickfont=dict(size=11)),
-        margin=dict(t=10, b=40, l=10, r=55),
-        height=max(200, len(top) * 38 + 60),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-    )
-    return fig
-
-
-# ---------------------------------------------------------------------------
 # Legacy expander
 # ---------------------------------------------------------------------------
 
@@ -814,9 +652,9 @@ def render_analytics_page():
     )
 
     # ══════════════════════════════════════════════════════════════════════════
-    # PART I — WIN RATES
+    # TOP SECTION — KPI CARDS + WIN DISTRIBUTION + FILTERS
     # ══════════════════════════════════════════════════════════════════════════
-    st.markdown('<p class="ma-section-header">Part I: Who is winning?</p>', unsafe_allow_html=True)
+    st.markdown('<p class="ma-section-header">Who is winning?</p>', unsafe_allow_html=True)
 
     if wr is not None and n_ep > 0:
         deb_wins = int(round(wr * n_ep))
@@ -884,67 +722,11 @@ def render_analytics_page():
         unsafe_allow_html=True,
     )
 
-    with st.expander("Browse all episode data", expanded=False):
-        preview_cols = [c for c in PREVIEW_COLUMNS if c in df.columns]
-        if preview_cols:
-            disp = df[preview_cols].copy()
-            disp = disp.rename(columns={k: v for k, v in EPISODE_TABLE_RENAME.items() if k in disp.columns})
-            if "How It Ended" in disp.columns:
-                disp["How It Ended"] = disp["How It Ended"].apply(_fmt_trigger)
-            if "Winner" in disp.columns:
-                disp["Winner"] = disp["Winner"].str.capitalize()
-            if "Confidence" in disp.columns:
-                disp["Confidence"] = pd.to_numeric(disp["Confidence"], errors="coerce").map(
-                    lambda v: f"{v:.0%}" if pd.notna(v) else "—"
-                )
-            st.dataframe(disp.head(50), use_container_width=True, hide_index=True)
-
-        c1, c2 = st.columns(2)
-        with c1:
-            st.download_button("Download CSV", df.to_csv(index=False).encode(), "episodes.csv", "text/csv")
-        with c2:
-            import json
-            agg_exp = {k: v for k, v in agg.items()
-                       if k not in ("win_distribution","confidence_bins","metric_means_by_role",
-                                    "metric_delta_means","by_turn_plan","by_run")}
-            for k in ("win_distribution","confidence_bins","metric_means_by_role",
-                      "metric_delta_means","by_turn_plan","by_run"):
-                agg_exp[k] = agg[k].to_dict(orient="records") if not agg[k].empty else []
-            st.download_button("Download aggregated JSON",
-                               json.dumps(agg_exp, indent=2, default=str),
-                               "aggregates.json", "application/json")
-
-    st.markdown('<hr class="ma-divider">', unsafe_allow_html=True)
-
-    # ══════════════════════════════════════════════════════════════════════════
-    # PART II — PERFORMANCE BREAKDOWN
-    # ══════════════════════════════════════════════════════════════════════════
-    st.markdown('<p class="ma-section-header">Part II: How did each side argue?</p>', unsafe_allow_html=True)
-    st.markdown(
-        '<p class="ma-section-prose">'
-        'The judge scores every debate across <b>six dimensions</b>, each on a scale of <b>0 to 10</b>. '
-        'A score above 7 indicates strong performance; below 4 is weak. '
-        'The charts below show average scores across all debates, so you can see at a glance '
-        'which dimensions each side consistently wins or loses.'
-        '</p>',
-        unsafe_allow_html=True,
-    )
-
-    # Dimension definition cards — inline, not hidden
-    dim_cards = "".join(
-        f'<div class="ma-dim-card">'
-        f'<div class="ma-dim-name">{_label_metric(k)}</div>'
-        f'<div class="ma-dim-desc">{v}</div>'
-        f'</div>'
-        for k, v in METRIC_DESCRIPTIONS.items()
-    )
-    st.markdown(f'<div class="ma-dim-grid">{dim_cards}</div>', unsafe_allow_html=True)
-
+    # ── Load long_df and build filters (needed by multiple tabs) ──────────
     long_df = _load_long(tuple(run_ids), RUNS_DIR, token)
+    filtered = pd.DataFrame()
 
-    if long_df.empty:
-        st.warning("No scored episodes found. The judge needs to have run successfully on at least one debate.")
-    else:
+    if not long_df.empty:
         # Compact filter row
         st.markdown('<p class="ma-filter-label">Filter results</p>', unsafe_allow_html=True)
         arena_opts    = [x for x in long_df["arena_type"].dropna().unique().astype(str) if x != "nan"]
@@ -956,44 +738,89 @@ def render_analytics_page():
         jmodel_opts   = [x for x in long_df["model_judge"].dropna().unique().astype(str)
                          if x != "nan" and x.strip().lower() not in _excl]
 
-        fc1, fc2, fc3 = st.columns(3)
+        fc1, fc2, fc3, fc4 = st.columns(4)
         with fc1:
             sel_arena    = st.multiselect("Arena type", arena_opts, default=[], key="ra_arena")
         with fc2:
             sel_spreader = st.multiselect("Spreader model", spreader_opts, default=[], key="ra_spreader")
         with fc3:
             sel_debunker = st.multiselect("Debunker model", debunker_opts, default=[], key="ra_debunker")
+        with fc4:
+            sel_jmodel   = st.multiselect("Judge model", jmodel_opts, default=[], key="ra_judge_model")
 
         excl_err = st.checkbox("Exclude debates with judge errors", value=True, key="ra_exclude_err")
 
-        with st.expander("Advanced filters", expanded=False):
-            DEFAULT_JUDGE_MODES = ["agent"]
-            sel_judge = st.multiselect(
-                "Judge type", judge_opts,
-                default=DEFAULT_JUDGE_MODES if "agent" in judge_opts else (judge_opts[:1] if judge_opts else []),
-                key="ra_judge",
-            )
-            jm_disabled = "agent" not in (sel_judge or DEFAULT_JUDGE_MODES)
-            sel_jmodel  = st.multiselect("Judge model", jmodel_opts, default=[], key="ra_judge_model", disabled=jm_disabled)
-            fp_agg  = st.selectbox("Fingerprint aggregation", ["mean", "sum", "median"], index=0, key="ra_fp_agg")
-            traj_view = st.selectbox("Trajectory view", ["raw", "normalized"], index=0, key="ra_traj_view")
-
-        eff_judge  = (sel_judge or None) or DEFAULT_JUDGE_MODES
-        eff_jmodel = sel_jmodel or None
-        eff_fp_agg = fp_agg if "fp_agg" in dir() else "mean"
-        eff_traj   = traj_view if "traj_view" in dir() else "raw"
+        DEFAULT_JUDGE_MODES = ["agent"]
+        eff_fp_agg = "mean"
+        eff_traj   = "raw"
 
         filtered = apply_research_filters(
             long_df,
             arena_types=sel_arena or None,
-            judge_modes=eff_judge,
+            judge_modes=DEFAULT_JUDGE_MODES,
             spreader_models=sel_spreader or None,
             debunker_models=sel_debunker or None,
-            judge_models=eff_jmodel,
+            judge_models=sel_jmodel or None,
             exclude_error_episodes=excl_err,
         )
 
-        if filtered.empty:
+    # ── Download buttons ──────────────────────────────────────────────────
+    dl1, dl2 = st.columns(2)
+    with dl1:
+        st.download_button("Download episodes CSV", df.to_csv(index=False).encode(), "episodes.csv", "text/csv")
+    with dl2:
+        import json
+        agg_exp = {k: v for k, v in agg.items()
+                   if k not in ("win_distribution","confidence_bins","metric_means_by_role",
+                                "metric_delta_means","by_turn_plan","by_run")}
+        for k in ("win_distribution","confidence_bins","metric_means_by_role",
+                  "metric_delta_means","by_turn_plan","by_run"):
+            agg_exp[k] = agg[k].to_dict(orient="records") if not agg[k].empty else []
+        st.download_button("Download aggregated JSON",
+                           json.dumps(agg_exp, indent=2, default=str),
+                           "aggregates.json", "application/json")
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # TABS
+    # ══════════════════════════════════════════════════════════════════════════
+    tab_perf, tab_models, tab_strategy, tab_citations, tab_concessions, tab_anomalies = st.tabs([
+        "Performance", "Models", "Strategy", "Citations", "Concessions", "Anomalies"
+    ])
+
+    # ── Strategy tab ─────────────────────────────────────────────────────
+    with tab_strategy:
+        render_strategy_leaderboard_page()
+
+    # ── Citations tab ────────────────────────────────────────────────────
+    with tab_citations:
+        render_citation_page()
+
+    # ── Performance tab ───────────────────────────────────────────────────
+    with tab_perf:
+        st.markdown('<p class="ma-section-header">How did each side argue?</p>', unsafe_allow_html=True)
+        st.markdown(
+            '<p class="ma-section-prose">'
+            'The judge scores every debate across <b>six dimensions</b>, each on a scale of <b>0 to 10</b>. '
+            'A score above 7 indicates strong performance; below 4 is weak. '
+            'The charts below show average scores across all debates, so you can see at a glance '
+            'which dimensions each side consistently wins or loses.'
+            '</p>',
+            unsafe_allow_html=True,
+        )
+
+        # Dimension definition cards — inline, not hidden
+        dim_cards = "".join(
+            f'<div class="ma-dim-card">'
+            f'<div class="ma-dim-name">{_label_metric(k)}</div>'
+            f'<div class="ma-dim-desc">{v}</div>'
+            f'</div>'
+            for k, v in METRIC_DESCRIPTIONS.items()
+        )
+        st.markdown(f'<div class="ma-dim-grid">{dim_cards}</div>', unsafe_allow_html=True)
+
+        if long_df.empty:
+            st.warning("No scored episodes found. The judge needs to have run successfully on at least one debate.")
+        elif filtered.empty:
             st.warning("No debates match the current filters. Try removing some filters.")
         else:
             summary = compute_transparency_summary(filtered)
@@ -1029,7 +856,6 @@ def render_analytics_page():
                 st.plotly_chart(_bar(fp_df), use_container_width=True)
 
             # Score distribution
-            st.markdown('<hr class="ma-divider">', unsafe_allow_html=True)
             st.markdown(
                 '<p class="ma-section-question">How do scores spread across all debates?</p>'
                 '<p class="ma-chart-caption">'
@@ -1045,323 +871,176 @@ def render_analytics_page():
             else:
                 st.caption("No data available for score distribution.")
 
-    st.markdown('<hr class="ma-divider">', unsafe_allow_html=True)
-
-    # ══════════════════════════════════════════════════════════════════════════
-    # PART III — UNUSUAL DEBATES
-    # ══════════════════════════════════════════════════════════════════════════
-    st.markdown('<p class="ma-section-header">Part III: Unusual debates worth a closer look</p>', unsafe_allow_html=True)
-    st.markdown(
-        '<p class="ma-section-prose">'
-        'Most debates follow a predictable pattern, but some stand out — the judge was unusually uncertain, '
-        'the score was surprisingly close, or one side dramatically outperformed its typical level. '
-        'These outliers are often the most interesting to replay. '
-        'Select a metric below to find debates that deviate from the norm, then open any flagged debate '
-        'directly in the <b>Run Replay</b> tab.'
-        '</p>',
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        '<p class="ma-section-prose">'
-        '<b>Score Margin</b> is the difference between the fact-checker\'s total score and the spreader\'s '
-        'total score. A margin near 0 means the debate was very close; a margin of 2 or more means it was '
-        'decisive. <b>Judge Confidence</b> is how certain the AI judge was in its verdict — a low-confidence '
-        'debate might be worth reviewing manually.'
-        '</p>',
-        unsafe_allow_html=True,
-    )
-
-    ANOMALY_OPTIONS = [
-        ("Judge Confidence",      "judge_confidence"),
-        ("Score Margin",          "abs_margin"),
-        ("Turns Completed",       "completed_turn_pairs"),
-        ("Evidence Quality Gap",  "metric_evidence_quality_delta"),
-        ("Reasoning Gap",         "metric_reasoning_quality_delta"),
-        ("Persuasion Gap",        "metric_persuasion_delta"),
-        ("Responsiveness Gap",    "metric_responsiveness_delta"),
-        ("Factual Grounding Gap", "metric_truthfulness_proxy_delta"),
-        ("Civility Gap",          "metric_civility_delta"),
-    ]
-    avail = [(lbl, col) for lbl, col in ANOMALY_OPTIONS if col in df.columns]
-
-    if not avail:
-        st.info("Not enough data for anomaly analysis yet.")
-    else:
-        lbl_to_col = {l: c for l, c in avail}
-        opts = [l for l, _ in avail]
-
-        if st.session_state.get("analytics_anomaly_metric") not in opts:
-            st.session_state["analytics_anomaly_metric"] = opts[0]
-        st.session_state.setdefault("analytics_anomaly_method", "IQR")
-        st.session_state.setdefault("analytics_anomaly_flagged_only", False)
-
-        ac1, ac2, ac3 = st.columns([2, 2, 1])
-        with ac1:
-            sel_lbl = st.selectbox("Measure", opts, key="analytics_anomaly_metric")
-        with ac2:
-            sel_method = st.selectbox("Detection method", ["IQR", "Robust Z-score (MAD)"],
-                                      key="analytics_anomaly_method",
-                                      help="IQR flags values outside the typical middle 50%. MAD is more robust to extreme outliers.")
-        with ac3:
-            flagged_only = st.checkbox("Flagged only", key="analytics_anomaly_flagged_only")
-
-        col_name = lbl_to_col[sel_lbl]
-        series = pd.to_numeric(df[col_name], errors="coerce").dropna()
-
-        if len(series) < 2:
-            st.info("Not enough data points for outlier detection yet.")
-        else:
-            if sel_method == "IQR":
-                is_outlier, lower, upper, _, _ = compute_iqr_outliers(df[col_name])
-                adf = df.copy()
-                adf["_val"]    = pd.to_numeric(adf[col_name], errors="coerce")
-                adf["_flag"]   = is_outlier.reindex(adf.index, fill_value=False)
-                adf["_reason"] = adf["_flag"].map(
-                    lambda x: f"Outside normal range ({lower:.2f} – {upper:.2f})" if x else ""
-                )
-                adf["_lo"] = lower; adf["_hi"] = upper
-                adf["_score"] = adf["_val"].apply(
-                    lambda v: (v - upper) if pd.notna(v) and v > upper
-                              else ((lower - v) if pd.notna(v) and v < lower else 0)
-                )
-            else:
-                is_outlier, rz, med, mad = compute_mad_outliers(df[col_name])
-                adf = df.copy()
-                adf["_val"]    = pd.to_numeric(adf[col_name], errors="coerce")
-                adf["_flag"]   = is_outlier.reindex(adf.index, fill_value=False)
-                adf["_reason"] = adf["_flag"].map(
-                    lambda x: "Statistically unusual (robust Z-score > 3.5)" if x else ""
-                )
-                lo = med - 3.5 * mad / 0.6745 if mad else med
-                hi = med + 3.5 * mad / 0.6745 if mad else med
-                adf["_lo"] = lo; adf["_hi"] = hi
-                adf["_score"] = rz.reindex(adf.index).fillna(0).abs()
-
-            n_flagged = int(adf["_flag"].sum())
-            vals = adf["_val"].dropna()
-
-            if len(vals):
-                # Build customdata: "run_id|||episode_id|||claim (truncated)"
-                custom_series = (
-                    adf.reindex(vals.index)["run_id"].fillna("").astype(str)
-                    + "|||"
-                    + adf.reindex(vals.index)["episode_id"].fillna("").astype(str)
-                    + "|||"
-                    + adf.reindex(vals.index)["claim"].fillna("").astype(str).str[:55]
-                )
-                flagged_for_vals = adf["_flag"].reindex(vals.index, fill_value=False)
-
-                strip_event = st.plotly_chart(
-                    _strip(vals, flagged_for_vals, sel_lbl, customdata=custom_series),
-                    use_container_width=True,
-                    on_select="rerun",
-                    selection_mode=["points"],
-                    key="anomaly_strip_chart",
-                )
-                st.markdown(
-                    f'<p class="ma-chart-caption">'
-                    f'Each dot is one debate. '
-                    f'<b>{n_flagged} debate{"s" if n_flagged != 1 else ""} flagged</b> out of {len(vals)} — '
-                    f'normal range: {adf["_lo"].iloc[0]:.2f} – {adf["_hi"].iloc[0]:.2f}. '
-                    f'Red × markers are outliers. <b>Click any dot to select it</b>, then open it in Replay.'
-                    f'</p>',
-                    unsafe_allow_html=True,
-                )
-
-                # Handle click selection
-                selected_pts = []
-                try:
-                    selected_pts = strip_event.selection.points or []
-                except Exception:
-                    pass
-
-                sel_rid = sel_eid = sel_claim = None
-                if selected_pts:
-                    raw = selected_pts[0].get("customdata", "") or ""
-                    parts = str(raw).split("|||")
-                    if len(parts) >= 2:
-                        sel_rid   = parts[0] or None
-                        sel_eid   = parts[1] or None
-                        sel_claim = parts[2] if len(parts) > 2 else ""
-
-                if sel_rid and sel_eid is not None:
-                    st.markdown(
-                        f'<div class="ma-callout" style="margin-top:0.5rem;">'
-                        f'<b>Selected:</b> Run <code>{sel_rid}</code> · Episode {sel_eid}'
-                        f'{(" — " + sel_claim) if sel_claim else ""}'
-                        f'</div>',
-                        unsafe_allow_html=True,
-                    )
-                    if st.button("Open in Replay →", key="analytics_open_replay", type="primary"):
-                        st.session_state["replay_target_run_id"]     = str(sel_rid)
-                        st.session_state["replay_target_episode_id"] = sel_eid
-                        st.session_state["replay_target_source"]     = "analytics"
-                        st.success("Debate queued. Switch to the **Run Replay** tab to view it.")
-                else:
-                    st.caption("Click any dot on the chart above to select a debate, then open it in Replay.")
-
-            # Scatter
-            st.markdown('<hr class="ma-divider">', unsafe_allow_html=True)
-            st.markdown(
-                '<p class="ma-section-question">Confidence vs. Score Margin</p>'
-                '<p class="ma-chart-caption">'
-                'Each point is one debate. The further right, the more decisive the result was '
-                '(larger score gap between the two sides). The higher up, the more confident the judge was. '
-                'Debates in the bottom-left corner — low margin <em>and</em> low confidence — are the most '
-                'ambiguous and worth reviewing. Hover over any point to see the claim.'
-                '</p>',
-                unsafe_allow_html=True,
-            )
-
-            if "abs_margin" in df.columns and "judge_confidence" in df.columns:
-                valid = df["abs_margin"].notna() & df["judge_confidence"].notna()
-                if valid.sum() > 1:
-                    sc_df = df.loc[valid].copy()
-                    sc_df["abs_margin"]       = pd.to_numeric(sc_df["abs_margin"], errors="coerce")
-                    sc_df["judge_confidence"] = pd.to_numeric(sc_df["judge_confidence"], errors="coerce")
-                    sc_df = sc_df.dropna(subset=["abs_margin","judge_confidence"])
-                    if "winner" not in sc_df.columns: sc_df["winner"] = "unknown"
-                    if len(sc_df):
-                        st.plotly_chart(_scatter(sc_df), use_container_width=True)
-                else:
-                    st.caption("Not enough data points yet.")
-            else:
-                st.warning("Score margin or confidence columns not found in episode data.")
-
-    st.markdown('<hr class="ma-divider">', unsafe_allow_html=True)
-
-    # ══════════════════════════════════════════════════════════════════════════
-    # PART IV — CLAIM DIFFICULTY INDEX
-    # ══════════════════════════════════════════════════════════════════════════
-    st.markdown('<p class="ma-section-header">Part IV: Which claims are hardest to debunk?</p>', unsafe_allow_html=True)
-    st.markdown(
-        '<p class="ma-section-prose">'
-        'The <b>Difficulty Index</b> is a composite score (0–1) that measures how resistant a claim '
-        'is to fact-checking across all debates involving it. A high index means the spreader wins '
-        'more often, the judge is less confident, and results are inconsistent across runs — '
-        'all signs of a genuinely hard claim to counter. '
-        '<b>Red bars</b> = spreader won the majority; '
-        '<b>Blue bars</b> = fact-checker won the majority.'
-        '</p>',
-        unsafe_allow_html=True,
-    )
-
-    diff_df = _compute_claim_difficulty(df)
-    if diff_df.empty or len(diff_df) < 1:
-        st.info(
-            "Not enough claim data yet. Run more debates — ideally multiple episodes per claim — "
-            "to see difficulty rankings."
-        )
-    else:
-        if len(diff_df) == 1:
-            st.info(
-                "Only one unique claim in the data. Run debates across multiple claims "
-                "to compare difficulty."
-            )
-        else:
-            st.plotly_chart(_claim_difficulty_chart(diff_df), use_container_width=True)
-
-        # Ranked table
+    # ── Models tab ────────────────────────────────────────────────────────
+    with tab_models:
         st.markdown(
-            '<p class="ma-section-question" style="margin-top:0.5rem;">Claim difficulty breakdown</p>',
+            '<p class="ma-section-header">Model Performance Comparison</p>',
             unsafe_allow_html=True,
         )
-        disp_diff = diff_df[[
-            "claim", "n_episodes", "fc_win_rate", "spr_win_rate",
-            "avg_confidence", "difficulty_index"
-        ]].copy()
-        disp_diff.columns = [
-            "Claim", "Episodes", "FC Win %", "Spr Win %", "Avg Confidence", "Difficulty"
-        ]
-        disp_diff["FC Win %"]       = disp_diff["FC Win %"].map(lambda v: f"{v:.0%}")
-        disp_diff["Spr Win %"]      = disp_diff["Spr Win %"].map(lambda v: f"{v:.0%}")
-        disp_diff["Avg Confidence"] = disp_diff["Avg Confidence"].map(lambda v: f"{v:.0%}")
-        disp_diff["Difficulty"]     = disp_diff["Difficulty"].map(lambda v: f"{v:.2f}")
-        st.dataframe(disp_diff, use_container_width=True, hide_index=True)
         st.markdown(
-            '<p class="ma-chart-caption">'
-            'Difficulty = 0.45 × Spreader win rate + 0.35 × (1 − Avg confidence) + 0.20 × Score variance. '
-            'Requires multiple episodes per claim for reliable estimates.'
+            '<p class="ma-section-prose">'
+            'How do different AI models perform when assigned to each role? '
+            'The matchup matrix below shows every model pairing that has been tested, '
+            'while the bar charts reveal which models are strongest as spreaders vs. fact-checkers.'
             '</p>',
             unsafe_allow_html=True,
         )
 
-    st.markdown('<hr class="ma-divider">', unsafe_allow_html=True)
+        has_model_cols = "model_spreader" in df.columns and "model_debunker" in df.columns
+        model_df = df.dropna(subset=["model_spreader", "model_debunker"]) if has_model_cols else pd.DataFrame()
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # PART V — STRATEGY × OUTCOME CORRELATION
-    # ══════════════════════════════════════════════════════════════════════════
-    st.markdown('<p class="ma-section-header">Part V: Which argument tactics predict winning?</p>', unsafe_allow_html=True)
-    st.markdown(
-        '<p class="ma-section-prose">'
-        'For every debate where strategy tagging ran, the AI labeled which rhetorical tactics '
-        'each side used. The charts below show, for each tactic, how often the debate ended '
-        'in a fact-checker win vs. a spreader win. '
-        'A bar that is mostly blue means debates where that tactic was used tended to go to the '
-        'fact-checker; a mostly red bar means the spreader benefited. '
-        'Only tactics appearing in at least 2 debates are shown. '
-        '<em>n</em> = number of debates where that tactic was detected.'
-        '</p>',
-        unsafe_allow_html=True,
-    )
-
-    so_df = _load_strategy_outcomes(tuple(run_ids), RUNS_DIR, token)
-
-    if so_df.empty:
-        st.info(
-            "No strategy analysis data found. Strategy tagging runs automatically after each debate — "
-            "complete a few more debates to see results here."
-        )
-    else:
-        strat_tabs = st.tabs(["Spreader tactics", "Debunker tactics"])
-
-        with strat_tabs[0]:
+        if model_df.empty:
+            st.info("No model data available. Complete some debates to see model comparisons.")
+        else:
+            # ── 1. Model matchup matrix ──────────────────────────────────
             st.markdown(
-                '<p class="ma-section-prose" style="margin-bottom:0.5rem;">'
-                'When the <b>spreader</b> used each tactic, how did the debate end?</p>',
+                '<p class="ma-section-question">Model Matchup Matrix</p>',
                 unsafe_allow_html=True,
             )
-            fig_spr = _strategy_outcome_chart(so_df, role="spreader", min_n=2)
-            if fig_spr is None:
-                st.info("Not enough spreader strategy data yet (need ≥2 debates per tactic).")
-            else:
-                st.plotly_chart(fig_spr, use_container_width=True)
-
-        with strat_tabs[1]:
             st.markdown(
-                '<p class="ma-section-prose" style="margin-bottom:0.5rem;">'
-                'When the <b>fact-checker</b> used each tactic, how did the debate end?</p>',
+                '<p class="ma-chart-caption">'
+                'Each row is a unique spreader-model vs. debunker-model pairing. '
+                'FC Win % shows how often the fact-checker won that matchup.'
+                '</p>',
                 unsafe_allow_html=True,
             )
-            fig_deb = _strategy_outcome_chart(so_df, role="debunker", min_n=2)
-            if fig_deb is None:
-                st.info("Not enough debunker strategy data yet (need ≥2 debates per tactic).")
-            else:
+
+            matchup = model_df.groupby(["model_spreader", "model_debunker"]).agg(
+                Debates=("winner", "size"),
+                FC_Wins=("winner", lambda x: (x == "debunker").sum()),
+                Avg_Confidence=("judge_confidence", "mean"),
+                Avg_Margin=("abs_margin", "mean"),
+            ).reset_index()
+            matchup["FC Win %"] = (matchup["FC_Wins"] / matchup["Debates"] * 100).round(1)
+            matchup["Avg Confidence"] = matchup["Avg_Confidence"].round(2)
+            matchup["Avg Margin"] = matchup["Avg_Margin"].round(2)
+
+            display_matchup = matchup.rename(columns={
+                "model_spreader": "Spreader Model",
+                "model_debunker": "Debunker Model",
+            })[["Spreader Model", "Debunker Model", "Debates", "FC Win %", "Avg Confidence", "Avg Margin"]]
+
+            st.dataframe(display_matchup, use_container_width=True, hide_index=True)
+
+            # ── 2. Model effectiveness by role ───────────────────────────
+            st.markdown(
+                '<p class="ma-section-question">Model Effectiveness by Role</p>',
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                '<p class="ma-chart-caption">'
+                'Left: average persuasion score when a model plays the spreader role (higher = more persuasive spreader). '
+                'Right: fact-checker win rate when a model plays the debunker role (higher = more effective debunker).'
+                '</p>',
+                unsafe_allow_html=True,
+            )
+
+            col_spr, col_deb = st.columns(2)
+
+            # Left chart: Model as Spreader — avg persuasion score
+            with col_spr:
+                persuasion_col = None
+                for candidate in ["metric_persuasion_spreader", "metric_persuasion_delta"]:
+                    if candidate in model_df.columns:
+                        persuasion_col = candidate
+                        break
+
+                if persuasion_col and model_df[persuasion_col].notna().any():
+                    spr_perf = (
+                        model_df.groupby("model_spreader")[persuasion_col]
+                        .mean()
+                        .sort_values(ascending=True)
+                        .reset_index()
+                    )
+                    spr_perf.columns = ["Model", "Avg Persuasion"]
+                    spr_perf["Avg Persuasion"] = spr_perf["Avg Persuasion"].round(2)
+
+                    fig_spr = go.Figure(go.Bar(
+                        x=spr_perf["Avg Persuasion"],
+                        y=spr_perf["Model"],
+                        orientation="h",
+                        marker_color=SPREADER_COLOR,
+                        text=spr_perf["Avg Persuasion"].apply(lambda v: f"{v:.1f}"),
+                        textposition="outside",
+                    ))
+                    fig_spr.update_layout(
+                        title=dict(text="Model as Spreader", font=dict(size=14)),
+                        xaxis_title="Avg Persuasion Score",
+                        yaxis_title="",
+                        margin=dict(l=10, r=40, t=40, b=40),
+                        height=max(250, len(spr_perf) * 45 + 80),
+                        plot_bgcolor="#fafafa",
+                    )
+                    fig_spr.update_xaxes(range=[0, 10], gridcolor="#e8e8e8")
+                    fig_spr.update_yaxes(gridcolor="#e8e8e8")
+                    st.plotly_chart(fig_spr, use_container_width=True)
+                else:
+                    st.info("No persuasion scores available for spreader models yet.")
+
+            # Right chart: Model as Fact-checker — FC win rate
+            with col_deb:
+                deb_perf = model_df.groupby("model_debunker").agg(
+                    total=("winner", "size"),
+                    wins=("winner", lambda x: (x == "debunker").sum()),
+                ).reset_index()
+                deb_perf["FC Win %"] = (deb_perf["wins"] / deb_perf["total"] * 100).round(1)
+                deb_perf = deb_perf.sort_values("FC Win %", ascending=True).reset_index(drop=True)
+
+                fig_deb = go.Figure(go.Bar(
+                    x=deb_perf["FC Win %"],
+                    y=deb_perf["model_debunker"],
+                    orientation="h",
+                    marker_color=DEBUNKER_COLOR,
+                    text=deb_perf["FC Win %"].apply(lambda v: f"{v:.0f}%"),
+                    textposition="outside",
+                ))
+                fig_deb.update_layout(
+                    title=dict(text="Model as Fact-Checker", font=dict(size=14)),
+                    xaxis_title="FC Win Rate (%)",
+                    yaxis_title="",
+                    margin=dict(l=10, r=40, t=40, b=40),
+                    height=max(250, len(deb_perf) * 45 + 80),
+                    plot_bgcolor="#fafafa",
+                )
+                fig_deb.update_xaxes(range=[0, 105], gridcolor="#e8e8e8")
+                fig_deb.update_yaxes(gridcolor="#e8e8e8")
                 st.plotly_chart(fig_deb, use_container_width=True)
 
-    st.markdown('<hr class="ma-divider">', unsafe_allow_html=True)
+            # ── 3. Cross-provider detection ──────────────────────────────
+            if "cross_provider" in model_df.columns and model_df["cross_provider"].any():
+                cp_count = int(model_df["cross_provider"].sum())
+                st.caption(
+                    f"{cp_count} of {len(model_df)} debate(s) used models from different providers "
+                    f"(cross-provider matchup)."
+                )
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # PART VI — MODEL VS MODEL COMPARISON
-    # ══════════════════════════════════════════════════════════════════════════
-    st.markdown(
-        '<p class="ma-section-header">Part VI: How do different models perform against each other?</p>',
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        '<p class="ma-section-prose">'
-        'When you run debates with different LLM models (e.g., GPT-4o spreader vs Claude debunker), '
-        'this section shows how each model performs by role. '
-        '<b>Cross-provider matchups</b> (OpenAI vs Anthropic) are highlighted.'
-        '</p>',
-        unsafe_allow_html=True,
-    )
+        # ── 4. Judge model comparison ────────────────────────────────
+        st.markdown("---")
+        st.markdown(
+            '<p class="ma-section-question">Judge Model Comparison</p>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<p class="ma-chart-caption">'
+            'If different judge models score the same debate differently, the evaluation '
+            'is model-dependent — a validity concern. High agreement means the scoring is robust; '
+            'low agreement means results should be interpreted with caution.'
+            '</p>',
+            unsafe_allow_html=True,
+        )
 
-    if not df.empty and "model_spreader" in df.columns and "model_debunker" in df.columns:
-        _model_df = df.dropna(subset=["model_spreader", "model_debunker", "winner"]).copy()
-        if len(_model_df) >= 2:
-            matchup = _model_df.groupby(["model_spreader", "model_debunker"]).apply(
+        judge_col = "judge_model"
+        if judge_col not in df.columns or df[judge_col].nunique() < 2:
+            st.info(
+                "Only one judge model used across all episodes. "
+                "Run experiments with different judge models (select in the sidebar) to enable this comparison."
+            )
+        else:
+            judge_models = sorted(df[judge_col].dropna().unique())
+
+            # FC win rate by judge model
+            st.markdown("**FC win rate by judge model**")
+            judge_wr = df.groupby(judge_col).apply(
                 lambda g: pd.Series({
                     "n": len(g),
                     "fc_win_rate": (g["winner"].str.lower() == "debunker").mean(),
@@ -1370,365 +1049,486 @@ def render_analytics_page():
                 })
             ).reset_index()
 
-            if not matchup.empty:
-                matchup_disp = matchup.copy()
-                matchup_disp.columns = ["Spreader Model", "FC Model", "Debates", "FC Win %", "Avg Confidence", "Avg Margin"]
-                matchup_disp["Debates"] = matchup_disp["Debates"].astype(int)
-                matchup_disp["FC Win %"] = matchup_disp["FC Win %"].map(lambda v: f"{v:.0%}")
-                matchup_disp["Avg Confidence"] = matchup_disp["Avg Confidence"].map(lambda v: f"{v:.0%}" if pd.notna(v) else "—")
-                matchup_disp["Avg Margin"] = matchup_disp["Avg Margin"].map(lambda v: f"{v:.2f}" if pd.notna(v) else "—")
-                st.dataframe(matchup_disp, use_container_width=True, hide_index=True)
+            disp_judge = judge_wr.copy()
+            disp_judge.columns = ["Judge Model", "Debates", "FC Win %", "Avg Confidence", "Avg Margin"]
+            disp_judge["Debates"] = disp_judge["Debates"].astype(int)
+            disp_judge["FC Win %"] = disp_judge["FC Win %"].map(lambda v: f"{v:.0%}")
+            disp_judge["Avg Confidence"] = disp_judge["Avg Confidence"].map(lambda v: f"{v:.0%}" if pd.notna(v) else "—")
+            disp_judge["Avg Margin"] = disp_judge["Avg Margin"].map(lambda v: f"{v:.2f}" if pd.notna(v) else "—")
+            st.dataframe(disp_judge, use_container_width=True, hide_index=True)
 
-                if "cross_provider" in _model_df.columns and _model_df["cross_provider"].any():
-                    n_cross = int(_model_df["cross_provider"].sum())
-                    st.caption(f"{n_cross} cross-provider debate(s) detected (OpenAI vs Anthropic).")
-
-                st.markdown("**Model effectiveness as fact-checker**")
-                deb_perf = _model_df.groupby("model_debunker").apply(
-                    lambda g: pd.Series({
-                        "n": len(g),
-                        "fc_win_rate": (g["winner"].str.lower() == "debunker").mean(),
-                    })
-                ).reset_index().sort_values("fc_win_rate", ascending=False)
-                if len(deb_perf) > 1:
-                    fig_model = go.Figure()
-                    fig_model.add_trace(go.Bar(
-                        y=deb_perf["model_debunker"],
-                        x=deb_perf["fc_win_rate"],
-                        orientation="h",
-                        marker_color=DEBUNKER_COLOR,
-                        text=[f"{v:.0%} (n={int(n)})" for v, n in zip(deb_perf["fc_win_rate"], deb_perf["n"])],
-                        textposition="outside",
+            # Confidence distribution by judge model
+            st.markdown("**Confidence distribution by judge model**")
+            fig_jconf = go.Figure()
+            jcolors = [DEBUNKER_COLOR, SPREADER_COLOR, DRAW_COLOR] + ["#888"] * 10
+            for i, jm in enumerate(judge_models):
+                jm_data = pd.to_numeric(df[df[judge_col] == jm]["judge_confidence"], errors="coerce").dropna()
+                if len(jm_data) > 0:
+                    fig_jconf.add_trace(go.Box(
+                        y=jm_data, name=str(jm),
+                        marker_color=jcolors[i % len(jcolors)],
+                        boxmean=True,
                     ))
-                    fig_model.update_layout(
-                        xaxis=dict(title="Fact-checker Win Rate", tickformat=".0%", range=[0, 1.1]),
-                        yaxis=dict(title=""),
-                        margin=dict(t=10, b=40, l=150, r=60), height=max(200, len(deb_perf) * 45),
+            fig_jconf.update_layout(
+                yaxis=dict(title="Judge Confidence", tickformat=".0%", range=[0, 1.05],
+                           gridcolor="rgba(200,200,200,0.3)"),
+                margin=dict(t=10, b=40, l=60, r=15), height=300,
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                showlegend=False,
+            )
+            fig_jconf.update_yaxes(showgrid=True)
+            st.plotly_chart(fig_jconf, use_container_width=True)
+
+            # Average metric scores by judge model
+            metric_cols_spr = [c for c in df.columns if c.startswith("metric_") and c.endswith("_spreader")]
+
+            if metric_cols_spr:
+                st.markdown("**Average metric scores by judge model**")
+                jm_rows = []
+                for jm in judge_models:
+                    jm_df = df[df[judge_col] == jm]
+                    row = {"Judge Model": jm}
+                    for mc in metric_cols_spr:
+                        metric_name = mc.replace("metric_", "").replace("_spreader", "")
+                        s_mean = pd.to_numeric(jm_df[mc], errors="coerce").mean()
+                        d_col = mc.replace("_spreader", "_debunker")
+                        d_mean = pd.to_numeric(jm_df[d_col], errors="coerce").mean() if d_col in jm_df.columns else None
+                        row[f"{metric_name} (Spr)"] = round(s_mean, 1) if pd.notna(s_mean) else "—"
+                        row[f"{metric_name} (FC)"] = round(d_mean, 1) if pd.notna(d_mean) else "—"
+                    jm_rows.append(row)
+                st.dataframe(pd.DataFrame(jm_rows), use_container_width=True, hide_index=True)
+
+            st.markdown(
+                '<p class="ma-chart-caption">'
+                'If FC Win % varies significantly across judge models, the scoring is model-dependent. '
+                'Consider using judge consistency runs (N>1) or fixing the judge model for all experiments.'
+                '</p>',
+                unsafe_allow_html=True,
+            )
+
+    # ── Concessions tab ──────────────────────────────────────────────────
+    with tab_concessions:
+        st.markdown(
+            '<p class="ma-section-header">How do agents convince each other?</p>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<p class="ma-section-prose">'
+            'When a debate ends early, one side conceded — meaning the other side\'s argument '
+            'was convincing enough to trigger agreement. This section analyzes concession patterns: '
+            'who concedes, when, for which claim types, and most importantly — what argument '
+            'actually caused it.'
+            '</p>',
+            unsafe_allow_html=True,
+        )
+
+        if not df.empty and "end_trigger" in df.columns:
+            trigger_counts = df["end_trigger"].fillna("max_turns").value_counts()
+            total_eps = len(df)
+            early_stop_n = int(df["early_stop"].sum()) if "early_stop" in df.columns and df["early_stop"].dtype == bool else 0
+
+            # ── KPI cards ──
+            col_c1, col_c2, col_c3, col_c4 = st.columns(4)
+            with col_c1:
+                st.metric("Total debates", total_eps)
+            with col_c2:
+                st.metric("Concessions", early_stop_n, delta=f"{early_stop_n/max(total_eps,1):.0%} of debates")
+            with col_c3:
+                if "conceded_by" in df.columns:
+                    _spr_conc = (df["conceded_by"] == "spreader").sum()
+                    _deb_conc = (df["conceded_by"] == "debunker").sum()
+                    st.metric("Spreader conceded", int(_spr_conc))
+                else:
+                    st.metric("Spreader conceded", "—")
+            with col_c4:
+                if "conceded_by" in df.columns:
+                    st.metric("FC conceded", int(_deb_conc))
+                else:
+                    st.metric("FC conceded", "—")
+
+            # ── When do concessions happen? ──
+            if "concession_turn" in df.columns:
+                conc_turns = pd.to_numeric(df["concession_turn"], errors="coerce").dropna()
+                if len(conc_turns) >= 2:
+                    st.markdown(
+                        '<p class="ma-section-header">When do concessions happen?</p>',
+                        unsafe_allow_html=True,
+                    )
+                    fig_ct = go.Figure()
+                    fig_ct.add_trace(go.Histogram(x=conc_turns, nbinsx=10, marker_color=DRAW_COLOR, opacity=0.85))
+                    fig_ct.update_layout(
+                        xaxis=dict(title="Turn number when concession occurred"),
+                        yaxis=dict(title="Count"),
+                        margin=dict(t=10, b=40, l=50, r=15), height=250,
                         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                     )
-                    fig_model.update_xaxes(showgrid=True, gridcolor="rgba(200,200,200,0.3)")
-                    st.plotly_chart(fig_model, use_container_width=True)
-                else:
-                    st.caption("Only one model used — run debates with different models to see comparison.")
-        else:
-            st.info("Need at least 2 episodes with model data to show comparisons.")
-    else:
-        st.info("No model information found in episode data.")
+                    st.plotly_chart(fig_ct, use_container_width=True)
+                    st.markdown(
+                        '<p class="ma-chart-caption">'
+                        'Early concessions (turn 1-2) suggest the opponent\'s opening was immediately '
+                        'convincing. Late concessions suggest gradual persuasion over multiple exchanges.'
+                        '</p>',
+                        unsafe_allow_html=True,
+                    )
 
-    st.markdown('<hr class="ma-divider">', unsafe_allow_html=True)
+            # ── Concession rates by claim type ──
+            if "conceded_by" in df.columns and "claim_type" in df.columns:
+                conc_by_type = df[df["conceded_by"].notna() & df["claim_type"].notna()].copy()
+                if len(conc_by_type) >= 2:
+                    st.markdown(
+                        '<p class="ma-section-header">Which claim types trigger more concessions?</p>',
+                        unsafe_allow_html=True,
+                    )
+                    ct_grp = conc_by_type.groupby("claim_type")["conceded_by"].value_counts().unstack(fill_value=0)
+                    if not ct_grp.empty:
+                        ct_grp.columns = [c.title() for c in ct_grp.columns]
+                        st.dataframe(ct_grp, use_container_width=True)
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # PART VII — PROMPT VARIANT A/B COMPARISON
-    # ══════════════════════════════════════════════════════════════════════════
-    st.markdown(
-        '<p class="ma-section-header">Part VII: Which prompt variants perform best?</p>',
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        '<p class="ma-section-prose">'
-        'Every episode records which prompt library variant was active for each agent. '
-        'This section compares win rates across prompt variants so you can see which '
-        'prompt strategies are most effective. Only variants with ≥2 episodes are shown.'
-        '</p>',
-        unsafe_allow_html=True,
-    )
+            # ── Concession rates by model ──
+            if "conceded_by" in df.columns and "model_spreader" in df.columns:
+                conc_by_model = df[df["conceded_by"].notna()].copy()
+                if len(conc_by_model) >= 2:
+                    st.markdown(
+                        '<p class="ma-section-header">Which models concede more?</p>',
+                        unsafe_allow_html=True,
+                    )
+                    st.markdown(
+                        '<p class="ma-section-prose">'
+                        'Do certain models give up more easily as the spreader? '
+                        'Or are some models more resistant to conceding as the fact-checker?'
+                        '</p>',
+                        unsafe_allow_html=True,
+                    )
+                    _conc_model = conc_by_model.groupby(["model_spreader", "model_debunker", "conceded_by"]).size().reset_index(name="count")
+                    _conc_model.columns = ["Spreader Model", "FC Model", "Conceded By", "Count"]
+                    _conc_model["Conceded By"] = _conc_model["Conceded By"].str.title()
+                    st.dataframe(_conc_model.sort_values("Count", ascending=False), use_container_width=True, hide_index=True)
 
-    if not df.empty and "prompt_id_spreader" in df.columns:
-        _has_spr = df["prompt_id_spreader"].notna() & (df["prompt_id_spreader"] != "")
-        _has_deb = df["prompt_id_debunker"].notna() & (df["prompt_id_debunker"] != "") if "prompt_id_debunker" in df.columns else pd.Series(False, index=df.index)
-
-        if _has_spr.any() or _has_deb.any():
-            prompt_tabs = st.tabs(["Spreader prompts", "Fact-checker prompts"])
-
-            for tab_idx, (ptab, role, pid_col) in enumerate(zip(
-                prompt_tabs,
-                ["spreader", "debunker"],
-                ["prompt_id_spreader", "prompt_id_debunker"],
-            )):
-                with ptab:
-                    if pid_col not in df.columns:
-                        st.info(f"No {role} prompt variant data found.")
-                        continue
-                    valid = df[df[pid_col].notna() & (df[pid_col] != "") & df["winner"].notna()].copy()
-                    if valid.empty:
-                        st.info(f"No {role} prompt variant data found.")
-                        continue
-                    grp = valid.groupby(pid_col).apply(
-                        lambda g: pd.Series({
-                            "n": len(g),
-                            "fc_win_rate": (g["winner"].str.lower() == "debunker").mean(),
-                            "avg_confidence": pd.to_numeric(g["judge_confidence"], errors="coerce").mean(),
-                        })
-                    ).reset_index()
-                    grp = grp[grp["n"] >= 2].sort_values("fc_win_rate", ascending=False)
-                    if grp.empty:
-                        st.info(f"Need ≥2 episodes per variant to compare. Run more debates with different {role} prompts.")
-                        continue
-                    disp = grp.copy()
-                    disp.columns = ["Prompt ID", "Debates", "FC Win %", "Avg Confidence"]
-                    disp["Debates"] = disp["Debates"].astype(int)
-                    disp["FC Win %"] = disp["FC Win %"].map(lambda v: f"{v:.0%}")
-                    disp["Avg Confidence"] = disp["Avg Confidence"].map(lambda v: f"{v:.0%}" if pd.notna(v) else "—")
-                    st.dataframe(disp, use_container_width=True, hide_index=True)
-        else:
-            st.info(
-                "No prompt variant IDs found in episode data. "
-                "Apply a prompt from the Prompt Library before running debates to enable A/B tracking."
+            # ── The convincing arguments ──
+            st.markdown(
+                '<p class="ma-section-header">What arguments triggered concessions?</p>',
+                unsafe_allow_html=True,
             )
-    else:
-        st.info("No prompt variant data available yet.")
+            st.markdown(
+                '<p class="ma-section-prose">'
+                'The most important question: what did the winning side actually say that convinced '
+                'the other side to concede? Below are the final exchanges — the winning argument '
+                'and the concession response — so you can study what makes an argument convincing.'
+                '</p>',
+                unsafe_allow_html=True,
+            )
 
-    st.markdown('<hr class="ma-divider">', unsafe_allow_html=True)
+            conc_eps = df[df["early_stop"] == True].copy() if "early_stop" in df.columns else pd.DataFrame()
+            if not conc_eps.empty and "run_id" in conc_eps.columns:
+                from arena.io.run_store_v2_read import load_episodes as _load_eps
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # PART VIII — CONCESSION ANALYSIS
-    # ══════════════════════════════════════════════════════════════════════════
-    st.markdown(
-        '<p class="ma-section-header">Part VIII: When and how do debates end early?</p>',
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        '<p class="ma-section-prose">'
-        'Some debates end before the maximum turns because one side concedes. '
-        'This section shows concession patterns: who concedes more often, at what turn, '
-        'and whether certain claim types trigger earlier concessions.'
-        '</p>',
-        unsafe_allow_html=True,
-    )
+                _conc_count = 0
+                for _, row in conc_eps.iterrows():
+                    _rid = str(row.get("run_id", ""))
+                    _eid = row.get("episode_id", 0)
+                    _claim = str(row.get("claim", ""))[:70]
+                    _conceded_by = str(row.get("conceded_by", "unknown"))
+                    _conc_turn = row.get("concession_turn")
+                    _winner = str(row.get("winner", "")).title()
+                    _run_label = str(row.get("run_label", _rid))
+                    _spr_model = str(row.get("model_spreader", ""))
+                    _deb_model = str(row.get("model_debunker", ""))
 
-    if not df.empty and "end_trigger" in df.columns:
-        trigger_counts = df["end_trigger"].fillna("max_turns").value_counts()
-        total_eps = len(df)
-        early_stop_n = int(df["early_stop"].sum()) if "early_stop" in df.columns and df["early_stop"].dtype == bool else 0
+                    try:
+                        _eps_list, _ = _load_eps(_rid, RUNS_DIR)
+                        _ep = next((e for e in _eps_list if e.get("episode_id") == _eid), None)
+                    except Exception:
+                        _ep = None
 
-        col_c1, col_c2, col_c3 = st.columns(3)
-        with col_c1:
-            st.metric("Total debates", total_eps)
-        with col_c2:
-            st.metric("Early stops", early_stop_n, delta=f"{early_stop_n/max(total_eps,1):.0%} of debates")
-        with col_c3:
-            if "conceded_by" in df.columns:
-                concessions = df["conceded_by"].dropna()
-                if len(concessions):
-                    most_common = concessions.value_counts().index[0]
-                    st.metric("Most likely to concede", most_common.title())
-                else:
-                    st.metric("Concessions detected", 0)
+                    if not _ep:
+                        continue
+
+                    _turns = _ep.get("turns", [])
+                    if not _turns:
+                        continue
+
+                    _last_msgs = _turns[-2:] if len(_turns) >= 2 else _turns
+                    _conceder_label = "Spreader" if _conceded_by == "spreader" else "Fact-checker"
+                    _convincer_label = "Fact-checker" if _conceded_by == "spreader" else "Spreader"
+                    _border_color = DEBUNKER_COLOR if _conceded_by == "spreader" else SPREADER_COLOR
+
+                    _model_info = ""
+                    if _spr_model or _deb_model:
+                        _model_info = f" · {_spr_model} vs {_deb_model}"
+
+                    with st.expander(
+                        f"{_conceder_label} conceded to {_convincer_label} — \"{_claim}\""
+                        f" (Turn {_conc_turn or '?'}){_model_info}"
+                    ):
+                        for msg in _last_msgs:
+                            _name = msg.get("name", msg.get("speaker", "?"))
+                            _content = msg.get("content", "")
+                            _is_conceder = _name.lower() == _conceded_by.lower()
+
+                            if _is_conceder:
+                                _label = f"{_name.upper()} — CONCEDED"
+                                _bg = "rgba(240,165,0,0.06)"
+                                _border = DRAW_COLOR
+                            else:
+                                _label = f"{_name.upper()} — WINNING ARGUMENT"
+                                _bg = "rgba(58,126,199,0.05)" if _name.lower() == "debunker" else "rgba(232,82,74,0.05)"
+                                _border = _border_color
+
+                            st.markdown(
+                                f'<div style="border-left:3px solid {_border};background:{_bg};'
+                                f'border-radius:0 8px 8px 0;padding:0.7rem 1rem;margin-bottom:0.5rem">'
+                                f'<span style="font-size:0.68rem;font-weight:700;text-transform:uppercase;'
+                                f'letter-spacing:0.07em;color:{_border}">{_label}</span><br>'
+                                f'{_content[:800]}{"..." if len(_content) > 800 else ""}</div>',
+                                unsafe_allow_html=True,
+                            )
+
+                        if st.button("Open in Replay", key=f"conc_replay_{_rid}_{_eid}"):
+                            st.session_state["replay_target_run_id"] = _rid
+                            st.session_state["replay_target_episode_id"] = str(_eid)
+                            st.session_state["replay_target_source"] = "analytics_concession"
+                            st.info("Switch to the **Replay** tab to view the full transcript.")
+
+                    _conc_count += 1
+                    if _conc_count >= 20:
+                        st.caption(f"Showing first 20 of {len(conc_eps)} concessions.")
+                        break
             else:
-                st.metric("Concession data", "Not available")
-
-        st.markdown("**How debates end**")
-        trigger_disp = pd.DataFrame({
-            "Trigger": trigger_counts.index.map(lambda x: _fmt_trigger(x)),
-            "Count": trigger_counts.values,
-            "%": (trigger_counts.values / total_eps * 100).round(1),
-        })
-        st.dataframe(trigger_disp, use_container_width=True, hide_index=True)
-
-        if "concession_turn" in df.columns:
-            conc_turns = pd.to_numeric(df["concession_turn"], errors="coerce").dropna()
-            if len(conc_turns) >= 2:
-                st.markdown("**When do concessions happen?**")
-                fig_ct = go.Figure()
-                fig_ct.add_trace(go.Histogram(x=conc_turns, nbinsx=10, marker_color=DRAW_COLOR, opacity=0.8))
-                fig_ct.update_layout(
-                    xaxis=dict(title="Turn number"), yaxis=dict(title="Count"),
-                    margin=dict(t=10, b=40, l=50, r=15), height=250,
-                    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                st.info(
+                    "No concessions detected yet. Concessions happen when an agent uses phrases "
+                    "like 'I agree,' 'you're right,' or 'I concede.' Run more debates to see concession analysis here."
                 )
-                st.plotly_chart(fig_ct, use_container_width=True)
+        else:
+            st.info("No debate data found yet.")
 
-        if "conceded_by" in df.columns and "claim_type" in df.columns:
-            conc_by_type = df[df["conceded_by"].notna() & df["claim_type"].notna()].copy()
-            if len(conc_by_type) >= 2:
-                st.markdown("**Concession rates by claim type**")
-                ct_grp = conc_by_type.groupby("claim_type")["conceded_by"].value_counts().unstack(fill_value=0)
-                if not ct_grp.empty:
-                    st.dataframe(ct_grp, use_container_width=True)
-    else:
-        st.info("No end-trigger data found yet.")
+    # ── Anomalies tab ─────────────────────────────────────────────────────
+    with tab_anomalies:
+        st.markdown('<p class="ma-section-header">Unusual debates worth a closer look</p>', unsafe_allow_html=True)
+        st.markdown(
+            '<p class="ma-section-prose">'
+            'Most debates follow a predictable pattern, but some stand out — the judge was unusually uncertain, '
+            'the score was surprisingly close, or one side dramatically outperformed its typical level. '
+            'These outliers are often the most interesting to replay. '
+            'Select a metric below to find debates that deviate from the norm, then open any flagged debate '
+            'directly in the <b>Run Replay</b> tab.'
+            '</p>',
+            unsafe_allow_html=True,
+        )
 
-    st.markdown('<hr class="ma-divider">', unsafe_allow_html=True)
+        st.markdown(
+            '<p class="ma-section-prose">'
+            '<b>Score Margin</b> is the difference between the fact-checker\'s total score and the spreader\'s '
+            'total score. A margin near 0 means the debate was very close; a margin of 2 or more means it was '
+            'decisive. <b>Judge Confidence</b> is how certain the AI judge was in its verdict — a low-confidence '
+            'debate might be worth reviewing manually.'
+            '</p>',
+            unsafe_allow_html=True,
+        )
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # PART IX — RESPONSE LENGTH ANALYSIS
-    # ══════════════════════════════════════════════════════════════════════════
-    st.markdown(
-        '<p class="ma-section-header">Part IX: Does message length predict winning?</p>',
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        '<p class="ma-section-prose">'
-        'Each debate\'s transcript is stored in full. This section measures whether longer '
-        'responses correlate with better outcomes — a strong correlation would suggest that '
-        'verbosity (or depth) is a factor in the judge\'s evaluation.'
-        '</p>',
-        unsafe_allow_html=True,
-    )
+        ANOMALY_OPTIONS = [
+            ("Judge Confidence",      "judge_confidence"),
+            ("Score Margin",          "abs_margin"),
+            ("Turns Completed",       "completed_turn_pairs"),
+            ("Evidence Quality Gap",  "metric_evidence_quality_delta"),
+            ("Reasoning Gap",         "metric_reasoning_quality_delta"),
+            ("Persuasion Gap",        "metric_persuasion_delta"),
+            ("Responsiveness Gap",    "metric_responsiveness_delta"),
+            ("Factual Grounding Gap", "metric_truthfulness_proxy_delta"),
+            ("Civility Gap",          "metric_civility_delta"),
+        ]
+        avail = [(lbl, col) for lbl, col in ANOMALY_OPTIONS if col in df.columns]
 
-    if not df.empty and "avg_spreader_chars" in df.columns and "avg_debunker_chars" in df.columns:
-        len_df = df[["avg_spreader_chars", "avg_debunker_chars", "winner", "judge_confidence", "abs_margin"]].dropna(
-            subset=["avg_spreader_chars", "avg_debunker_chars", "winner"]
-        ).copy()
-        len_df["avg_spreader_chars"] = pd.to_numeric(len_df["avg_spreader_chars"], errors="coerce")
-        len_df["avg_debunker_chars"] = pd.to_numeric(len_df["avg_debunker_chars"], errors="coerce")
-        len_df = len_df.dropna(subset=["avg_spreader_chars", "avg_debunker_chars"])
-        len_df = len_df[(len_df["avg_spreader_chars"] > 0) | (len_df["avg_debunker_chars"] > 0)]
+        if not avail:
+            st.info("Not enough data for anomaly analysis yet.")
+        else:
+            lbl_to_col = {l: c for l, c in avail}
+            opts = [l for l, _ in avail]
 
-        if len(len_df) >= 3:
-            col_l1, col_l2 = st.columns(2)
-            with col_l1:
-                st.metric("Avg spreader message", f"{len_df['avg_spreader_chars'].mean():.0f} chars")
-            with col_l2:
-                st.metric("Avg fact-checker message", f"{len_df['avg_debunker_chars'].mean():.0f} chars")
+            if st.session_state.get("analytics_anomaly_metric") not in opts:
+                st.session_state["analytics_anomaly_metric"] = opts[0]
+            st.session_state.setdefault("analytics_anomaly_method", "IQR")
+            st.session_state.setdefault("analytics_anomaly_flagged_only", False)
 
-            len_df["abs_margin"] = pd.to_numeric(len_df["abs_margin"], errors="coerce")
-            valid_scatter = len_df.dropna(subset=["abs_margin"])
-            if len(valid_scatter) >= 3:
-                cmap = {"debunker": DEBUNKER_COLOR, "spreader": SPREADER_COLOR, "draw": DRAW_COLOR}
-                fig_len = go.Figure()
-                for w in valid_scatter["winner"].unique():
-                    sub = valid_scatter[valid_scatter["winner"] == w]
-                    fig_len.add_trace(go.Scatter(
-                        x=sub["avg_debunker_chars"], y=sub["abs_margin"],
-                        mode="markers",
-                        name=w.title().replace("Debunker", "FC wins").replace("Spreader", "Spr wins"),
-                        marker=dict(color=cmap.get(w.lower(), "#888"), size=8, opacity=0.7),
-                    ))
-                fig_len.update_layout(
-                    xaxis=dict(title="Avg fact-checker message length (chars)"),
-                    yaxis=dict(title="Score margin"),
-                    legend=dict(orientation="h", y=-0.2, x=0.5, xanchor="center"),
-                    margin=dict(t=10, b=70, l=60, r=15), height=320,
-                    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                )
-                fig_len.update_xaxes(showgrid=True, gridcolor="rgba(200,200,200,0.3)")
-                fig_len.update_yaxes(showgrid=True, gridcolor="rgba(200,200,200,0.3)")
-                st.plotly_chart(fig_len, use_container_width=True)
+            ac1, ac2, ac3 = st.columns([2, 2, 1])
+            with ac1:
+                sel_lbl = st.selectbox("Measure", opts, key="analytics_anomaly_metric")
+            with ac2:
+                sel_method = st.selectbox("Detection method", ["IQR", "Robust Z-score (MAD)"],
+                                          key="analytics_anomaly_method",
+                                          help="IQR flags values outside the typical middle 50%. MAD is more robust to extreme outliers.")
+            with ac3:
+                flagged_only = st.checkbox("Flagged only", key="analytics_anomaly_flagged_only")
+
+            col_name = lbl_to_col[sel_lbl]
+            series = pd.to_numeric(df[col_name], errors="coerce").dropna()
+
+            if len(series) < 2:
+                st.info("Not enough data points for outlier detection yet.")
+            else:
+                if sel_method == "IQR":
+                    is_outlier, lower, upper, _, _ = compute_iqr_outliers(df[col_name])
+                    adf = df.copy()
+                    adf["_val"]    = pd.to_numeric(adf[col_name], errors="coerce")
+                    adf["_flag"]   = is_outlier.reindex(adf.index, fill_value=False)
+                    adf["_reason"] = adf["_flag"].map(
+                        lambda x: f"Outside normal range ({lower:.2f} – {upper:.2f})" if x else ""
+                    )
+                    adf["_lo"] = lower; adf["_hi"] = upper
+                    adf["_score"] = adf["_val"].apply(
+                        lambda v: (v - upper) if pd.notna(v) and v > upper
+                                  else ((lower - v) if pd.notna(v) and v < lower else 0)
+                    )
+                else:
+                    is_outlier, rz, med, mad = compute_mad_outliers(df[col_name])
+                    adf = df.copy()
+                    adf["_val"]    = pd.to_numeric(adf[col_name], errors="coerce")
+                    adf["_flag"]   = is_outlier.reindex(adf.index, fill_value=False)
+                    adf["_reason"] = adf["_flag"].map(
+                        lambda x: "Statistically unusual (robust Z-score > 3.5)" if x else ""
+                    )
+                    lo = med - 3.5 * mad / 0.6745 if mad else med
+                    hi = med + 3.5 * mad / 0.6745 if mad else med
+                    adf["_lo"] = lo; adf["_hi"] = hi
+                    adf["_score"] = rz.reindex(adf.index).fillna(0).abs()
+
+                n_flagged = int(adf["_flag"].sum())
+                vals = adf["_val"].dropna()
+
+                if len(vals):
+                    # Build customdata: "run_id|||episode_id|||claim (truncated)"
+                    custom_series = (
+                        adf.reindex(vals.index)["run_id"].fillna("").astype(str)
+                        + "|||"
+                        + adf.reindex(vals.index)["episode_id"].fillna("").astype(str)
+                        + "|||"
+                        + adf.reindex(vals.index)["claim"].fillna("").astype(str).str[:55]
+                    )
+                    flagged_for_vals = adf["_flag"].reindex(vals.index, fill_value=False)
+
+                    strip_event = st.plotly_chart(
+                        _strip(vals, flagged_for_vals, sel_lbl, customdata=custom_series),
+                        use_container_width=True,
+                        on_select="rerun",
+                        selection_mode=["points"],
+                        key="anomaly_strip_chart",
+                    )
+                    st.markdown(
+                        f'<p class="ma-chart-caption">'
+                        f'Each dot is one debate. '
+                        f'<b>{n_flagged} debate{"s" if n_flagged != 1 else ""} flagged</b> out of {len(vals)} — '
+                        f'normal range: {adf["_lo"].iloc[0]:.2f} – {adf["_hi"].iloc[0]:.2f}. '
+                        f'Red × markers are outliers. <b>Click any dot to select it</b>, then open it in Replay.'
+                        f'</p>',
+                        unsafe_allow_html=True,
+                    )
+
+                    # Handle click selection
+                    selected_pts = []
+                    try:
+                        selected_pts = strip_event.selection.points or []
+                    except Exception:
+                        pass
+
+                    sel_rid = sel_eid = sel_claim = None
+                    if selected_pts:
+                        raw = selected_pts[0].get("customdata", "") or ""
+                        parts = str(raw).split("|||")
+                        if len(parts) >= 2:
+                            sel_rid   = parts[0] or None
+                            sel_eid   = parts[1] or None
+                            sel_claim = parts[2] if len(parts) > 2 else ""
+
+                    if sel_rid and sel_eid is not None:
+                        st.markdown(
+                            f'<div class="ma-callout" style="margin-top:0.5rem;">'
+                            f'<b>Selected:</b> Run <code>{sel_rid}</code> · Episode {sel_eid}'
+                            f'{(" — " + sel_claim) if sel_claim else ""}'
+                            f'</div>',
+                            unsafe_allow_html=True,
+                        )
+                        if st.button("Open in Replay →", key="analytics_open_replay", type="primary"):
+                            st.session_state["replay_target_run_id"]     = str(sel_rid)
+                            st.session_state["replay_target_episode_id"] = sel_eid
+                            st.session_state["replay_target_source"]     = "analytics"
+                            st.success("Debate queued. Switch to the **Run Replay** tab to view it.")
+                    else:
+                        st.caption("Click any dot on the chart above to select a debate, then open it in Replay.")
+
+                    # Selectbox for flagged outliers
+                    flagged_rows = adf[adf["_flag"] & adf["_val"].notna()].copy()
+                    if len(flagged_rows) > 0 and "run_id" in flagged_rows.columns and "episode_id" in flagged_rows.columns:
+                        outlier_options = []
+                        for _, row in flagged_rows.iterrows():
+                            rid = str(row.get("run_id", ""))
+                            eid = str(row.get("episode_id", ""))
+                            val = row.get("_val", "")
+                            claim = str(row.get("claim", ""))[:45]
+                            label = f"Run {rid} / Ep {eid} — {sel_lbl}: {val:.3f} — {claim}"
+                            outlier_options.append((label, rid, eid))
+                        if outlier_options:
+                            st.markdown("**Flagged outlier episodes**")
+                            out_idx = st.selectbox(
+                                "Select a flagged episode",
+                                range(len(outlier_options)),
+                                format_func=lambda i: outlier_options[i][0],
+                                key="anomaly_outlier_select",
+                            )
+                            if st.button("Open in Run Replay", key="anomaly_outlier_replay_btn"):
+                                _, o_rid, o_eid = outlier_options[out_idx]
+                                st.session_state["replay_target_run_id"] = o_rid
+                                st.session_state["replay_target_episode_id"] = o_eid
+                                st.session_state["replay_target_source"] = "analytics"
+                                st.info("Switch to the **Run Replay** tab to view this episode.")
+
+                # Scatter
                 st.markdown(
+                    '<p class="ma-section-question">Confidence vs. Score Margin</p>'
                     '<p class="ma-chart-caption">'
-                    'Each point is one debate. If longer fact-checker messages cluster with larger margins, '
-                    'message depth may be helping the judge differentiate quality.'
+                    'Each point is one debate. The further right, the more decisive the result was '
+                    '(larger score gap between the two sides). The higher up, the more confident the judge was. '
+                    'Debates in the bottom-left corner — low margin <em>and</em> low confidence — are the most '
+                    'ambiguous and worth reviewing. Hover over any point to see the claim.'
                     '</p>',
                     unsafe_allow_html=True,
                 )
 
-            st.markdown("**Average message length by outcome**")
-            by_winner = len_df.groupby("winner")[["avg_spreader_chars", "avg_debunker_chars"]].mean().round(0)
-            by_winner.columns = ["Avg Spreader (chars)", "Avg FC (chars)"]
-            st.dataframe(by_winner, use_container_width=True)
-        else:
-            st.info("Need at least 3 episodes with transcript data.")
-    else:
-        st.info("No response length data available yet.")
+                if "abs_margin" in df.columns and "judge_confidence" in df.columns:
+                    valid = df["abs_margin"].notna() & df["judge_confidence"].notna()
+                    if valid.sum() > 1:
+                        sc_df = df.loc[valid].copy()
+                        sc_df["abs_margin"]       = pd.to_numeric(sc_df["abs_margin"], errors="coerce")
+                        sc_df["judge_confidence"] = pd.to_numeric(sc_df["judge_confidence"], errors="coerce")
+                        sc_df = sc_df.dropna(subset=["abs_margin","judge_confidence"])
+                        if "winner" not in sc_df.columns: sc_df["winner"] = "unknown"
+                        if len(sc_df):
+                            st.plotly_chart(_scatter(sc_df), use_container_width=True)
 
-    st.markdown('<hr class="ma-divider">', unsafe_allow_html=True)
-
-    # ══════════════════════════════════════════════════════════════════════════
-    # PART X — LONGITUDINAL TRENDS
-    # ══════════════════════════════════════════════════════════════════════════
-    st.markdown(
-        '<p class="ma-section-header">Part X: How has performance changed over time?</p>',
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        '<p class="ma-section-prose">'
-        'Each episode records when it was created. This timeline shows how key metrics '
-        'evolve across your research — useful for spotting improvements from prompt changes, '
-        'model upgrades, or judge tuning.'
-        '</p>',
-        unsafe_allow_html=True,
-    )
-
-    if not df.empty and "created_at" in df.columns:
-        time_df = df.copy()
-        time_df["created_at"] = pd.to_datetime(time_df["created_at"], errors="coerce")
-        time_df = time_df.dropna(subset=["created_at"]).sort_values("created_at")
-
-        if len(time_df) >= 3:
-            time_df["judge_confidence"] = pd.to_numeric(time_df["judge_confidence"], errors="coerce")
-            time_df["abs_margin"] = pd.to_numeric(time_df["abs_margin"], errors="coerce")
-            time_df["fc_win"] = (time_df["winner"].str.lower() == "debunker").astype(float)
-
-            window = min(5, max(2, len(time_df) // 3))
-            time_df["rolling_confidence"] = time_df["judge_confidence"].rolling(window, min_periods=1).mean()
-            time_df["rolling_margin"] = time_df["abs_margin"].rolling(window, min_periods=1).mean()
-            time_df["rolling_fc_win"] = time_df["fc_win"].rolling(window, min_periods=1).mean()
-
-            metric_choice = st.selectbox(
-                "Trend metric",
-                options=["FC win rate", "Judge confidence", "Score margin"],
-                key="trend_metric_select",
-            )
-            col_map = {
-                "FC win rate": ("rolling_fc_win", "FC Win Rate (rolling avg)", ".0%"),
-                "Judge confidence": ("rolling_confidence", "Judge Confidence (rolling avg)", ".0%"),
-                "Score margin": ("rolling_margin", "Score Margin (rolling avg)", ".2f"),
-            }
-            y_col, y_title, y_fmt = col_map[metric_choice]
-
-            fig_trend = go.Figure()
-            fig_trend.add_trace(go.Scatter(
-                x=time_df["created_at"], y=time_df[y_col],
-                mode="lines+markers",
-                line=dict(color=DEBUNKER_COLOR, width=2),
-                marker=dict(size=5),
-                hovertemplate="<b>%{x|%b %d, %H:%M}</b><br>" + y_title + ": %{y:" + y_fmt + "}<extra></extra>",
-            ))
-            fig_trend.update_layout(
-                xaxis=dict(title=""), yaxis=dict(title=y_title, tickformat=y_fmt, gridcolor="rgba(200,200,200,0.3)"),
-                margin=dict(t=10, b=40, l=60, r=15), height=300,
-                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", showlegend=False,
-            )
-            fig_trend.update_xaxes(showgrid=True, gridcolor="rgba(200,200,200,0.3)")
-            fig_trend.update_yaxes(showgrid=True)
-            st.plotly_chart(fig_trend, use_container_width=True)
-            st.markdown(
-                f'<p class="ma-chart-caption">'
-                f'Rolling average (window={window}) smooths noise. '
-                f'An upward trend in FC win rate or confidence suggests prompt/judge improvements are working.'
-                f'</p>',
-                unsafe_allow_html=True,
-            )
-        else:
-            st.info("Need at least 3 episodes with timestamps.")
-    else:
-        st.info("No timestamp data found in episodes.")
-
-    st.markdown('<hr class="ma-divider">', unsafe_allow_html=True)
-
-    # ══════════════════════════════════════════════════════════════════════════
-    # PART XI — JUDGE CALIBRATION
-    # ══════════════════════════════════════════════════════════════════════════
-    st.markdown(
-        '<p class="ma-section-header">Part XI: Is the judge well-calibrated?</p>',
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        '<p class="ma-section-prose">'
-        'A well-calibrated judge should express <b>high confidence only when the score margin is large</b> '
-        '— i.e., when one side clearly dominated. If the bars below are flat or random, the judge\'s '
-        'confidence numbers are not tracking debate decisiveness and should be interpreted with caution. '
-        'An upward-sloping pattern (low-confidence episodes have low margins, high-confidence episodes '
-        'have large margins) indicates good calibration. '
-        'Each bar shows the mean score gap across all debates in that confidence bucket; '
-        '<em>n</em> = number of debates.'
-        '</p>',
-        unsafe_allow_html=True,
-    )
-
-    if not df.empty:
-        fig_cal = _calibration_plot(df)
-        if fig_cal is not None:
-            st.plotly_chart(fig_cal, use_container_width=True)
-            st.markdown(
-                '<p class="ma-chart-caption">'
-                'How to read: taller bars at the right side = confidence tracks decisiveness. '
-                'Flat bars = confidence is not predictive of outcome clarity — consider using Judge Consistency Mode (≥3 runs) to improve reliability.'
-                '</p>',
-                unsafe_allow_html=True,
-            )
-        else:
-            st.info("Not enough data for calibration analysis (need ≥4 episodes with both confidence and margin values).")
-    else:
-        st.info("Run some debates to see calibration data here.")
+                            # Jump to replay from scatter
+                            if "run_id" in sc_df.columns and "episode_id" in sc_df.columns:
+                                scatter_options = []
+                                for _, row in sc_df.iterrows():
+                                    rid = str(row.get("run_id", ""))
+                                    eid = str(row.get("episode_id", ""))
+                                    winner = str(row.get("winner", "")).capitalize()
+                                    margin = row.get("abs_margin", 0)
+                                    conf = row.get("judge_confidence", 0)
+                                    claim = str(row.get("claim", ""))[:40]
+                                    label = f"Run {rid} / Ep {eid} — {winner} — margin {margin:.2f}, conf {conf:.0%} — {claim}"
+                                    scatter_options.append((label, rid, eid))
+                                if scatter_options:
+                                    sc_idx = st.selectbox(
+                                        "Select an episode from the scatter plot",
+                                        range(len(scatter_options)),
+                                        format_func=lambda i: scatter_options[i][0],
+                                        key="anomaly_scatter_select",
+                                    )
+                                    if st.button("Open in Run Replay", key="anomaly_scatter_replay_btn"):
+                                        _, s_rid, s_eid = scatter_options[sc_idx]
+                                        st.session_state["replay_target_run_id"] = s_rid
+                                        st.session_state["replay_target_episode_id"] = s_eid
+                                        st.session_state["replay_target_source"] = "analytics"
+                                        st.info("Switch to the **Run Replay** tab to view this episode.")
+                    else:
+                        st.caption("Not enough data points yet.")
+                else:
+                    st.warning("Score margin or confidence columns not found in episode data.")

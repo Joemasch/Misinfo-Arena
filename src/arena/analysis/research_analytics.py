@@ -208,10 +208,9 @@ def apply_strategy_filters(
     strategy_long_df: pd.DataFrame,
     arena_modes: list[str] | None = None,
     claim_types: list[str] | None = None,
-    claim_domains: list[str] | None = None,
 ) -> pd.DataFrame:
     """
-    Filter strategy-long DataFrame by arena_mode, claim_type, claim_domain.
+    Filter strategy-long DataFrame by arena_mode and claim_type.
 
     Empty/None filter means no filter (include all).
     """
@@ -222,8 +221,6 @@ def apply_strategy_filters(
         out = out[out["arena_mode"].astype(str).isin(arena_modes)]
     if claim_types and "claim_type" in out.columns:
         out = out[out["claim_type"].astype(str).isin(claim_types)]
-    if claim_domains and "claim_domain" in out.columns:
-        out = out[out["claim_domain"].astype(str).isin(claim_domains)]
     return out
 
 
@@ -239,7 +236,6 @@ def compute_strategy_leaderboard(strategy_long_df: pd.DataFrame) -> dict:
       - primary_spreader_freq: DataFrame (strategy_label, count)
       - primary_debunker_freq: DataFrame (strategy_label, count)
       - strategy_by_claim_type: DataFrame (strategy_label, side, claim_type, count)
-      - strategy_by_claim_domain: DataFrame (strategy_label, side, claim_domain, count)
     """
     out: dict = {
         "spreader_strategy_freq": pd.DataFrame(),
@@ -249,7 +245,6 @@ def compute_strategy_leaderboard(strategy_long_df: pd.DataFrame) -> dict:
         "primary_spreader_freq": pd.DataFrame(),
         "primary_debunker_freq": pd.DataFrame(),
         "strategy_by_claim_type": pd.DataFrame(),
-        "strategy_by_claim_domain": pd.DataFrame(),
     }
     if strategy_long_df.empty:
         return out
@@ -301,11 +296,6 @@ def compute_strategy_leaderboard(strategy_long_df: pd.DataFrame) -> dict:
         agg = df.groupby(["strategy_label", "side", "claim_type"], dropna=False).size().reset_index(name="count")
         out["strategy_by_claim_type"] = agg
 
-    # Strategy by claim_domain
-    if "claim_domain" in df.columns:
-        agg = df.groupby(["strategy_label", "side", "claim_domain"], dropna=False).size().reset_index(name="count")
-        out["strategy_by_claim_domain"] = agg
-
     return out
 
 
@@ -324,20 +314,6 @@ def compute_strategy_claim_type_heatmap(strategy_long_df: pd.DataFrame) -> pd.Da
     df["claim_type"] = df["claim_type"].fillna("(unknown)").astype(str)
     agg = df.groupby(["strategy_label", "claim_type"], dropna=False).size().reset_index(name="count")
     pivot = agg.pivot_table(index="strategy_label", columns="claim_type", values="count", fill_value=0)
-    return pivot
-
-
-def compute_strategy_claim_domain_heatmap(strategy_long_df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Pivot table: rows=strategy_label, columns=claim_domain, values=count.
-    Missing combinations filled with 0.
-    """
-    if strategy_long_df.empty or "claim_domain" not in strategy_long_df.columns:
-        return pd.DataFrame()
-    df = strategy_long_df.copy()
-    df["claim_domain"] = df["claim_domain"].fillna("(unknown)").astype(str)
-    agg = df.groupby(["strategy_label", "claim_domain"], dropna=False).size().reset_index(name="count")
-    pivot = agg.pivot_table(index="strategy_label", columns="claim_domain", values="count", fill_value=0)
     return pivot
 
 
@@ -434,7 +410,10 @@ def compute_run_level_strategy_report(strategy_long_df: pd.DataFrame) -> pd.Data
         df["winner"].fillna("").astype(str).str.strip().str.lower()
         == df["side"].fillna("").astype(str).str.strip().str.lower()
     )
-    grp = df.groupby(["run_id", "strategy_label"], dropna=False).agg(
+    group_cols = ["run_id", "strategy_label"]
+    if "run_label" in df.columns:
+        group_cols = ["run_id", "run_label", "strategy_label"]
+    grp = df.groupby(group_cols, dropna=False).agg(
         strategy_count=("won", "count"),
         wins=("won", "sum"),
     ).reset_index()

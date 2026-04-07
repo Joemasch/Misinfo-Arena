@@ -85,6 +85,19 @@ def inject_debate_chat_css():
             font-weight: 700;
           }
 
+          /* ---- Citation links ---- */
+          .cite-link {
+            color: #1a73e8;
+            text-decoration: none;
+            border-bottom: 1px dotted #1a73e8;
+            font-weight: 500;
+            transition: border-color 0.15s;
+          }
+          .cite-link:hover {
+            border-bottom-style: solid;
+            color: #1558b0;
+          }
+
           /* ---- Turn summary card ---- */
           .turn-summary {
             display: flex;
@@ -235,6 +248,159 @@ def nl2br(text: str) -> str:
 import re as _re
 
 
+import urllib.parse as _urlparse
+
+# ── Known institutions → direct site links ────────────────────────────
+_INSTITUTION_URLS: dict[str, str] = {
+    "CDC": "https://www.cdc.gov",
+    "WHO": "https://www.who.int",
+    "NIH": "https://www.nih.gov",
+    "FDA": "https://www.fda.gov",
+    "EPA": "https://www.epa.gov",
+    "NASA": "https://www.nasa.gov",
+    "IPCC": "https://www.ipcc.ch",
+}
+
+# Patterns that look like citations worth linking
+_CITATION_PATTERNS = [
+    # "according to [Organization/Source]"
+    (_re.compile(r'(?i)\baccording\s+to\s+((?:the\s+)?[A-Z][A-Za-z\s&]+?)([,.\s])'), 'according_to'),
+    # "[A Year] study/report/paper in/by [Journal/Org]"
+    (_re.compile(r'(?i)\b((?:a|the)\s+\d{4}\s+(?:study|report|paper|review|analysis|survey)\s+(?:in|by|from|published\s+in)\s+)((?:the\s+)?[A-Z][A-Za-z\s&]+?)([,.\s])'), 'study_in'),
+    # Standalone known institutions (CDC, WHO, etc.)
+    (_re.compile(r'\b(' + '|'.join(_INSTITUTION_URLS.keys()) + r')\b'), 'institution'),
+    # "researchers at/from [University/Org]"
+    (_re.compile(r'(?i)\b(?:researchers?|scientists?|experts?)\s+(?:at|from)\s+((?:the\s+)?[A-Z][A-Za-z\s]+(?:University|Institute|Center|Centre|College|Lab))'), 'researchers_at'),
+    # "[Journal Name]" — capitalized multi-word phrases that look like journals
+    (_re.compile(r'(?i)\b(?:published\s+in|appeared\s+in|reported\s+in)\s+((?:the\s+)?[A-Z][A-Za-z\s]+(?:Journal|Lancet|Review|Proceedings|Nature|Science|JAMA|BMJ))'), 'journal'),
+]
+
+
+def _make_search_url(query: str, scholarly: bool = True) -> str:
+    """Build a Google Scholar or regular Google search URL."""
+    q = _urlparse.quote_plus(query.strip())
+    if scholarly:
+        return f"https://scholar.google.com/scholar?q={q}"
+    return f"https://www.google.com/search?q={q}"
+
+
+def _linkify_citations(text: str) -> str:
+    """
+    Detect source mentions in HTML-escaped text and convert them
+    to clickable search links. Uses Google Scholar for academic
+    sources and direct URLs for known institutions.
+
+    This is display-only — the raw transcript is never modified.
+    Links open in new tabs and are styled as subtle citation badges.
+    """
+    if not text:
+        return text
+
+    replacements: list[tuple[int, int, str]] = []
+
+    # Pass 1: Known institutions (CDC, WHO, etc.) → direct site link
+    for match in _re.finditer(r'\b(' + '|'.join(_INSTITUTION_URLS.keys()) + r')\b', text):
+        name = match.group(1)
+        url = _INSTITUTION_URLS.get(name, "")
+        if url:
+            link = (
+                f'<a href="{url}" target="_blank" rel="noopener" '
+                f'class="cite-link" title="Visit {name}">{name}</a>'
+            )
+            replacements.append((match.start(), match.end(), link))
+
+    # Pass 2: "according to [Source]" → scholar search
+    for match in _re.finditer(
+        r'(?i)\baccording\s+to\s+((?:the\s+)?[A-Z][A-Za-z\s&]{3,60}?)([,.]|\s+(?:and|the|that|this|it|we|a)\b)',
+        text,
+    ):
+        source = match.group(1).strip().rstrip(",.")
+        if len(source) < 5 or source.lower() in ("the", "them", "this", "that", "some", "many"):
+            continue
+        # Skip if overlaps with an institution already linked
+        if any(s <= match.start(1) < e for s, e, _ in replacements):
+            continue
+        url = _make_search_url(source)
+        link = (
+            f'<a href="{url}" target="_blank" rel="noopener" '
+            f'class="cite-link" title="Search for: {source}">{source}</a>'
+        )
+        replacements.append((match.start(1), match.end(1), link))
+
+    # Pass 3: "[Year] study in [Journal/Source]" → scholar search
+    for match in _re.finditer(
+        r'(?i)\b(\d{4})\s+(?:study|report|paper|review|analysis|survey)\s+(?:in|by|from|published\s+in)\s+((?:the\s+)?[A-Z][A-Za-z\s&]{3,60}?)([,.]|\s+(?:found|show|suggest|report|confirm|indicat))',
+        text,
+    ):
+        year = match.group(1)
+        journal = match.group(2).strip().rstrip(",.")
+        if len(journal) < 5:
+            continue
+        if any(s <= match.start(2) < e for s, e, _ in replacements):
+            continue
+        url = _make_search_url(f"{journal} {year}")
+        link = (
+            f'<a href="{url}" target="_blank" rel="noopener" '
+            f'class="cite-link" title="Search: {journal} {year}">{journal}</a>'
+        )
+        replacements.append((match.start(2), match.end(2), link))
+
+    # Pass 4: "published in [Journal]" → scholar search
+    for match in _re.finditer(
+        r'(?i)\b(?:published|appeared|reported)\s+in\s+((?:the\s+)?[A-Z][A-Za-z\s&]{5,60}?)([,.]|\s+(?:the|that|this|and|show|found|in\s+\d))',
+        text,
+    ):
+        journal = match.group(1).strip().rstrip(",.")
+        if len(journal) < 5:
+            continue
+        if any(s <= match.start(1) < e for s, e, _ in replacements):
+            continue
+        url = _make_search_url(journal)
+        link = (
+            f'<a href="{url}" target="_blank" rel="noopener" '
+            f'class="cite-link" title="Search: {journal}">{journal}</a>'
+        )
+        replacements.append((match.start(1), match.end(1), link))
+
+    # Pass 5: "researchers/scientists at [Institution]" → scholar search
+    for match in _re.finditer(
+        r'(?i)\b(?:researchers?|scientists?|experts?)\s+(?:at|from)\s+((?:the\s+)?[A-Z][A-Za-z\s]{5,60}?(?:University|Institute|Center|Centre|College|Lab|School))',
+        text,
+    ):
+        inst = match.group(1).strip()
+        if any(s <= match.start(1) < e for s, e, _ in replacements):
+            continue
+        url = _make_search_url(inst)
+        link = (
+            f'<a href="{url}" target="_blank" rel="noopener" '
+            f'class="cite-link" title="Search: {inst}">{inst}</a>'
+        )
+        replacements.append((match.start(1), match.end(1), link))
+
+    # Apply replacements — deduplicate overlapping ranges, prefer longer matches
+    if not replacements:
+        return text
+
+    # Sort by start position, then prefer longer spans
+    replacements.sort(key=lambda r: (r[0], -(r[1] - r[0])))
+
+    # Remove overlapping replacements (keep the first/longest at each position)
+    filtered: list[tuple[int, int, str]] = []
+    last_end = -1
+    for start, end, link in replacements:
+        if start >= last_end:
+            filtered.append((start, end, link))
+            last_end = end
+
+    # Apply in reverse order
+    filtered.sort(key=lambda r: r[0], reverse=True)
+    result = text
+    for start, end, link in filtered:
+        result = result[:start] + link + result[end:]
+
+    return result
+
+
 def _format_for_display(raw: str) -> str:
     """
     Format raw agent text for readable display in chat bubbles.
@@ -254,6 +420,9 @@ def _format_for_display(raw: str) -> str:
     text = _re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
     # *italic* → <i>italic</i>
     text = _re.sub(r'\*(.+?)\*', r'<i>\1</i>', text)
+
+    # ── Convert citation mentions to search links ────────────────────────
+    text = _linkify_citations(text)
 
     # ── Split into paragraphs ────────────────────────────────────────────
     paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
@@ -304,34 +473,53 @@ def _detect_tactics(content: str, role: str) -> str:
     """
     Detect rhetorical tactics in a message using regex (no API call).
     Returns a short human-readable label like "emotional appeal + vague sources".
+
+    Uses SEPARATE pattern sets for spreader vs debunker to avoid
+    labeling legitimate fact-checking as negative tactics.
     """
     if not content:
         return ""
 
-    # Tactic patterns → human-readable labels (ordered by salience)
-    _TACTIC_PATTERNS = [
-        (_re.compile(r"\b(cover\s*up|hidden\s+truth|they\s+don'?t\s+want|mainstream\s+media|suppressed)\b", _re.I),
+    # Spreader-specific patterns (misinformation tactics)
+    _SPREADER_PATTERNS = [
+        (_re.compile(r"\b(cover\s*up|hidden\s+truth|they\s+don'?t\s+want|suppressed|wake\s+up)\b", _re.I),
          "conspiracy framing"),
-        (_re.compile(r"\b(fear|corrupt|agenda|dangerous|threat|protect|alarming|devastating)\b", _re.I),
+        (_re.compile(r"\b(fear|alarming|devastating|outrage|terrifying|urgent|crisis)\b", _re.I),
          "emotional appeal"),
         (_re.compile(r"\b(experts\s+say|people\s+say|research\s+shows?|studies\s+show|it'?s\s+known)\b", _re.I),
          "vague sources"),
         (_re.compile(r"\b(CDC|WHO|NIH|FDA|according\s+to|journal|university|published)\b", _re.I),
-         "named sources"),
+         "cited sources"),
         (_re.compile(r"\d+%|\d+\s*(?:million|billion|percent)", _re.I),
          "specific data"),
-        (_re.compile(r"\b(claim\s+is\s+false|evidence\s+shows|in\s+fact|the\s+evidence|debunked)\b", _re.I),
-         "direct refutation"),
-        (_re.compile(r"\b(fallacy|logical\s+error|manipulation|tactic|technique|exploiting)\b", _re.I),
-         "named manipulation tactic"),
-        (_re.compile(r"\b(however|although|on\s+the\s+other\s+hand|that\s+said)\b", _re.I),
-         "counterargument"),
         (_re.compile(r"\b(because|therefore|thus|leads?\s+to|result(s|ing)\s+in)\b", _re.I),
          "causal reasoning"),
+        (_re.compile(r"\b(imagine|consider\s+this|what\s+if|picture\s+a\s+world)\b", _re.I),
+         "narrative framing"),
     ]
 
+    # Debunker-specific patterns (fact-checking tactics)
+    _DEBUNKER_PATTERNS = [
+        (_re.compile(r"\b(CDC|WHO|NIH|FDA|according\s+to|journal|university|published|peer.reviewed)\b", _re.I),
+         "cited sources"),
+        (_re.compile(r"\b(fallacy|logical\s+error|manipulation|tactic|technique|exploiting|misleading)\b", _re.I),
+         "named tactic"),
+        (_re.compile(r"\b(evidence\s+shows|the\s+evidence|data\s+shows?|research\s+confirms?)\b", _re.I),
+         "evidence-based rebuttal"),
+        (_re.compile(r"\b(consensus|scientific\s+community|experts\s+agree|peer.reviewed)\b", _re.I),
+         "consensus appeal"),
+        (_re.compile(r"\d+%|\d+\s*(?:million|billion|percent)", _re.I),
+         "specific data"),
+        (_re.compile(r"\b(however|although|on\s+the\s+other\s+hand|in\s+contrast|contrary)\b", _re.I),
+         "counterargument"),
+        (_re.compile(r"\b(alternative|instead|the\s+reality|what\s+actually)\b", _re.I),
+         "alternative narrative"),
+    ]
+
+    patterns = _SPREADER_PATTERNS if role == "spreader" else _DEBUNKER_PATTERNS
+
     detected = []
-    for pattern, label in _TACTIC_PATTERNS:
+    for pattern, label in patterns:
         if pattern.search(content):
             detected.append(label)
         if len(detected) >= 3:
@@ -344,21 +532,43 @@ def _detect_tactics(content: str, role: str) -> str:
 
 def _extract_key_move(content: str) -> str:
     """
-    Extract the opening thesis / key move from a message for the turn summary.
-    Returns the full first sentence — no truncation.
+    Extract the substantive thesis from a message for the turn summary.
+    Skips generic openers ("Thank you", "Let's consider") and finds
+    the first sentence that makes an actual claim or argument.
     """
     if not content:
         return ""
     text = content.strip()
-    # Find first sentence boundary
-    match = _re.match(r'^(.+?[.!?])(?:\s|$)', text, _re.DOTALL)
-    if match:
-        return html_escape(match.group(1).strip())
-    # No sentence boundary found — use first 200 chars
-    if len(text) > 200:
-        trimmed = text[:200].rsplit(' ', 1)[0]
-        return html_escape(trimmed) + "..."
-    return html_escape(text)
+
+    # Split into sentences
+    sentences = _re.split(r'(?<=[.!?])\s+', text)
+
+    # Generic opener patterns to skip
+    _SKIP_PATTERNS = _re.compile(
+        r'^(thank\s+you|thanks\s+for|let\'?s\s+(consider|pause|cut|get|not|explore|look|take)|'
+        r'imagine\s+a|picture\s+a|i\s+appreciate|you\s+(raise|make|bring)|'
+        r'that\'?s\s+(a\s+)?(great|good|fair|valid|important)|'
+        r'while\s+(i|it\'?s)\s+(understand|important|true)|'
+        r'it\'?s\s+(important|crucial|essential)\s+to)',
+        _re.I,
+    )
+
+    for sentence in sentences:
+        sentence = sentence.strip()
+        if not sentence:
+            continue
+        # Skip very short sentences
+        if len(sentence) < 30:
+            continue
+        # Skip generic openers
+        if _SKIP_PATTERNS.match(sentence):
+            continue
+        return html_escape(sentence)
+
+    # Fallback: just use the first sentence if all were generic
+    if sentences:
+        return html_escape(sentences[0].strip())
+    return html_escape(text[:200])
 
 
 def _build_chat_html(messages: List[Dict[str, Any]]) -> str:
@@ -465,116 +675,8 @@ def render_debate_chat_into(container, messages: List[Dict[str, Any]]):
 
 
 def render_debate_controls():
-    """Render debate control buttons."""
-    col_start, col_auto = st.columns([1, 1])
-
-    with col_start:
-        # Manual test: num_episodes=2, turn_plan [4,6] -> click Start -> expect 1/2, max_turns=4;
-        # after ep1 completes -> chain to 2/2, max_turns=6, chat cleared; after ep2 -> run complete.
-        if st.button("🎯 Start new match", use_container_width=True, key="debate_start_match_btn"):
-            from app import get_ui_claim, arena_dbg
-            ss = st.session_state
-
-            if not ss.get("run_active", False):
-                st.error("Start a new run first.")
-                st.stop()
-
-            # Block if the selected model's API key is missing
-            from arena.utils.api_keys import get_key_status
-            from arena.agents import is_anthropic_model, is_gemini_model, is_grok_model
-            _key_status = get_key_status()
-            for _role, _model_key in [("Spreader", "spreader_model"), ("Fact-checker", "debunker_model")]:
-                _model = ss.get(_model_key, "gpt-4o-mini")
-                if is_anthropic_model(_model) and not _key_status.get("anthropic", {}).get("set"):
-                    st.error(f"**{_role} uses {_model} but ANTHROPIC_API_KEY is not set.** Paste it in the sidebar or add it to `.streamlit/secrets.toml`.")
-                    st.stop()
-                elif is_gemini_model(_model) and not _key_status.get("gemini", {}).get("set"):
-                    st.error(f"**{_role} uses {_model} but GEMINI_API_KEY is not set.** Paste it in the sidebar or add it to `.streamlit/secrets.toml`.")
-                    st.stop()
-                elif is_grok_model(_model) and not _key_status.get("grok", {}).get("set") and not _key_status.get("xai", {}).get("set"):
-                    st.error(f"**{_role} uses {_model} but XAI_API_KEY is not set.** Paste it in the sidebar or add it to `.streamlit/secrets.toml`.")
-                    st.stop()
-                elif not is_anthropic_model(_model) and not is_gemini_model(_model) and not is_grok_model(_model) and not _key_status.get("openai", {}).get("set"):
-                    st.error(f"**{_role} uses {_model} but OPENAI_API_KEY is not set.** Paste it in the sidebar or add it to `.streamlit/secrets.toml`.")
-                    st.stop()
-
-            arena_mode = ss.get("arena_mode", "single_claim")
-            if arena_mode == "multi_claim":
-                claims_list = ss.get("claims_list", [])
-                if not claims_list:
-                    st.warning("Enter or upload at least one claim.")
-                    st.stop()
-                ui_claim = claims_list[0]
-                ss["current_claim_index"] = 0
-                ss["total_claims"] = len(claims_list)
-                ss["max_turns"] = 10
-                ss["num_episodes"] = len(claims_list)
-            else:
-                ui_claim = get_ui_claim()
-                if not ui_claim:
-                    st.warning("Please enter a claim to debate.")
-                    st.stop()
-
-            if ss.get("turn_plan_valid") is False:
-                st.error("Fix the Run Plan (turn plan must be valid).")
-                st.stop()
-
-            if ss.get("match_in_progress", False):
-                st.warning("A match is already in progress.")
-                st.stop()
-
-            if "episode_idx" not in ss:
-                ss["episode_idx"] = 1
-
-            ss["topic"] = ui_claim
-            ss["current_claim"] = ui_claim
-            ss["claim"] = ui_claim
-
-            arena_dbg("MATCH_START_TOPIC",
-                     ui_claim=(ui_claim or "")[:50],
-                     ss_topic=(ss.get("topic") or "")[:50],
-                     ss_current_claim=(ss.get("current_claim") or "")[:50],
-                     ss_claim=(ss.get("claim") or "")[:50])
-
-            ss["debate_messages"] = []
-            ss["episode_transcript"] = []
-            ss["completed_turn_pairs"] = 0
-            ss["turn_idx"] = 0
-            ss["debate_phase"] = "spreader"
-
-            if arena_mode != "multi_claim":
-                try:
-                    from arena.ui.run_planner import apply_turn_plan_to_episode
-                except ImportError:
-                    import sys
-                    sys.path.insert(0, "src")
-                    from arena.ui.run_planner import apply_turn_plan_to_episode
-                apply_turn_plan_to_episode(ss, ss.get("episode_idx", 1))
-
-            _arena_dbg(f"[ARENA] Start new match: episode_idx={ss.get('episode_idx')} episodes_completed={ss.get('episodes_completed', 0)} max_turns={ss.get('max_turns')} run_active={ss.get('run_active')}")
-
-            ss["match_in_progress"] = True
-            ss["debate_running"] = True
-            ss["debate_autoplay"] = True
-            ss["match_id"] = f"match_{ss['episode_idx']}"
-
-            arena_dbg("MATCH_START_RESET",
-                     match_id=ss.get("match_id"),
-                     episode_idx=ss.get("episode_idx"),
-                     topic=(ss.get("topic") or "")[:50],
-                     debate_messages_len=len(ss.get("debate_messages") or []),
-                     episode_transcript_len=len(ss.get("episode_transcript") or []),
-                     completed_turn_pairs=ss.get("completed_turn_pairs"),
-                     debate_phase=ss.get("debate_phase"),
-                     debate_running=ss.get("debate_running"),
-                     match_in_progress=ss.get("match_in_progress"),
-                     debate_autoplay=ss.get("debate_autoplay"))
-
-            arena_dbg("RERUN_EXECUTED", reason="start_new_match")
-            st.rerun()
-
-    with col_auto:
-        st.checkbox("Auto-play", value=st.session_state.debate_autoplay, key="debate_autoplay")
+    """Render debate auto-play control. Start is handled by the arena page button."""
+    st.checkbox("Auto-play turns", value=st.session_state.debate_autoplay, key="debate_autoplay")
 
 
 def run_debate_step(

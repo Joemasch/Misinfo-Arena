@@ -16,11 +16,8 @@ from arena.analysis.episode_dataset import build_strategy_long_df
 from arena.analysis.research_analytics import (
     apply_strategy_filters,
     compute_strategy_leaderboard,
-    compute_strategy_claim_type_heatmap,
-    compute_strategy_claim_domain_heatmap,
     compute_strategy_win_rate_table,
     compute_primary_strategy_performance,
-    compute_strategy_cooccurrence,
     compute_run_level_strategy_report,
 )
 from arena.presentation.streamlit.state.runs_refresh import get_auto_run_ids
@@ -249,31 +246,6 @@ def _primary_perf_chart(primary_df: pd.DataFrame) -> go.Figure:
     return fig
 
 
-def _cooccurrence_heatmap(comatrix: pd.DataFrame) -> go.Figure:
-    """Plotly heatmap — strategy co-occurrence matrix."""
-    n      = min(20, len(comatrix))
-    mat    = comatrix.iloc[:n, :n]
-    labels = [_label(c) for c in mat.columns]
-    z      = mat.values.tolist()
-
-    fig = go.Figure(go.Heatmap(
-        z=z,
-        x=labels,
-        y=[_label(idx) for idx in mat.index],
-        colorscale="Purples",
-        reversescale=False,
-        hovertemplate="<b>%{y}</b> + <b>%{x}</b><br>Co-occurred in %{z} episodes<extra></extra>",
-        colorbar=dict(title="Co-occurrences", tickfont=dict(size=10)),
-    ))
-    fig.update_layout(
-        xaxis=dict(tickangle=-40, tickfont=dict(size=10)),
-        yaxis=dict(tickfont=dict(size=10), autorange="reversed"),
-        margin=dict(t=10, b=120, l=10, r=10),
-        height=max(400, n * 28 + 160),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-    )
-    return fig
-
 
 def _claim_heatmap(pivot_df: pd.DataFrame, colorscale: str, title: str) -> go.Figure:
     """Plotly heatmap — strategy × claim attribute frequency."""
@@ -338,22 +310,18 @@ def render_strategy_leaderboard_page():
     # ── Filters ───────────────────────────────────────────────────────────
     arena_opts      = [x for x in strategy_long_df.get("arena_mode",      pd.Series()).dropna().unique() if str(x) not in ("nan","None")]
     claim_type_opts = [x for x in strategy_long_df.get("claim_type",      pd.Series()).dropna().unique() if str(x) not in ("nan","None")]
-    claim_dom_opts  = [x for x in strategy_long_df.get("claim_domain",    pd.Series()).dropna().unique() if str(x) not in ("nan","None")]
 
     with st.expander("Filters", expanded=False):
-        fc1, fc2, fc3 = st.columns(3)
+        fc1, fc2 = st.columns(2)
         with fc1:
             sel_arena = st.multiselect("Arena mode", arena_opts, default=[], key="sl_arena")
         with fc2:
             sel_claim_type = st.multiselect("Claim type", claim_type_opts, default=[], key="sl_claim_type")
-        with fc3:
-            sel_claim_domain = st.multiselect("Claim domain", claim_dom_opts, default=[], key="sl_claim_domain")
 
     filtered = apply_strategy_filters(
         strategy_long_df,
         arena_modes=sel_arena or None,
         claim_types=sel_claim_type or None,
-        claim_domains=sel_claim_domain or None,
     )
 
     if filtered.empty:
@@ -364,9 +332,6 @@ def render_strategy_leaderboard_page():
     lb          = compute_strategy_leaderboard(filtered)
     win_rate_df = compute_strategy_win_rate_table(filtered)
     primary_df  = compute_primary_strategy_performance(filtered)
-    cooc_matrix = compute_strategy_cooccurrence(filtered)
-    ct_heatmap  = compute_strategy_claim_type_heatmap(filtered)
-    cd_heatmap  = compute_strategy_claim_domain_heatmap(filtered)
     run_report  = compute_run_level_strategy_report(filtered)
 
     spr_freq = lb.get("spreader_strategy_freq", pd.DataFrame())
@@ -519,64 +484,60 @@ def render_strategy_leaderboard_page():
         st.caption("No primary strategy data.")
 
     # ══════════════════════════════════════════════════════════════════════
-    # SECTION 3 — CO-OCCURRENCE
+    # SECTION 3 — STRATEGY × CLAIM TYPE (split by side)
     # ══════════════════════════════════════════════════════════════════════
-    st.markdown('<hr class="sl-divider">', unsafe_allow_html=True)
-    st.markdown('<p class="sl-section">Part III: Which strategies appear together?</p>', unsafe_allow_html=True)
-    st.markdown(
-        '<p class="sl-prose">'
-        'The co-occurrence matrix shows how often pairs of strategies were both detected '
-        'in the same episode — across both sides combined. A high count at the intersection '
-        'of two strategies means agents frequently combined both tactics in the same debate. '
-        'Darker cells = more co-occurrences. Hover over any cell for the exact count.'
-        '</p>',
-        unsafe_allow_html=True,
-    )
-    if not cooc_matrix.empty:
-        st.plotly_chart(_cooccurrence_heatmap(cooc_matrix), use_container_width=True)
-    else:
-        st.caption("No co-occurrence data yet — need more episodes with strategy labels.")
+    has_ct = "claim_type" in filtered.columns and filtered["claim_type"].notna().any()
 
-    # ══════════════════════════════════════════════════════════════════════
-    # SECTION 4 — CLAIM TYPE / DOMAIN BREAKDOWN (conditional)
-    # ══════════════════════════════════════════════════════════════════════
-    has_ct = not ct_heatmap.empty
-    has_cd = not cd_heatmap.empty
-
-    if has_ct or has_cd:
+    if has_ct:
         st.markdown('<hr class="sl-divider">', unsafe_allow_html=True)
         st.markdown(
-            '<p class="sl-section">Part IV: Does claim type affect strategy choice?</p>',
+            '<p class="sl-section">Part III: Does claim type affect strategy choice?</p>',
             unsafe_allow_html=True,
         )
         st.markdown(
             '<p class="sl-prose">'
-            'These heatmaps show which strategies appeared most in debates about specific '
-            'claim types or topic domains. A strategy that appears heavily in one claim '
-            'type but not others may be domain-specific — a genuine finding worth examining.'
+            'Which tactics does each side use for different claim types? '
+            'A strategy concentrated in one domain but absent from others is a domain-specific finding. '
+            'Spreader and fact-checker tactics are shown separately so you can see which side drives the pattern.'
             '</p>',
             unsafe_allow_html=True,
         )
 
-        if has_ct:
-            st.markdown(
-                '<p class="sl-sub">Strategy frequency by claim type</p>',
-                unsafe_allow_html=True,
-            )
-            st.plotly_chart(
-                _claim_heatmap(ct_heatmap, "YlOrRd", "Strategy × Claim Type"),
-                use_container_width=True,
-            )
+        _spr_data = filtered[filtered["side"] == "spreader"].copy() if "side" in filtered.columns else pd.DataFrame()
+        _deb_data = filtered[filtered["side"] == "debunker"].copy() if "side" in filtered.columns else pd.DataFrame()
 
-        if has_cd:
+        def _build_side_heatmap(side_df, title, colorscale):
+            if side_df.empty or "claim_type" not in side_df.columns:
+                return None
+            side_df["claim_type"] = side_df["claim_type"].fillna("(unknown)").astype(str)
+            agg = side_df.groupby(["strategy_label", "claim_type"], dropna=False).size().reset_index(name="count")
+            pivot = agg.pivot_table(index="strategy_label", columns="claim_type", values="count", fill_value=0)
+            if pivot.empty or pivot.size < 2:
+                return None
+            return _claim_heatmap(pivot, colorscale, title)
+
+        hm_col1, hm_col2 = st.columns(2)
+        with hm_col1:
             st.markdown(
-                '<p class="sl-sub">Strategy frequency by claim domain</p>',
+                '<p class="sl-sub">Spreader tactics by claim type</p>',
                 unsafe_allow_html=True,
             )
-            st.plotly_chart(
-                _claim_heatmap(cd_heatmap, "Blues", "Strategy × Claim Domain"),
-                use_container_width=True,
+            fig_spr_hm = _build_side_heatmap(_spr_data, "Spreader × Claim Type", "Reds")
+            if fig_spr_hm:
+                st.plotly_chart(fig_spr_hm, use_container_width=True)
+            else:
+                st.caption("Not enough spreader strategy data across claim types.")
+
+        with hm_col2:
+            st.markdown(
+                '<p class="sl-sub">Fact-checker tactics by claim type</p>',
+                unsafe_allow_html=True,
             )
+            fig_deb_hm = _build_side_heatmap(_deb_data, "Fact-checker × Claim Type", "Blues")
+            if fig_deb_hm:
+                st.plotly_chart(fig_deb_hm, use_container_width=True)
+            else:
+                st.caption("Not enough fact-checker strategy data across claim types.")
 
     # ══════════════════════════════════════════════════════════════════════
     # SECTION 5 — RUN-LEVEL REPORT

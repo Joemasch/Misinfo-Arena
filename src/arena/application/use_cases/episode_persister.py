@@ -159,7 +159,7 @@ def _persist_completed_match(ss) -> None:
 
         # Add judge audit envelope
         judge_mode = ss.get("judge_mode", "heuristic")
-        agent_model = os.getenv("AGENT_JUDGE_MODEL", "gpt-4o-mini")
+        agent_model = ss.get("judge_model_select") or os.getenv("AGENT_JUDGE_MODEL", "gpt-4o-mini")
         if judge_mode == "agent":
             judge_version = f"agent_v1:{agent_model}"
         elif judge_mode == "heuristic_fallback":

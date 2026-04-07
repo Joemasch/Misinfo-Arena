@@ -114,12 +114,13 @@ def _build_matrix(outcomes: list) -> pd.DataFrame:
 def render_experiment_page():
     _inject_styles()
 
-    st.markdown('<p class="ex-page-title">Batch Experiment</p>', unsafe_allow_html=True)
+    st.markdown('<p class="ex-page-title">Model Comparison Experiment</p>', unsafe_allow_html=True)
     st.markdown(
         '<p class="ex-page-subtitle">'
-        'Run a systematic grid of prompt variants × claims. '
-        'Every spreader variant is paired with every fact-checker variant for every claim — '
-        'the results matrix shows who won each cell so you can compare strategies at a glance.'
+        'Compare how different LLM models perform as spreader and fact-checker across a set of claims. '
+        'Set different models per side (e.g., GPT-4o spreader vs Claude debunker) to test whether '
+        'model capability affects debate outcomes. Prompts are fixed to the literature-grounded '
+        'IME507 defaults — the independent variable is the model, not the prompt.'
         '</p>',
         unsafe_allow_html=True,
     )
@@ -127,11 +128,12 @@ def render_experiment_page():
     st.markdown('<hr class="ex-divider">', unsafe_allow_html=True)
 
     # ── Prompt Variants ──────────────────────────────────────────────────────
-    st.markdown('<p class="ex-section">Prompt Variants</p>', unsafe_allow_html=True)
+    st.markdown('<p class="ex-section">Agent Prompts</p>', unsafe_allow_html=True)
     st.markdown(
         '<p class="ex-prose">'
-        'Define prompt variants for each side. Type them manually or upload a CSV. '
-        'Every spreader variant is paired with every fact-checker variant, for every claim.'
+        'The research-grounded IME507 prompts are pre-loaded for both sides. '
+        'These are the canonical prompts used across all experiments for consistency. '
+        'You can upload custom variants via CSV if needed for exploratory analysis.'
         '</p>',
         unsafe_allow_html=True,
     )
@@ -290,8 +292,19 @@ def render_experiment_page():
                 if "claim" not in cdf.columns:
                     st.error("File must have a `claim` column. Found: " + ", ".join(cdf.columns))
                 else:
+                    # Auto-classify claims missing claim_type
+                    from arena.claim_metadata import classify_claim
+                    if "claim_type" not in cdf.columns:
+                        cdf["claim_type"] = ""
+                    for idx, row in cdf.iterrows():
+                        ct = str(row.get("claim_type", "") or "").strip()
+                        if not ct or ct.lower() in ("", "unknown", "nan", "none"):
+                            classified, _ = classify_claim(str(row["claim"]).strip(), use_llm_fallback=False)
+                            if classified and classified != "unknown":
+                                cdf.at[idx, "claim_type"] = classified
+
                     claims = [str(c).strip() for c in cdf["claim"].dropna() if str(c).strip()]
-                    st.success(f"Loaded {len(claims)} claims")
+                    st.success(f"Loaded {len(claims)} claims (auto-classified)")
                     with st.expander(f"Preview ({len(claims)} claims)", expanded=False):
                         for i, c in enumerate(claims[:20]):
                             st.caption(f"{i+1}. {c[:100]}{'...' if len(c) > 100 else ''}")

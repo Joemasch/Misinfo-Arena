@@ -115,12 +115,12 @@ def render_guide_page():
         unsafe_allow_html=True,
     )
 
-    sub_home, sub_how, sub_about = st.tabs(["Why this exists", "How to use it", "Research context"])
+    tab_about, tab_how, tab_research = st.tabs(["About", "How to use it", "Research design"])
 
     # ════════════════════════════════════════════════════════════════════════
-    # TAB 1 — WHY THIS EXISTS
+    # TAB 1 — ABOUT
     # ════════════════════════════════════════════════════════════════════════
-    with sub_home:
+    with tab_about:
         st.markdown(
             '<p class="gp-section">We are living through an information crisis</p>',
             unsafe_allow_html=True,
@@ -141,7 +141,7 @@ def render_guide_page():
         st.markdown("""
         <div class="gp-stat-row">
             <div class="gp-stat">
-                <div class="gp-stat-num" style="color:#ef4444;">6×</div>
+                <div class="gp-stat-num" style="color:#ef4444;">6&times;</div>
                 <div class="gp-stat-label">Faster spread of false news vs. true news on social media <em>(Science, 2018)</em></div>
             </div>
             <div class="gp-stat">
@@ -193,18 +193,15 @@ def render_guide_page():
         )
         st.markdown(
             '<p class="gp-prose">'
-            'This platform simulates the debate that happens in the real world, but under '
-            'controlled conditions where we can observe, measure, and replay every move. '
-            'Two AI agents argue a claim from opposing positions. A third AI evaluates the '
-            'exchange across six rhetorical dimensions. Every turn, every score, every '
-            'strategy label is recorded.'
+            'Two AI agents debate a claim. A third AI judges. Every argument, every score, '
+            'every strategy is recorded.'
             '</p>',
             unsafe_allow_html=True,
         )
 
         cols_why = st.columns(3)
         with cols_why[0]:
-            st.markdown("**Simulate, not just label**")
+            st.markdown("**Simulate the exchange**")
             st.markdown(
                 '<p style="font-size:0.88rem;color:#4b5563;">'
                 'We model the actual argumentative exchange — how a spreader responds to '
@@ -224,12 +221,13 @@ def render_guide_page():
                 unsafe_allow_html=True,
             )
         with cols_why[2]:
-            st.markdown("**Accumulate evidence across claims**")
+            st.markdown("**Test at scale**")
             st.markdown(
                 '<p style="font-size:0.88rem;color:#4b5563;">'
-                'Run the same claim dozens of times to study variance. Run many different '
-                'claims to study patterns. The analytics layer turns individual debates '
-                'into a research dataset.'
+                'Import hundreds of claims via CSV, use auto-run to execute them '
+                'back-to-back, and generate thousands of episodes without manual '
+                'intervention. The analytics layer turns individual debates into a '
+                'research dataset.'
                 '</p>',
                 unsafe_allow_html=True,
             )
@@ -238,11 +236,11 @@ def render_guide_page():
         st.markdown(
             '<p class="gp-ref">'
             'Vosoughi, S., Roy, D., &amp; Aral, S. (2018). The spread of true and false news online. '
-            '<em>Science, 359</em>(6380), 1146–1151. · '
+            '<em>Science, 359</em>(6380), 1146&ndash;1151. &middot; '
             'Nyhan, B., &amp; Reifler, J. (2010). When corrections fail: The persistence of political '
-            'misperceptions. <em>Political Behavior, 32</em>(2), 303–330. · '
-            'Gallup (2023). Media trust at all-time low. · '
-            'Médiès, A. et al. (2020). Economic burden of health misinformation. JHSPH.'
+            'misperceptions. <em>Political Behavior, 32</em>(2), 303&ndash;330. &middot; '
+            'Gallup (2023). Media trust at all-time low. &middot; '
+            'M&eacute;di&egrave;s, A. et al. (2020). Economic burden of health misinformation. JHSPH.'
             '</p>',
             unsafe_allow_html=True,
         )
@@ -250,7 +248,7 @@ def render_guide_page():
     # ════════════════════════════════════════════════════════════════════════
     # TAB 2 — HOW TO USE IT
     # ════════════════════════════════════════════════════════════════════════
-    with sub_how:
+    with tab_how:
         st.markdown(
             '<p class="gp-section">Getting started in 3 minutes</p>',
             unsafe_allow_html=True,
@@ -264,23 +262,23 @@ def render_guide_page():
             </div>
             <div class="gp-step">
                 <div class="gp-step-num">2</div>
-                <div class="gp-step-title">Configure (optional)</div>
-                <div class="gp-step-body">In the sidebar, adjust the number of turns, AI models, and whether you want a single claim or a batch of claims run back-to-back.</div>
+                <div class="gp-step-title">Enter a claim or upload CSV</div>
+                <div class="gp-step-body">Type a single claim directly, or import a CSV/XLSX file with many claims to run them as a batch experiment.</div>
             </div>
             <div class="gp-step">
                 <div class="gp-step-num">3</div>
                 <div class="gp-step-title">Start the debate</div>
-                <div class="gp-step-body">Click "Start Debate." Watch the exchange unfold turn by turn in real time. Each agent responds to the other directly.</div>
+                <div class="gp-step-body">Click "Start debate." Watch the exchange unfold turn by turn in real time. Each agent responds to the other directly.</div>
             </div>
             <div class="gp-step">
                 <div class="gp-step-num">4</div>
                 <div class="gp-step-title">Read the verdict</div>
-                <div class="gp-step-body">When debate ends, the judge scores both sides across six dimensions and declares a winner. The scorecard shows exactly why.</div>
+                <div class="gp-step-body">When the debate ends, the judge scores both sides across six dimensions and declares a winner. The scorecard shows exactly why.</div>
             </div>
             <div class="gp-step">
                 <div class="gp-step-num">5</div>
                 <div class="gp-step-title">Explore the data</div>
-                <div class="gp-step-body">Replay past debates, view analytics across all runs, or browse the strategy leaderboard to see which tactics win most often.</div>
+                <div class="gp-step-body">Use the 7 tabs — Arena, Analytics, Replay, Claim Analysis, Strategy Leaderboard, Prompt Library, and Guide — to dig into results from every angle.</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -294,19 +292,18 @@ def render_guide_page():
             <div class="gp-role-card" style="background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);">
                 <div class="gp-role-title" style="color:#dc2626;">The Spreader</div>
                 <div class="gp-role-body">
-                    Argues in favour of the claim using the tactics real misinformation uses —
-                    appeals to lived experience, selective statistics, narrative framing, and
-                    Socratic doubt. <strong>Not crude "fake news" dismissals</strong> — sophisticated,
-                    adaptive persuasion that mirrors how misinformation actually behaves in the wild.
+                    Uses the IME507 research prompt with 8 rhetorical strategies — appeals to
+                    lived experience, selective statistics, narrative framing, Socratic doubt,
+                    and more. <strong>Not crude dismissals</strong> — sophisticated, adaptive
+                    persuasion grounded in misinformation research literature.
                 </div>
             </div>
             <div class="gp-role-card" style="background:rgba(59,130,246,0.05);border:1px solid rgba(59,130,246,0.2);">
                 <div class="gp-role-title" style="color:#2563eb;">The Fact-checker</div>
                 <div class="gp-role-body">
-                    Counters with evidence, cites credible sources, identifies logical fallacies,
-                    and addresses the emotional core of the claim — not just the factual errors.
-                    Effective debunking requires understanding <em>why</em> the original claim
-                    is persuasive, not just that it is false.
+                    Uses the IME507 6-step response architecture — identify the core falsehood,
+                    provide the factual alternative, explain the fallacy, cite credible sources,
+                    address the emotional appeal, and inoculate against future variants.
                 </div>
             </div>
         </div>
@@ -318,49 +315,76 @@ def render_guide_page():
         )
         st.markdown(
             '<p class="gp-prose">'
-            'The AI judge evaluates the debate across six dimensions, scored 0–10 for each side. '
-            'Crucially, the judge is <strong>role-aware</strong>: it scores the Spreader on how '
-            'effectively it executes the spreader\'s role (credibility of narrative, emotional '
-            'resonance, adaptability under pressure), not on factual accuracy. This allows '
-            'meaningful competition across all six metrics.'
+            'The AI judge evaluates the debate across six dimensions, scored 0&ndash;10 for each side. '
+            'All dimensions are weighted equally (1/6 each). The judge is <strong>role-aware</strong>: '
+            'it scores the Spreader on how effectively it executes the spreader\'s role, not on '
+            'factual accuracy. This allows meaningful competition across all six metrics.'
             '</p>',
             unsafe_allow_html=True,
         )
 
         metric_data = [
-            ("Truthfulness proxy", "0.25", "How internally consistent and credible does each side's case appear?"),
-            ("Evidence quality", "0.20", "Concrete citations, data, and sourcing to support claims."),
-            ("Reasoning quality", "0.20", "Logical structure, avoidance of fallacies, clear argumentation."),
-            ("Responsiveness", "0.15", "Direct engagement with the opponent's specific points."),
-            ("Persuasion", "0.15", "Rhetorical effectiveness — how compelling is the overall case?"),
-            ("Civility", "0.05", "Professional, respectful tone throughout the exchange."),
+            ("Factuality", "1/6",
+             "Narrative consistency (spreader) / factual grounding (debunker). "
+             "D2D, EMNLP 2025."),
+            ("Source Credibility", "1/6",
+             "Specificity and checkability of cited sources. "
+             "D2D, EMNLP 2025."),
+            ("Reasoning Quality", "1/6",
+             "Logical structure and avoidance of fallacies. "
+             "Wachsmuth et al. 2017 — Cogency."),
+            ("Responsiveness", "1/6",
+             "Direct engagement with the opponent's specific points. "
+             "Wachsmuth et al. 2017 — Reasonableness."),
+            ("Persuasion", "1/6",
+             "Convincingness to an uncommitted reader. "
+             "Wachsmuth et al. 2017 — Effectiveness."),
+            ("Manipulation Awareness", "1/6",
+             "Penalizes manipulation (spreader) / rewards naming tactics (debunker). "
+             "Inoculation theory."),
         ]
         for name, weight, desc in metric_data:
             st.markdown(
                 f'<div style="display:flex;align-items:flex-start;gap:0.8rem;'
                 f'padding:0.55rem 0.8rem;margin-bottom:0.4rem;'
                 f'background:#f9fafb;border-radius:8px;border:1px solid #f3f4f6;">'
-                f'<div style="min-width:130px;font-weight:700;font-size:0.9rem;'
+                f'<div style="min-width:160px;font-weight:700;font-size:0.9rem;'
                 f'color:#111;padding-top:0.05rem;">{name}</div>'
-                f'<div style="min-width:52px;font-size:0.8rem;font-weight:700;'
-                f'color:#6366f1;padding-top:0.1rem;">×{weight}</div>'
+                f'<div style="min-width:40px;font-size:0.8rem;font-weight:700;'
+                f'color:#6366f1;padding-top:0.1rem;">{weight}</div>'
                 f'<div style="font-size:0.85rem;color:#4b5563;">{desc}</div>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
 
         st.markdown(
+            '<p class="gp-prose" style="margin-top:1rem;">'
+            '<strong>Why equal weights?</strong> '
+            'Per Wachsmuth et al. (2017), fixed unequal weights introduce unjustified bias. '
+            'Argument quality is context-dependent, and no single dimension should dominate '
+            'scoring a priori.'
+            '</p>'
+            '<p class="gp-prose">'
+            '<strong>Why role-relative scoring?</strong> '
+            'The spreader is scored on persuasive effectiveness, not factual accuracy. '
+            'This allows meaningful competition and prevents the debunker from winning by '
+            'default on every dimension.'
+            '</p>',
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
             '<p class="gp-section">Navigating the app</p>',
             unsafe_allow_html=True,
         )
         nav_cards = [
-            ("🏟️ Arena", "Run a live debate. Single claim or multi-claim batch. Watch it unfold in real time."),
-            ("📊 Analytics", "Aggregate metrics across all runs — win rates, score distributions, anomaly detection, claim difficulty, strategy × outcome correlation."),
-            ("🎬 Run Replay", "Replay any past debate with full transcript, verdict, momentum chart, strategy lens, and citation audit."),
-            ("📋 Claim Analysis", "Deep dive into a specific claim — see how it performs across many runs and model configurations."),
-            ("🏆 Strategy Leaderboard", "Which rhetorical tactics appear most often, and which ones actually win? Includes emergent patterns not in the taxonomy."),
-            ("📚 Citation Tracker", "Aggregates citation behaviour across all episodes — credibility scoring, source types, temporal patterns."),
-            ("🎭 Prompts", "Edit agent and judge prompts to run experiments. Save named variants and compare outcomes."),
+            ("Arena", "Run a live debate. Single claim or CSV batch. Watch it unfold in real time."),
+            ("Analytics", "Aggregate metrics across all runs — win rates, score distributions, anomaly detection."),
+            ("Replay", "Replay any past debate with full transcript, verdict, scorecard, strategy lens, and export."),
+            ("Strategy", "Which rhetorical tactics appear most often, and which ones actually win?"),
+            ("Claim Analysis", "Deep dive into a specific claim — see how it performs across runs and model configurations."),
+            ("Prompt Library", "View active agent and judge prompts. Save named variants for reference."),
+            ("Guide", "You are here. Research motivation, system overview, and design rationale."),
         ]
         nav_html = '<div class="gp-step-row">'
         for title, body in nav_cards:
@@ -379,12 +403,12 @@ def render_guide_page():
         )
         cols_tips = st.columns(2)
         with cols_tips[0]:
-            st.markdown("**Choose claims with genuine complexity**")
+            st.markdown("**Use CSV import for systematic experiments**")
             st.markdown(
                 '<p style="font-size:0.88rem;color:#4b5563;">'
-                'Claims that are unambiguously false (e.g. "the Earth is flat") produce '
-                'predictable outcomes. Claims with real uncertainty, competing evidence, '
-                'or emotionally charged context produce the most interesting debates.'
+                'Prepare a spreadsheet of claims organized by topic, domain, or difficulty. '
+                'Upload via CSV and run them as a batch to generate a structured dataset '
+                'in one session.'
                 '</p>',
                 unsafe_allow_html=True,
             )
@@ -392,132 +416,135 @@ def render_guide_page():
             st.markdown(
                 '<p style="font-size:0.88rem;color:#4b5563;">'
                 'LLM outputs are stochastic. A single debate is an observation, not a '
-                'finding. Run 5–10 episodes of the same claim to see how much variance '
+                'finding. Run 5&ndash;10 episodes of the same claim to see how much variance '
                 'exists — that variance is itself a data point.'
                 '</p>',
                 unsafe_allow_html=True,
             )
         with cols_tips[1]:
-            st.markdown("**Compare models**")
+            st.markdown("**Compare models across providers**")
             st.markdown(
                 '<p style="font-size:0.88rem;color:#4b5563;">'
-                'Try the same claim with GPT-4o on both sides, then with a weaker model '
-                'as the spreader. Does better reasoning always win? The answer may '
-                'surprise you.'
+                'Try the same claim with GPT-4o on both sides, then swap in a different '
+                'model as the spreader or debunker. Does better reasoning always win? '
+                'The answer may surprise you.'
                 '</p>',
                 unsafe_allow_html=True,
             )
-            st.markdown("**Use the Prompt Library**")
+            st.markdown("**Use the auto-run feature for batch experiments**")
             st.markdown(
                 '<p style="font-size:0.88rem;color:#4b5563;">'
-                'Experiment with different agent personas. A subtler, more sophisticated '
-                'spreader prompt — one that uses partial truths and narrative framing '
-                'rather than crude dismissals — will produce very different outcomes.'
+                'When running multiple claims, enable auto-run to execute all episodes '
+                'back-to-back without manual intervention. This is the fastest way to '
+                'build a large dataset for analysis.'
                 '</p>',
                 unsafe_allow_html=True,
             )
 
     # ════════════════════════════════════════════════════════════════════════
-    # TAB 3 — RESEARCH CONTEXT
+    # TAB 3 — RESEARCH DESIGN
     # ════════════════════════════════════════════════════════════════════════
-    with sub_about:
+    with tab_research:
         st.markdown(
-            '<p class="gp-section">Theoretical grounding</p>',
+            '<p class="gp-section">Why are certain things fixed?</p>',
             unsafe_allow_html=True,
         )
         st.markdown(
             '<p class="gp-prose">'
-            'Misinformation Arena draws on three intersecting bodies of research: the '
-            'psychology of belief formation, the sociology of information diffusion, and '
-            'the rhetoric of persuasion.'
+            'Misinformation Arena holds several parameters constant by design. Each '
+            'fixed variable eliminates a confound and makes cross-run comparisons meaningful.'
             '</p>',
             unsafe_allow_html=True,
         )
 
-        with st.expander("Psychology: why people believe false things"):
-            st.markdown("""
-**Dual-process theory** (Kahneman, 2011) distinguishes fast intuitive reasoning (System 1)
-from slow analytical reasoning (System 2). Misinformation exploits System 1 — it is vivid,
-emotionally resonant, and cognitively easy to process. Corrections require System 2
-activation, which is effortful and easily bypassed.
-
-**The illusory truth effect** (Hasher et al., 1977; Pennycook et al., 2018): repeated
-exposure to a claim increases its perceived truth, regardless of its actual accuracy.
-Repetition in the spreader's arguments is not accidental — it is strategic.
-
-**Motivated reasoning** (Kunda, 1990): people evaluate evidence in ways that support
-conclusions they are already motivated to reach. A claim that validates existing anxieties
-or group identity is processed very differently from one that challenges them.
-
-**The backfire effect** (Nyhan & Reifler, 2010): in some contexts, corrections that
-directly contradict a person's identity-linked beliefs can strengthen those beliefs.
-This is why the debunker's strategy matters as much as its content.
-            """)
-
-        with st.expander("Sociology: how misinformation spreads"):
-            st.markdown("""
-**Network amplification**: Vosoughi, Roy & Aral (2018) showed false news travels faster,
-farther, and deeper through social networks than true news — driven by novelty and
-emotional arousal, not bot activity.
-
-**Epistemic communities**: people increasingly rely on trusted in-group sources over
-institutional media. This creates segmented information environments where corrections
-from "outsiders" carry no weight regardless of their accuracy.
-
-**Platform incentive structures**: engagement-maximising algorithms preferentially surface
-emotionally arousing content. Outrage and anxiety drive clicks; careful corrections do not.
-
-**The liar's dividend**: widespread awareness of deepfakes and AI-generated content has
-created a climate where any inconvenient evidence can be dismissed as fabricated — even
-when it is real. This asymmetry benefits misinformation producers.
-            """)
-
-        with st.expander("Rhetoric: what makes misinformation persuasive"):
-            st.markdown("""
-Effective misinformation is not simply false — it is strategically constructed.
-Key rhetorical mechanisms include:
-
-- **Anchoring to partial truths**: building a false narrative on a true foundation
-  makes the whole more credible and harder to refute cleanly.
-- **Socratic doubt**: "just asking questions" creates uncertainty without requiring
-  the spreader to assert anything falsifiable.
-- **Narrative framing**: embedding a claim in a story activates empathy and
-  identification; abstract statistics rarely compete.
-- **Authority laundering**: citing real institutions out of context, or citing
-  fringe experts within real fields, borrows credibility selectively.
-- **Inoculation resistance**: misinformation that anticipates counter-arguments
-  and pre-emptively dismisses them is significantly harder to correct.
-
-Misinformation Arena models these mechanisms. The spreader agent uses them.
-Understanding how they perform — which claims they win on and which they don't —
-is the central research question.
-            """)
-
+        # --- Fixed prompts ---
+        st.markdown("**Prompts are fixed**")
         st.markdown(
-            '<p class="gp-section">What this system is — and is not</p>',
+            '<p class="gp-prose">'
+            'The IME507 prompts are grounded in misinformation research literature. '
+            'Varying prompts would make it impossible to isolate whether outcome '
+            'differences come from the prompt or the model. Per advisor guidance, '
+            'prompts are held constant so that model capability is the independent variable.'
+            '</p>',
             unsafe_allow_html=True,
         )
-        cols_is = st.columns(2)
-        with cols_is[0]:
-            st.success("**This system studies** argument competition in controlled, repeatable conditions.")
-            st.success("**This system produces** data on persuasive strategy effectiveness across claim types.")
-            st.success("**This system enables** controlled experiments on model, prompt, and claim variables.")
-        with cols_is[1]:
-            st.error("**This system does not** fact-check claims or declare truth.")
-            st.error("**This system does not** recommend content moderation or policy.")
-            st.error("**This system does not** perfectly simulate human psychology — AI agents are proxies.")
 
+        # --- Fixed temperatures ---
+        st.markdown("**Temperatures are fixed**")
         st.markdown(
-            '<p class="gp-section">Full reference list</p>',
+            '<p class="gp-prose">'
+            'Spreader 0.85 (high creativity mirrors real misinformation variability), '
+            'Debunker 0.40 (consistent, evidence-grounded responses), '
+            'Judge 0.10 (near-deterministic scoring). '
+            'Varying temperature would introduce an uncontrolled variable that '
+            'confounds model-level comparisons.'
+            '</p>',
+            unsafe_allow_html=True,
+        )
+
+        # --- Equal weights ---
+        st.markdown("**Equal weights**")
+        st.markdown(
+            '<p class="gp-prose">'
+            'Per Wachsmuth et al. (2017), fixed unequal weights introduce unjustified '
+            'bias. A sensitivity analysis showed zero outcome flips across 7 different '
+            'weight schemes — the weights do not matter because the score gaps are '
+            'large enough to be robust.'
+            '</p>',
+            unsafe_allow_html=True,
+        )
+
+        # --- Role-relative scoring ---
+        st.markdown("**Role-relative scoring**")
+        st.markdown(
+            '<p class="gp-prose">'
+            'The spreader is evaluated on persuasive execution, not factual accuracy. '
+            'Without this, the debunker wins by default on every dimension — which '
+            'tells you nothing about how misinformation actually works. Role-relative '
+            'scoring is what makes the competition informative.'
+            '</p>',
+            unsafe_allow_html=True,
+        )
+
+        st.markdown('<hr class="gp-divider">', unsafe_allow_html=True)
+
+        # --- Literature grounding ---
+        st.markdown(
+            '<p class="gp-section">Literature grounding</p>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<p class="gp-prose">'
+            'Key citations that inform the system design:'
+            '</p>',
             unsafe_allow_html=True,
         )
         st.markdown("""
-- Brady, W. J., Wills, J. A., Jost, J. T., Tucker, J. A., & Van Bavel, J. J. (2017). Emotion shapes the diffusion of moralized content in social networks. *PNAS, 114*(28), 7313–7318.
-- Hasher, L., Goldstein, D., & Toppino, T. (1977). Frequency and the conference of referential validity. *Journal of Verbal Learning and Verbal Behavior, 16*(1), 107–112.
-- Kahneman, D. (2011). *Thinking, Fast and Slow*. Farrar, Straus and Giroux.
-- Kunda, Z. (1990). The case for motivated reasoning. *Psychological Bulletin, 108*(3), 480–498.
-- Nyhan, B., & Reifler, J. (2010). When corrections fail: The persistence of political misperceptions. *Political Behavior, 32*(2), 303–330.
-- Pennycook, G., Cannon, T. D., & Rand, D. G. (2018). Prior exposure increases perceived accuracy of fake news. *Journal of Experimental Psychology: General, 147*(12), 1865–1880.
-- Pennycook, G., & Rand, D. G. (2020). Who falls for fake news? The roles of bullshit receptivity, overclaiming, familiarity, and analytic thinking. *Journal of Personality, 88*(2), 185–200.
-- Vosoughi, S., Roy, D., & Aral, S. (2018). The spread of true and false news online. *Science, 359*(6380), 1146–1151.
+- **Wachsmuth et al. (2017)** — Computational argumentation quality assessment. Defines cogency, reasonableness, and effectiveness as top-level quality dimensions. Basis for our scoring rubric.
+- **D2D / Debate-to-Detect (EMNLP 2025)** — Adversarial debate framework for misinformation detection. Informs our factuality and source credibility dimensions.
+- **Cook & Lewandowsky (2020)** — The FLICC taxonomy of science denial techniques. Basis for strategy labels applied to spreader arguments.
+- **SemEval-2023 Task 3** — Persuasion technique detection in news articles. Informs our manipulation awareness dimension.
+- **Roozenbeek & van der Linden (2022)** — Inoculation theory applied to misinformation resistance. Underpins the manipulation awareness scoring for debunkers.
+- **Cook et al. (2017)** — Neutralizing misinformation through inoculation. Informs the debunker prompt architecture.
+        """)
+
+        st.markdown('<hr class="gp-divider">', unsafe_allow_html=True)
+
+        # --- Known limitations ---
+        st.markdown(
+            '<p class="gp-section">Known limitations</p>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<p class="gp-prose">'
+            'A detailed discussion lives in <code>docs/known_limitations.md</code>. '
+            'Key limitations in brief:'
+            '</p>',
+            unsafe_allow_html=True,
+        )
+        st.markdown("""
+- **Keyword-based concession detection** — concession is detected via keyword matching, which can produce false positives on nuanced language.
+- **Safety-aligned models playing spreader** — models with strong safety training may refuse or soften the spreader role, reducing ecological validity.
+- **No absolute quality baseline** — scores are relative within a debate, not calibrated against an external ground truth.
+- **Non-deterministic judge** — even at temperature 0.10, the judge produces slight scoring variance across repeated evaluations of the same transcript.
         """)

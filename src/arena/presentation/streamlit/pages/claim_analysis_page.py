@@ -22,7 +22,7 @@ SPREADER_COLOR = "#E8524A"
 DEBUNKER_COLOR = "#3A7EC7"
 DRAW_COLOR     = "#F0A500"
 
-CLAIM_META_KEYS = ["claim_type", "claim_domain", "claim_complexity",
+CLAIM_META_KEYS = ["claim_type", "claim_complexity",
                    "claim_verifiability", "claim_structure"]
 
 
@@ -280,7 +280,7 @@ def render_claim_analysis_page():
         disp["confidence"]  = disp["avg_confidence"].map(lambda v: f"{v:.0%}")
         disp["difficulty"]  = disp["difficulty_index"].map(lambda v: f"{v:.2f}")
 
-        table_cols = ["claim_short", "episodes", "fc_win_rate", "confidence", "difficulty"]
+        table_cols = ["claim_short"]
         rename_map = {
             "claim_short": "Claim",
             "episodes":    "Episodes",
@@ -289,10 +289,11 @@ def render_claim_analysis_page():
             "difficulty":  "Difficulty ↑",
         }
         if has_metadata:
-            for col in ["claim_type", "claim_domain", "claim_complexity"]:
+            for col in ["claim_type", "claim_complexity"]:
                 if col in disp.columns:
-                    table_cols.insert(1, col)
+                    table_cols.append(col)
                     rename_map[col] = col.replace("claim_", "").replace("_", " ").title()
+        table_cols += ["episodes", "fc_win_rate", "confidence", "difficulty"]
 
         disp_sorted = disp.sort_values("difficulty_index", ascending=False)
         st.dataframe(
@@ -358,11 +359,11 @@ def render_claim_analysis_page():
             tab["fc_win_rate"] = tab[col].map(win_map).map(lambda v: f"{v:.0%}" if pd.notna(v) else "—")
             return tab.sort_values("episodes", ascending=False)
 
-        meta_tabs = st.tabs(["By Type", "By Domain", "By Complexity"])
+        meta_tabs = st.tabs(["By Type", "By Complexity"])
         for tab_ui, col, label in zip(
             meta_tabs,
-            ["claim_type", "claim_domain", "claim_complexity"],
-            ["Claim Type", "Claim Domain", "Claim Complexity"],
+            ["claim_type", "claim_complexity"],
+            ["Claim Type", "Claim Complexity"],
         ):
             with tab_ui:
                 tab_df = _group_table(col)
@@ -381,21 +382,6 @@ def render_claim_analysis_page():
 
         st.markdown("---")
 
-        # Heatmap
-        st.markdown("### Claim Type × Complexity Heatmap")
-        st.markdown(
-            '<p style="font-size:0.88rem;color:#6b7280;margin-top:-0.5rem;margin-bottom:0.75rem;">'
-            "Fact-checker win rate by claim type (rows) and complexity (columns). "
-            "Green = fact-checker dominates, red = spreader dominates.</p>",
-            unsafe_allow_html=True,
-        )
-        fig_hm = _type_heatmap(df)
-        if fig_hm:
-            st.plotly_chart(fig_hm, use_container_width=True)
-        else:
-            st.caption("Need at least two distinct type + complexity combinations for the heatmap.")
-        st.markdown("---")
-
     # ── Section 5: Turn sensitivity ──────────────────────────────────────────
     turn_df = build_turn_sensitivity_df(df)
     if not turn_df.empty and len(turn_df) > 1:
@@ -406,56 +392,251 @@ def render_claim_analysis_page():
             "Each row is a distinct planned turn limit.</p>",
             unsafe_allow_html=True,
         )
-        disp_turn = turn_df.copy()
-        disp_turn["debunker_win_rate"] = disp_turn["debunker_win_rate"].map(lambda v: f"{v:.0%}")
-        disp_turn["avg_confidence"]    = disp_turn["avg_confidence"].map(lambda v: f"{v:.0%}")
-        disp_turn["avg_margin"]        = disp_turn["avg_margin"].map(lambda v: f"{v:.2f}")
-        st.dataframe(
-            disp_turn.rename(columns={
-                "planned_max_turns": "Max Turns",
-                "episodes":          "Episodes",
-                "debunker_win_rate": "FC Win Rate",
-                "avg_confidence":    "Avg Confidence",
-                "avg_margin":        "Avg Margin",
-            }),
-            use_container_width=True, hide_index=True,
-        )
+
+        # ── Model filter for turn sensitivity ───────────────────────────────
+        st.markdown("**Filter by model**")
+        _ts_models_spr = sorted(df["model_spreader"].dropna().unique().tolist()) if "model_spreader" in df.columns else []
+        _ts_models_deb = sorted(df["model_debunker"].dropna().unique().tolist()) if "model_debunker" in df.columns else []
+
+        _ts_c1, _ts_c2 = st.columns(2)
+        with _ts_c1:
+            _ts_spr = st.selectbox("Spreader", ["All"] + _ts_models_spr, key="ts_spr_model")
+        with _ts_c2:
+            _ts_deb = st.selectbox("Fact-checker", ["All"] + _ts_models_deb, key="ts_deb_model")
+
+        _ts_df = df.copy()
+        if _ts_spr != "All" and "model_spreader" in _ts_df.columns:
+            _ts_df = _ts_df[_ts_df["model_spreader"] == _ts_spr]
+        if _ts_deb != "All" and "model_debunker" in _ts_df.columns:
+            _ts_df = _ts_df[_ts_df["model_debunker"] == _ts_deb]
+
+        turn_df = build_turn_sensitivity_df(_ts_df)
+        if turn_df.empty or len(turn_df) < 1:
+            st.info("No episodes match the selected model filter.")
+        else:
+            disp_turn = turn_df.copy()
+            disp_turn["debunker_win_rate"] = disp_turn["debunker_win_rate"].map(lambda v: f"{v:.0%}")
+            disp_turn["avg_confidence"]    = disp_turn["avg_confidence"].map(lambda v: f"{v:.0%}")
+            disp_turn["avg_margin"]        = disp_turn["avg_margin"].map(lambda v: f"{v:.2f}")
+            st.dataframe(
+                disp_turn.rename(columns={
+                    "planned_max_turns": "Max Turns",
+                    "episodes":          "Episodes",
+                    "debunker_win_rate": "FC Win Rate",
+                    "avg_confidence":    "Avg Confidence",
+                    "avg_margin":        "Avg Margin",
+                }),
+                use_container_width=True, hide_index=True,
+            )
+
+        # ── Score margin vs turn count chart ────────────────────────────────
+        if "planned_max_turns" in _ts_df.columns and _ts_df["planned_max_turns"].nunique() >= 2:
+            st.markdown(
+                '<p style="font-size:0.88rem;color:#6b7280;margin-top:0.5rem;margin-bottom:0.75rem;">'
+                "How the average score margin and persuasion score change as debates get longer.</p>",
+                unsafe_allow_html=True,
+            )
+            _margin_col = pd.to_numeric(_ts_df.get("abs_margin", pd.Series(dtype=float)), errors="coerce")
+            _turn_col = pd.to_numeric(_ts_df["planned_max_turns"], errors="coerce")
+            _chart_df = pd.DataFrame({"planned_max_turns": _turn_col, "abs_margin": _margin_col}).dropna()
+
+            has_persuasion = "metric_persuasion_spreader" in _ts_df.columns
+            if has_persuasion:
+                _chart_df["persuasion_spreader"] = pd.to_numeric(
+                    _ts_df.get("metric_persuasion_spreader", pd.Series(dtype=float)), errors="coerce"
+                )
+
+            _chart_agg = _chart_df.groupby("planned_max_turns", dropna=True).mean(numeric_only=True).reset_index()
+            _chart_agg = _chart_agg.sort_values("planned_max_turns")
+
+            if len(_chart_agg) >= 2:
+                from plotly.subplots import make_subplots
+
+                fig_turn = make_subplots(specs=[[{"secondary_y": has_persuasion}]])
+                fig_turn.add_trace(
+                    go.Scatter(
+                        x=_chart_agg["planned_max_turns"],
+                        y=_chart_agg["abs_margin"],
+                        name="Avg score margin",
+                        mode="lines+markers",
+                        line=dict(color=DEBUNKER_COLOR, width=2),
+                        marker=dict(size=8),
+                        hovertemplate="Turns: %{x}<br>Avg margin: %{y:.2f}<extra></extra>",
+                    ),
+                    secondary_y=False,
+                )
+                if has_persuasion and "persuasion_spreader" in _chart_agg.columns and _chart_agg["persuasion_spreader"].notna().any():
+                    fig_turn.add_trace(
+                        go.Scatter(
+                            x=_chart_agg["planned_max_turns"],
+                            y=_chart_agg["persuasion_spreader"],
+                            name="Avg spreader persuasion",
+                            mode="lines+markers",
+                            line=dict(color=SPREADER_COLOR, width=2, dash="dot"),
+                            marker=dict(size=8),
+                            hovertemplate="Turns: %{x}<br>Persuasion: %{y:.1f}<extra></extra>",
+                        ),
+                        secondary_y=True,
+                    )
+                    fig_turn.update_yaxes(title_text="Persuasion score (0-10)", secondary_y=True,
+                                          tickfont=dict(size=11), range=[0, 10])
+
+                fig_turn.update_xaxes(title_text="Planned max turns", tickfont=dict(size=11),
+                                      dtick=1)
+                fig_turn.update_yaxes(title_text="Average score margin", secondary_y=False,
+                                      tickfont=dict(size=11))
+                fig_turn.update_layout(
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+                    margin=dict(l=10, r=10, t=40, b=40),
+                    height=340,
+                    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                )
+                st.plotly_chart(fig_turn, use_container_width=True)
+
         st.markdown("---")
 
-    # ── Section 6: Claim drilldown explorer ──────────────────────────────────
-    st.markdown("### Claim Drilldown")
+    # ── Section 5b: Claim consistency ────────────────────────────────────────
+    if not df.empty and "claim" in df.columns:
+        _claims_norm = df["claim"].fillna("").astype(str).str.strip()
+        _claim_counts = _claims_norm.value_counts()
+        _multi_claims = _claim_counts[_claim_counts >= 2].index.tolist()
+
+        if _multi_claims:
+            st.markdown("### Outcome Consistency")
+            st.markdown(
+                '<p style="font-size:0.88rem;color:#6b7280;margin-top:-0.5rem;margin-bottom:0.75rem;">'
+                "When the same claim is debated under different conditions (different models, "
+                "turn counts), do the outcomes stay consistent? Claims with mixed results are "
+                "the most interesting — they reveal where the outcome depends on the model or "
+                "debate length rather than the claim itself.</p>",
+                unsafe_allow_html=True,
+            )
+
+            _consist_rows = []
+            _winners_lower = (
+                df["winner"].fillna("").astype(str).str.strip().str.lower()
+                if "winner" in df.columns
+                else pd.Series("", index=df.index)
+            )
+            _conf_numeric = pd.to_numeric(
+                df.get("judge_confidence", pd.Series(dtype=float)), errors="coerce"
+            )
+            _margin_numeric = pd.to_numeric(
+                df.get("abs_margin", pd.Series(dtype=float)), errors="coerce"
+            )
+
+            for claim_text in _multi_claims:
+                _mask = _claims_norm == claim_text
+                _ep_count = int(_mask.sum())
+                _w = _winners_lower[_mask]
+                _fc_wins = int((_w == "debunker").sum())
+                _spr_wins = int((_w == "spreader").sum())
+                _draws = _ep_count - _fc_wins - _spr_wins
+                _fc_rate_val = _fc_wins / _ep_count if _ep_count else 0.0
+                _unique_winners = _w[_w != ""].nunique()
+                _conf_std = float(_conf_numeric[_mask].std()) if _conf_numeric[_mask].notna().sum() >= 2 else 0.0
+                _avg_margin = float(_margin_numeric[_mask].mean()) if _margin_numeric[_mask].notna().any() else 0.0
+
+                # Models used
+                _models = set()
+                if "model_spreader" in df.columns:
+                    _models.update(df.loc[_mask, "model_spreader"].dropna().unique())
+                if "model_debunker" in df.columns:
+                    _models.update(df.loc[_mask, "model_debunker"].dropna().unique())
+
+                # Consistency label
+                if _unique_winners <= 1:
+                    _label = "Consistent"
+                elif _unique_winners == 2 and _draws == 0:
+                    _label = "Mixed"
+                else:
+                    _label = "Highly variable"
+
+                _consist_rows.append({
+                    "Claim": _trunc(claim_text, 55),
+                    "Episodes": _ep_count,
+                    "FC Wins": _fc_wins,
+                    "Spr Wins": _spr_wins,
+                    "Draws": _draws,
+                    "FC Win %": f"{_fc_rate_val:.0%}",
+                    "Avg Margin": f"{_avg_margin:.2f}",
+                    "Consistency": _label,
+                    "Models": len(_models),
+                })
+
+            _consist_df = pd.DataFrame(_consist_rows)
+            # Sort: most variable first
+            _sort_order = {"Highly variable": 0, "Mixed": 1, "Consistent": 2}
+            _consist_df["_sort"] = _consist_df["Consistency"].map(_sort_order)
+            _consist_df = _consist_df.sort_values("_sort").drop(columns=["_sort"])
+
+            def _consistency_color(val):
+                if val == "Highly variable":
+                    return "background-color: rgba(232,82,74,0.12); color: #b91c1c; font-weight: 600;"
+                if val == "Mixed":
+                    return "background-color: rgba(240,165,0,0.12); color: #92650a; font-weight: 600;"
+                return "background-color: rgba(34,197,94,0.10); color: #166534; font-weight: 600;"
+
+            styled = _consist_df.style.map(_consistency_color, subset=["Consistency"])
+            st.dataframe(styled, use_container_width=True, hide_index=True)
+
+            st.markdown(
+                '<p style="font-size:0.82rem;color:#666;margin-top:0.3rem">'
+                '<b>Consistent</b> = same winner every time. '
+                '<b>Mixed</b> = 2 different winners. '
+                '<b>Highly variable</b> = all 3 outcomes appeared. '
+                'Variable claims are where model choice or debate length matters most.'
+                '</p>',
+                unsafe_allow_html=True,
+            )
+            st.markdown("---")
+
+    # ── Section 6: Episode explorer with replay links ─────────────────────────
+    st.markdown("### Episode Explorer")
     st.markdown(
         '<p style="font-size:0.88rem;color:#6b7280;margin-top:-0.5rem;margin-bottom:0.75rem;">'
-        "Filter episodes by claim and outcome to inspect individual results.</p>",
+        "Filter episodes by claim, outcome, or model to find specific debates. "
+        "Select an episode to jump to its full transcript in the Replay tab.</p>",
         unsafe_allow_html=True,
     )
 
     df_f = df.copy()
     df_f["_winner"] = winners_col
 
-    # Claim text filter — use full text as selectbox value to avoid hash collisions
     all_claims = sorted(df_f["claim"].fillna("").astype(str).str.strip().unique().tolist())
     all_claims = [c for c in all_claims if c]
-    # Display truncated labels but map back to full text using index position
     claim_display = ["All claims"] + [_trunc(c, 90) for c in all_claims]
     claim_full_map = {_trunc(c, 90): c for c in all_claims}
-    claim_opts = claim_display
 
-    filter_cols = st.columns(4 if has_metadata else 2)
-    with filter_cols[0]:
-        sel_claim = st.selectbox("Claim", claim_opts, key="ca_claim_sel")
-    with filter_cols[1]:
+    _n_filter_cols = 2
+    if has_metadata:
+        _n_filter_cols = 3
+    if "model_spreader" in df_f.columns:
+        _n_filter_cols += 1
+
+    filter_cols = st.columns(_n_filter_cols)
+    _fc_idx = 0
+    with filter_cols[_fc_idx]:
+        sel_claim = st.selectbox("Claim", claim_display, key="ca_claim_sel")
+    _fc_idx += 1
+    with filter_cols[_fc_idx]:
         sel_win = st.selectbox("Outcome", ["All", "FC Won", "Spreader Won", "Draw"], key="ca_winner_sel")
+    _fc_idx += 1
 
     if has_metadata:
         ct_opts = ["All"] + sorted(df_f["claim_type"].dropna().astype(str).unique().tolist()) if "claim_type" in df_f.columns else ["All"]
-        cd_opts = ["All"] + sorted(df_f["claim_domain"].dropna().astype(str).unique().tolist()) if "claim_domain" in df_f.columns else ["All"]
-        with filter_cols[2]:
+        with filter_cols[_fc_idx]:
             sel_ct = st.selectbox("Claim Type", ct_opts, key="ca_type_sel")
-        with filter_cols[3]:
-            sel_cd = st.selectbox("Domain",     cd_opts, key="ca_domain_sel")
+        _fc_idx += 1
     else:
-        sel_ct = sel_cd = "All"
+        sel_ct = "All"
+
+    if "model_spreader" in df_f.columns and _fc_idx < len(filter_cols):
+        _model_opts = ["All"] + sorted(df_f["model_spreader"].dropna().unique().tolist())
+        with filter_cols[_fc_idx]:
+            sel_model = st.selectbox("Spreader model", _model_opts, key="ca_model_sel")
+    else:
+        sel_model = "All"
 
     mask = pd.Series(True, index=df_f.index)
     if sel_claim != "All claims":
@@ -469,46 +650,46 @@ def render_claim_analysis_page():
         mask &= df_f["_winner"] == "draw"
     if sel_ct != "All" and "claim_type" in df_f.columns:
         mask &= df_f["claim_type"].fillna("").astype(str) == sel_ct
-    if sel_cd != "All" and "claim_domain" in df_f.columns:
-        mask &= df_f["claim_domain"].fillna("").astype(str) == sel_cd
+    if sel_model != "All" and "model_spreader" in df_f.columns:
+        mask &= df_f["model_spreader"].fillna("").astype(str) == sel_model
 
     drill = df_f[mask].copy()
     keep_cols = [c for c in [
-        "run_label", "episode_id", "claim", "winner", "judge_confidence",
-        "abs_margin", "completed_turn_pairs", "planned_max_turns",
-        "end_trigger", "claim_type", "claim_domain", "claim_complexity",
+        "run_label", "episode_id", "winner", "judge_confidence",
+        "abs_margin", "planned_max_turns", "model_spreader", "model_debunker",
+        "claim_type", "end_trigger",
     ] if c in drill.columns]
     drill = drill[keep_cols].sort_values(
         "judge_confidence" if "judge_confidence" in drill.columns else keep_cols[0],
         ascending=False, na_position="last",
     )
 
-    n_matched = len(drill)
-    n_shown   = min(n_matched, 100)
-    if n_matched > 100:
-        st.caption(
-            f"{n_matched} episodes match this filter — showing the top {n_shown} by judge confidence. "
-            "Use the Claim or Outcome filters above to narrow results and see more."
-        )
-    else:
-        st.caption(f"{n_matched} episode{'s' if n_matched != 1 else ''} match this filter.")
+    st.caption(f"{len(drill)} episode{'s' if len(drill) != 1 else ''} match.")
+    st.dataframe(drill.head(50), use_container_width=True, hide_index=True)
 
-    st.dataframe(drill.head(100), use_container_width=True, hide_index=True)
+    # Jump to replay
+    if not drill.empty and "run_id" in df_f.columns:
+        _ep_options = []
+        for _, row in drill.head(50).iterrows():
+            _orig = df_f[(df_f["run_label"] == row.get("run_label")) & (df_f["episode_id"] == row.get("episode_id"))]
+            if not _orig.empty:
+                _rid = str(_orig.iloc[0].get("run_id", ""))
+                _eid = str(row.get("episode_id", ""))
+                _winner = str(row.get("winner", "")).title()
+                _claim = str(drill.iloc[0].get("run_label", ""))[:40] if "run_label" in drill.columns else ""
+                _ep_options.append((f"{_claim} — Ep {_eid} — {_winner}", _rid, _eid))
 
-    # ── Deep-link to Run Replay ───────────────────────────────────────────────
-    if n_matched > 0 and "run_id" in drill.columns and "episode_id" in drill.columns:
-        st.markdown(
-            '<p style="font-size:0.85rem;color:#6b7280;margin-top:0.25rem;">'
-            "To replay a specific episode, copy the Run ID and Episode ID above, "
-            "then navigate to the <b>🎬 Run Replay</b> tab and select them from the dropdowns."
-            "</p>",
-            unsafe_allow_html=True,
-        )
-        top_row = drill.iloc[0]
-        if st.button(
-            f"▶ Open top result in Run Replay  (Run {str(top_row.get('run_id',''))[:16]}… · Ep {top_row.get('episode_id',0)})",
-            key="ca_open_replay_btn",
-        ):
-            st.session_state["replay_target_run_id"]     = str(top_row.get("run_id", ""))
-            st.session_state["replay_target_episode_id"] = str(top_row.get("episode_id", 0))
-            st.info("Run Replay target set — click the 🎬 Run Replay tab to view it.")
+        if _ep_options:
+            sel_ep = st.selectbox(
+                "Select episode to replay",
+                range(len(_ep_options)),
+                format_func=lambda i: _ep_options[i][0],
+                key="ca_replay_select",
+            )
+            if st.button("Open in Replay", key="ca_replay_btn"):
+                _, _rid, _eid = _ep_options[sel_ep]
+                st.session_state["replay_target_run_id"] = _rid
+                st.session_state["replay_target_episode_id"] = _eid
+                st.session_state["replay_target_source"] = "claim_analysis"
+                st.info("Switch to the **Replay** tab to view this episode.")
+

@@ -128,7 +128,8 @@ def _evaluate_judge(ss, turns_for_judge) -> None:
         },
     )
     judge_mode = os.getenv("JUDGE_MODE", "agent").lower()
-    agent_model = os.getenv("AGENT_JUDGE_MODEL", "gpt-4o-mini")
+    # Read judge model from session state (sidebar selector) or env var fallback
+    agent_model = ss.get("judge_model_select") or os.getenv("AGENT_JUDGE_MODEL", "gpt-4o-mini")
 
     if judge_mode == "agent":
         try:

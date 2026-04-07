@@ -16,8 +16,6 @@ import streamlit.components.v1 as components
 from arena.config import (
     AVAILABLE_MODELS,
     get_default_model_index,
-    TEMPERATURE_PRESETS,
-    DEFAULT_TEMPERATURE_PRESET,
     DEFAULT_SPREADER_TEMPERATURE,
     DEFAULT_DEBUNKER_TEMPERATURE,
 )
@@ -53,109 +51,108 @@ def _get_ui_claim() -> str:
     return (st.session_state.get("claim_text") or "").strip()
 
 
+def _auto_classify_df(df) -> "pd.DataFrame":
+    """
+    Auto-classify claims in a DataFrame. If claim_type column is missing
+    or has empty values, fill them using the heuristic classifier.
+    Returns the DataFrame with claim_type populated.
+    """
+    import pandas as _pd
+    from arena.claim_metadata import classify_claim
+
+    if "claim" not in df.columns:
+        return df
+
+    if "claim_type" not in df.columns:
+        df["claim_type"] = ""
+
+    for idx, row in df.iterrows():
+        current_type = str(row.get("claim_type", "") or "").strip()
+        if not current_type or current_type.lower() in ("", "unknown", "nan", "none"):
+            claim_text = str(row["claim"]).strip()
+            if claim_text:
+                classified, _source = classify_claim(claim_text, use_llm_fallback=False)
+                if classified and classified != "unknown":
+                    df.at[idx, "claim_type"] = classified
+
+    return df
+
+
 # ---------------------------------------------------------------------------
 # Functions moved from app.py
 # ---------------------------------------------------------------------------
 
 def _render_sidebar():
-    """
-    Render the sidebar with model configuration and temperature controls.
+    """Render the sidebar with agent configuration, judge settings, API keys, and data management."""
 
-    Agent model selection and temperature settings for Spreader and Debunker.
-    """
-    st.sidebar.markdown("**Models**")
+    # ── Agent Models ──────────────────────────────────────────────────────
+    st.sidebar.markdown("**Agent Models**")
+    st.sidebar.caption("Select which LLM powers each side of the debate.")
 
-    # Get default model index using module-level function
     default_idx = get_default_model_index(AVAILABLE_MODELS)
 
-    spreader_model = st.sidebar.selectbox(
+    st.sidebar.selectbox(
         "Spreader",
         options=AVAILABLE_MODELS,
         index=default_idx,
-        key="spreader_model"
+        key="spreader_model",
     )
-
-    debunker_model = st.sidebar.selectbox(
+    st.sidebar.selectbox(
         "Fact-checker",
         options=AVAILABLE_MODELS,
         index=default_idx,
-        key="debunker_model"
+        key="debunker_model",
     )
 
-    # -- Temperature presets ------------------------------------------------
-    st.sidebar.markdown("**Temperature**")
-
-    preset_names = [p["name"] for p in TEMPERATURE_PRESETS]
-
-    if "temperature_preset" not in st.session_state:
-        st.session_state["temperature_preset"] = DEFAULT_TEMPERATURE_PRESET
-    if "spreader_temperature" not in st.session_state:
-        st.session_state["spreader_temperature"] = DEFAULT_SPREADER_TEMPERATURE
-    if "debunker_temperature" not in st.session_state:
-        st.session_state["debunker_temperature"] = DEFAULT_DEBUNKER_TEMPERATURE
-
-    selected_preset_name = st.sidebar.selectbox(
-        "Temperature preset",
-        options=preset_names,
-        index=preset_names.index(
-            st.session_state.get("temperature_preset", DEFAULT_TEMPERATURE_PRESET)
-        ),
-        key="temperature_preset",
-        label_visibility="collapsed",
-    )
-
-    preset = next(p for p in TEMPERATURE_PRESETS if p["name"] == selected_preset_name)
-    st.sidebar.caption(preset["description"])
-
-    if preset["spreader"] is not None:
-        # Auto-set temperatures from preset
-        st.session_state["spreader_temperature"] = preset["spreader"]
-        st.session_state["debunker_temperature"] = preset["debunker"]
-        st.sidebar.caption(
-            f"Spreader **{preset['spreader']}** \u00b7 Fact-checker **{preset['debunker']}** \u00b7 Judge **0.10**"
-        )
-    else:
-        # Custom -- show sliders
-        st.sidebar.slider(
-            "Spreader temperature",
-            min_value=0.0, max_value=1.5,
-            value=float(st.session_state["spreader_temperature"]),
-            step=0.05, key="spreader_temperature",
-        )
-        st.sidebar.slider(
-            "Fact-checker temperature",
-            min_value=0.0, max_value=1.5,
-            value=float(st.session_state["debunker_temperature"]),
-            step=0.05, key="debunker_temperature",
-        )
-
-    if st.session_state.get("match_in_progress"):
-        st.sidebar.caption("Warning: Match running -- temperature changes apply to the next episode.")
-
-    # -- Judge settings -----------------------------------------------------
+    # ── Judge Configuration ───────────────────────────────────────────────
     st.sidebar.markdown("**Judge**")
+    st.sidebar.caption("The judge evaluates each debate using a 6-dimension rubric.")
+
+    _judge_models = ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo"]
     st.sidebar.selectbox(
-        "Consistency runs",
+        "Judge model",
+        options=_judge_models,
+        index=0,
+        key="judge_model_select",
+        help="Which model scores the debate. gpt-4o-mini is cheapest; gpt-4o is most capable.",
+    )
+
+    st.sidebar.selectbox(
+        "Reliability runs",
         options=[1, 3, 5],
         index=0,
         key="judge_consistency_runs",
-        help="Run the judge N times and average scores for reliability. Higher = more consistent but slower and more expensive.",
+        help=(
+            "How many times the judge scores each debate. "
+            "At 1× (default), the judge runs once. "
+            "At 3× or 5×, it runs multiple times and averages the scores "
+            "to reduce randomness from the LLM. "
+            "Higher = more reliable scores but slower and more expensive."
+        ),
     )
     _jcr = st.session_state.get("judge_consistency_runs", 1)
     if _jcr and int(_jcr) > 1:
-        st.sidebar.caption(f"Judge will run **{_jcr}x** per episode and average scores.")
+        st.sidebar.caption(f"Each debate will be judged **{_jcr} times** and scores averaged.")
 
-    # -- API Keys ----------------------------------------------------------
-    from arena.utils.api_keys import get_key_status, mask_key
+    # ── Temperature (fixed) ───────────────────────────────────────────────
+    st.session_state["spreader_temperature"] = DEFAULT_SPREADER_TEMPERATURE
+    st.session_state["debunker_temperature"] = DEFAULT_DEBUNKER_TEMPERATURE
+    st.sidebar.caption(
+        f"Temperature: Spreader {DEFAULT_SPREADER_TEMPERATURE} · "
+        f"FC {DEFAULT_DEBUNKER_TEMPERATURE} · Judge 0.10 (fixed)"
+    )
+
+    st.sidebar.divider()
+
+    # ── API Keys ──────────────────────────────────────────────────────────
     st.sidebar.markdown("**API Keys**")
-
+    from arena.utils.api_keys import get_key_status, mask_key
     key_status = get_key_status()
 
     _providers = [
         ("openai",    "OPENAI_API_KEY",    "OpenAI",    "sk-..."),
         ("anthropic", "ANTHROPIC_API_KEY",  "Anthropic", "sk-ant-..."),
         ("gemini",    "GEMINI_API_KEY",     "Gemini",    "AI..."),
-        ("xai",       "XAI_API_KEY",        "xAI (Grok)", "xai-..."),
     ]
 
     for provider_id, env_name, label, placeholder in _providers:
@@ -168,7 +165,7 @@ def _render_sidebar():
                 type="password",
                 key=env_name,
                 placeholder=placeholder,
-                help=f"Paste your {label} key. Stored in session only — not saved to disk.",
+                help=f"Paste your {label} key. Session only — not saved to disk.",
             )
             if _val and _val.strip():
                 import os
@@ -176,6 +173,51 @@ def _render_sidebar():
                 st.sidebar.caption(f"{label}: `{mask_key(_val)}` (sidebar)")
 
     st.sidebar.caption("Keys from `.streamlit/secrets.toml` or env vars load automatically.")
+
+    st.sidebar.divider()
+
+    # -- Data management ───────────────────────────────────────────────────
+    st.sidebar.markdown("**Data**")
+
+    if st.sidebar.button("Load sample data", key="load_sample_btn", help="Generate 60 sample episodes across 5 domains and 3 models to explore all features."):
+        from arena.sample_data import generate_sample_data
+        result = generate_sample_data()
+        st.session_state["runs_refresh_token"] = st.session_state.get("runs_refresh_token", 0) + 1
+        st.sidebar.success(f"Loaded {result['episodes']} sample episodes across {result['runs']} runs")
+        st.rerun()
+
+    if st.sidebar.button("Clear all runs", key="clear_all_runs_btn", help="Archive all runs to runs_archive/ and start fresh."):
+        st.session_state["_confirm_clear_runs"] = True
+
+    if st.session_state.get("_confirm_clear_runs"):
+        st.sidebar.warning("This will move ALL runs to `runs_archive/`. Are you sure?")
+        _c1, _c2 = st.sidebar.columns(2)
+        with _c1:
+            if st.button("Yes, clear", key="confirm_clear_yes", type="primary"):
+                import shutil
+                from pathlib import Path
+                from datetime import datetime
+                _runs_dir = Path("runs")
+                _archive = Path("runs_archive") / f"cleared_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                _archive.mkdir(parents=True, exist_ok=True)
+                _count = 0
+                for d in _runs_dir.iterdir():
+                    if d.is_dir():
+                        shutil.move(str(d), str(_archive / d.name))
+                        _count += 1
+                # Also move matches.jsonl if it exists
+                _mj = _runs_dir / "matches.jsonl"
+                if _mj.exists():
+                    shutil.move(str(_mj), str(_archive / "matches.jsonl"))
+                st.session_state.pop("_confirm_clear_runs", None)
+                # Bump refresh token so analytics/replay update
+                st.session_state["runs_refresh_token"] = st.session_state.get("runs_refresh_token", 0) + 1
+                st.sidebar.success(f"Archived {_count} run(s) to `{_archive.name}`")
+                st.rerun()
+        with _c2:
+            if st.button("Cancel", key="confirm_clear_no"):
+                st.session_state.pop("_confirm_clear_runs", None)
+                st.rerun()
 
 
 def _generate_agent_message(agent, context):
@@ -387,6 +429,145 @@ def render_arena_page():
     st.session_state.setdefault("last_error_trace", None)
     st.session_state.setdefault("last_guard_block", None)
 
+    # Auto-run queue state
+    st.session_state.setdefault("auto_run_active", False)
+    st.session_state.setdefault("auto_run_queue_idx", 0)
+    st.session_state.setdefault("auto_run_total_episodes_done", 0)
+    st.session_state.setdefault("auto_run_started_at", None)
+
+    # ===================================================================
+    # AUTO-RUN QUEUE ADVANCE — fires before UI, advances when prev run done
+    # ===================================================================
+    if st.session_state.get("auto_run_active"):
+        _ar_sc_q = st.session_state.get("sc_run_queue") or []
+        _ar_mc_q = st.session_state.get("mc_run_queue") or []
+        _ar_queue = _ar_sc_q or _ar_mc_q
+        _ar_idx = st.session_state.get("auto_run_queue_idx", 0)
+        _ar_run_active = st.session_state.get("run_active", False)
+        _ar_pending = st.session_state.get("_pending_chain", False)
+        _ar_match_ip = st.session_state.get("match_in_progress", False)
+        _ar_debate_run = st.session_state.get("debate_running", False)
+
+        # Previous run finished: not active, no pending chain, no match in progress
+        _ar_prev_done = (not _ar_run_active and not _ar_pending
+                         and not _ar_match_ip and not _ar_debate_run)
+
+        if _ar_prev_done and _ar_idx < len(_ar_queue):
+            _ar_next = _ar_queue[_ar_idx]
+            ss = st.session_state
+
+            # Tally episodes from the just-finished run
+            _ar_just_done = ss.get("episodes_completed", 0)
+            ss["auto_run_total_episodes_done"] = (
+                ss.get("auto_run_total_episodes_done", 0) + _ar_just_done
+            )
+
+            # Determine mode from queue type
+            _ar_is_sc = bool(_ar_sc_q)
+
+            _ar_ui_claim = ""  # will be set below
+
+            if _ar_is_sc:
+                # Single-claim queue entry
+                _ar_ui_claim = _ar_next["claim"]
+                _ar_turn_plan = _ar_next.get("turn_plan", [5])
+                _ar_num_eps = _ar_next.get("num_episodes", len(_ar_turn_plan))
+                _ar_ct = _ar_next.get("claim_type", "")
+
+                ss["claim_text"] = _ar_ui_claim
+                ss["arena_mode"] = "single_claim"
+                ss["turn_plan"] = _ar_turn_plan
+                ss["turn_plan_csv"] = ",".join(str(t) for t in _ar_turn_plan)
+                ss["turn_plan_valid"] = True
+                ss["max_turns"] = _ar_turn_plan[0] if _ar_turn_plan else 5
+                ss["num_episodes"] = _ar_num_eps
+                if _ar_ct:
+                    ss["claim_type"] = _ar_ct
+            else:
+                # Multi-claim queue entry
+                _ar_mc_claims = _ar_next.get("claims", [])
+                _ar_meta = _ar_next.get("metadata", [])
+                _ar_ui_claim = _ar_mc_claims[0] if _ar_mc_claims else ""
+
+                ss["arena_mode"] = "multi_claim"
+                ss["claims_list"] = _ar_mc_claims
+                ss["claim_metadata_list"] = _ar_meta
+                ss["total_claims"] = len(_ar_mc_claims)
+                ss["current_claim_index"] = 0
+                ss["num_episodes"] = len(_ar_mc_claims)
+                ss["max_turns"] = 10
+                if _ar_mc_claims:
+                    ss["claim_text"] = _ar_mc_claims[0]
+
+            # Apply model overrides from queue entry
+            if _ar_next.get("spreader_model"):
+                ss["spreader_model"] = _ar_next["spreader_model"]
+            if _ar_next.get("debunker_model"):
+                ss["debunker_model"] = _ar_next["debunker_model"]
+            if _ar_next.get("judge_model"):
+                ss["judge_model_select"] = _ar_next["judge_model"]
+
+            # --- Start the run (mirrors "Start debate" button logic) ---
+            ss["run_active"] = True
+            ss["episodes_completed"] = 0
+            ss["episode_idx"] = 1
+            ss["current_claim_index"] = ss.get("current_claim_index", 0)
+            if "run_id" in ss:
+                del ss["run_id"]
+
+            try:
+                from arena.ui.run_planner import reset_episode_state_for_chaining, apply_turn_plan_to_episode
+            except ImportError:
+                sys.path.insert(0, "src")
+                from arena.ui.run_planner import reset_episode_state_for_chaining, apply_turn_plan_to_episode
+            reset_episode_state_for_chaining(ss)
+
+            ss["topic"] = _ar_ui_claim
+            ss["current_claim"] = _ar_ui_claim
+            ss["claim"] = _ar_ui_claim
+            ss["debate_messages"] = []
+            ss["episode_transcript"] = []
+            ss["completed_turn_pairs"] = 0
+            ss["turn_idx"] = 0
+            ss["debate_phase"] = "spreader"
+
+            if _ar_is_sc:
+                apply_turn_plan_to_episode(ss, 1)
+
+            ss["match_in_progress"] = True
+            ss["debate_running"] = True
+            ss["debate_autoplay"] = True
+            ss["match_id"] = f"match_{ss['episode_idx']}"
+
+            # Advance queue pointer
+            ss["auto_run_queue_idx"] = _ar_idx + 1
+
+            st.rerun()
+
+        elif _ar_prev_done and _ar_idx >= len(_ar_queue):
+            # All runs in queue finished
+            _ar_just_done = st.session_state.get("episodes_completed", 0)
+            st.session_state["auto_run_total_episodes_done"] = (
+                st.session_state.get("auto_run_total_episodes_done", 0)
+                + _ar_just_done
+            )
+            _ar_total_done = st.session_state["auto_run_total_episodes_done"]
+            _ar_started = st.session_state.get("auto_run_started_at")
+            _ar_elapsed = ""
+            if _ar_started:
+                _ar_secs = int(time.time() - _ar_started)
+                _ar_mins, _ar_s = divmod(_ar_secs, 60)
+                _ar_elapsed = f" in {_ar_mins}m {_ar_s}s" if _ar_mins else f" in {_ar_s}s"
+
+            st.session_state["auto_run_active"] = False
+            st.session_state["auto_run_queue_idx"] = 0
+            st.session_state["auto_run_completed_msg"] = (
+                f"Auto-run complete: {len(_ar_queue)} runs, "
+                f"{_ar_total_done} episodes{_ar_elapsed}."
+            )
+            st.session_state["auto_run_total_episodes_done"] = 0
+            st.session_state["auto_run_started_at"] = None
+
     # ===================================================================
     # ARENA MODE - Single-Claim vs Multi-Claim
     # ===================================================================
@@ -421,8 +602,9 @@ def render_arena_page():
             st.markdown(
                 '<div style="font-size:0.88rem;color:#555;margin-bottom:0.8rem;">'
                 'Upload a CSV with one row per episode. Required: <code>claim</code>. '
-                'Optional: <code>run</code> (group episodes into separate runs), '
-                '<code>claim_type</code>, <code>max_turns</code> (defaults to 5).</div>',
+                'Optional: <code>run</code>, <code>claim_type</code>, <code>max_turns</code>, '
+                '<code>spreader_model</code>, <code>debunker_model</code>, <code>judge_model</code>. '
+                'Model columns override the sidebar selection for that run.</div>',
                 unsafe_allow_html=True,
             )
 
@@ -432,22 +614,14 @@ def render_arena_page():
                 'padding:0.7rem 1rem;margin-bottom:0.8rem;font-family:monospace;font-size:0.8rem;'
                 'line-height:1.6;color:#374151">'
                 '<span style="color:#9ca3af">CSV format:</span><br>'
-                'claim,run,claim_type,max_turns<br>'
-                'Vaccines cause autism,1,Health / Vaccine,2<br>'
-                'Vaccines cause autism,1,Health / Vaccine,4<br>'
-                'Vaccines cause autism,1,Health / Vaccine,6<br>'
-                'Vaccines cause autism,1,Health / Vaccine,8<br>'
-                'Vaccines cause autism,1,Health / Vaccine,10<br>'
-                'Climate change is a hoax,2,Environmental,2<br>'
-                'Climate change is a hoax,2,Environmental,4<br>'
-                'Climate change is a hoax,2,Environmental,6<br>'
-                'Climate change is a hoax,2,Environmental,8<br>'
-                'Climate change is a hoax,2,Environmental,10<br>'
-                'The 2020 election was stolen,3,Political / Election,2<br>'
-                'The 2020 election was stolen,3,Political / Election,4<br>'
-                'The 2020 election was stolen,3,Political / Election,6<br>'
-                'The 2020 election was stolen,3,Political / Election,8<br>'
-                'The 2020 election was stolen,3,Political / Election,10'
+                'claim,run,claim_type,max_turns,spreader_model,debunker_model,judge_model<br>'
+                'Vaccines cause autism,1,Health / Vaccine,2,gpt-4o-mini,gpt-4o-mini,gpt-4o-mini<br>'
+                'Vaccines cause autism,1,Health / Vaccine,4,gpt-4o-mini,gpt-4o-mini,gpt-4o-mini<br>'
+                'Vaccines cause autism,1,Health / Vaccine,6,gpt-4o-mini,gpt-4o-mini,gpt-4o-mini<br>'
+                'Vaccines cause autism,2,Health / Vaccine,4,gemini-2.0-flash,gemini-2.0-flash,gpt-4o-mini<br>'
+                'Vaccines cause autism,2,Health / Vaccine,6,gemini-2.0-flash,gemini-2.0-flash,gpt-4o-mini<br>'
+                'Climate change is a hoax,3,Environmental,4,grok-3-mini,gpt-4o-mini,gpt-4o-mini<br>'
+                'Climate change is a hoax,3,Environmental,6,grok-3-mini,gpt-4o-mini,gpt-4o-mini'
                 '</div>',
                 unsafe_allow_html=True,
             )
@@ -457,6 +631,8 @@ def render_arena_page():
                 try:
                     _sc_df = _pd.read_csv(_sc_file) if _sc_file.name.endswith(".csv") else _pd.read_excel(_sc_file)
                     _sc_df.columns = [c.strip().lower().replace(" ", "_") for c in _sc_df.columns]
+                    # Auto-classify claims missing claim_type
+                    _sc_df = _auto_classify_df(_sc_df)
                     if "claim" not in _sc_df.columns:
                         st.error("CSV must have a `claim` column.")
                     else:
@@ -475,12 +651,19 @@ def render_arena_page():
                             else:
                                 _turns = [5] * len(_run_df)
                             _ct = str(_run_df["claim_type"].iloc[0]).strip() if "claim_type" in _run_df.columns and _pd.notna(_run_df["claim_type"].iloc[0]) else ""
+                            # Extract model overrides if present
+                            _spr_model = str(_run_df["spreader_model"].iloc[0]).strip() if "spreader_model" in _run_df.columns and _pd.notna(_run_df["spreader_model"].iloc[0]) else ""
+                            _deb_model = str(_run_df["debunker_model"].iloc[0]).strip() if "debunker_model" in _run_df.columns and _pd.notna(_run_df["debunker_model"].iloc[0]) else ""
+                            _jud_model = str(_run_df["judge_model"].iloc[0]).strip() if "judge_model" in _run_df.columns and _pd.notna(_run_df["judge_model"].iloc[0]) else ""
                             _run_queue.append({
                                 "run": _run_num,
                                 "claim": _claim,
                                 "claim_type": _ct,
                                 "turn_plan": _turns,
                                 "num_episodes": len(_run_df),
+                                "spreader_model": _spr_model,
+                                "debunker_model": _deb_model,
+                                "judge_model": _jud_model,
                             })
 
                         st.session_state["sc_run_queue"] = _run_queue
@@ -495,6 +678,13 @@ def render_arena_page():
                         st.session_state["max_turns"] = _first["turn_plan"][0] if _first["turn_plan"] else 5
                         if _first["claim_type"]:
                             st.session_state["claim_type"] = _first["claim_type"]
+                        # Apply model overrides from CSV
+                        if _first.get("spreader_model"):
+                            st.session_state["spreader_model"] = _first["spreader_model"]
+                        if _first.get("debunker_model"):
+                            st.session_state["debunker_model"] = _first["debunker_model"]
+                        if _first.get("judge_model"):
+                            st.session_state["judge_model_select"] = _first["judge_model"]
 
                         # Summary
                         _total_eps = sum(r["num_episodes"] for r in _run_queue)
@@ -502,7 +692,12 @@ def render_arena_page():
                         with st.expander(f"Run queue ({len(_run_queue)} runs)", expanded=False):
                             for r in _run_queue:
                                 _turns_str = ",".join(str(t) for t in r["turn_plan"])
-                                st.caption(f"**Run {r['run']}:** \"{r['claim'][:60]}\" — {r['num_episodes']} episodes ({_turns_str} turns) · {r['claim_type'] or '—'}")
+                                _models = ""
+                                if r.get("spreader_model") or r.get("debunker_model"):
+                                    _models = f' · models: {r.get("spreader_model", "default")} vs {r.get("debunker_model", "default")}'
+                                    if r.get("judge_model"):
+                                        _models += f' (judge: {r["judge_model"]})'
+                                st.caption(f"**Run {r['run']}:** \"{r['claim'][:50]}\" — {r['num_episodes']} eps ({_turns_str} turns) · {r['claim_type'] or '—'}{_models}")
                 except Exception as e:
                     st.error(f"Failed to parse CSV: {e}")
                     st.session_state["turn_plan_valid"] = False
@@ -574,8 +769,8 @@ def render_arena_page():
             st.markdown(
                 '<div style="font-size:0.88rem;color:#555;margin-bottom:0.8rem;">'
                 'Upload a CSV with one claim per row. Required: <code>claim</code>. '
-                'Optional: <code>run</code> (group claims into separate runs), '
-                '<code>claim_type</code>.</div>',
+                'Optional: <code>run</code>, <code>claim_type</code>, '
+                '<code>spreader_model</code>, <code>debunker_model</code>, <code>judge_model</code>.</div>',
                 unsafe_allow_html=True,
             )
 
@@ -585,15 +780,13 @@ def render_arena_page():
                 'padding:0.7rem 1rem;margin-bottom:0.8rem;font-family:monospace;font-size:0.8rem;'
                 'line-height:1.6;color:#374151">'
                 '<span style="color:#9ca3af">CSV format:</span><br>'
-                'claim,run,claim_type<br>'
-                'Vaccines cause autism,1,Health / Vaccine<br>'
-                '5G towers spread COVID,1,Health / Vaccine<br>'
-                'Big Pharma hides cancer cures,1,Institutional Conspiracy<br>'
-                'Climate change is a hoax,2,Environmental<br>'
-                'The 2020 election was stolen,2,Political / Election<br>'
-                'AI will replace all human jobs,2,Economic<br>'
-                'Fluoride in water is mind control,3,Institutional Conspiracy<br>'
-                'Chemtrails are poisoning us,3,Institutional Conspiracy'
+                'claim,run,claim_type,spreader_model,debunker_model,judge_model<br>'
+                'Vaccines cause autism,1,Health / Vaccine,gpt-4o-mini,gpt-4o-mini,gpt-4o-mini<br>'
+                '5G towers spread COVID,1,Health / Vaccine,gpt-4o-mini,gpt-4o-mini,gpt-4o-mini<br>'
+                'Climate change is a hoax,2,Environmental,gemini-2.0-flash,gemini-2.0-flash,gpt-4o-mini<br>'
+                'The 2020 election was stolen,2,Political / Election,gemini-2.0-flash,gemini-2.0-flash,gpt-4o-mini<br>'
+                'AI will replace all jobs,3,Economic,grok-3-mini,grok-3-mini,gpt-4o-mini<br>'
+                'Fluoride is mind control,3,Institutional Conspiracy,grok-3-mini,grok-3-mini,gpt-4o-mini'
                 '</div>',
                 unsafe_allow_html=True,
             )
@@ -603,11 +796,23 @@ def render_arena_page():
                 try:
                     _mc_df = _pd.read_csv(_mc_file) if _mc_file.name.endswith(".csv") else _pd.read_excel(_mc_file)
                     _mc_df.columns = [c.strip().lower().replace(" ", "_") for c in _mc_df.columns]
+                    # Auto-classify claims missing claim_type
+                    _mc_df = _auto_classify_df(_mc_df)
                     if "claim" not in _mc_df.columns:
                         st.error("CSV must have a `claim` column.")
                     else:
                         _has_run = "run" in _mc_df.columns
                         _mc_run_queue = []
+
+                        def _extract_run_models(run_df):
+                            """Extract model overrides from the first row of a run group."""
+                            models = {}
+                            for col, key in [("spreader_model", "spreader_model"), ("debunker_model", "debunker_model"), ("judge_model", "judge_model")]:
+                                if col in run_df.columns and _pd.notna(run_df[col].iloc[0]):
+                                    val = str(run_df[col].iloc[0]).strip()
+                                    if val:
+                                        models[key] = val
+                            return models
 
                         if _has_run:
                             for _run_num, _run_df in _mc_df.groupby("run", sort=True):
@@ -620,16 +825,16 @@ def render_arena_page():
                                         meta = {}
                                         if "claim_type" in _run_df.columns and _pd.notna(row.get("claim_type")):
                                             meta["claim_type"] = str(row["claim_type"]).strip()
-                                            meta["claim_domain"] = str(row["claim_type"]).strip()
                                         _run_meta.append(meta)
                                 if _run_claims:
-                                    _mc_run_queue.append({
+                                    _entry = {
                                         "run": _run_num,
                                         "claims": _run_claims,
                                         "metadata": _run_meta,
-                                    })
+                                    }
+                                    _entry.update(_extract_run_models(_run_df))
+                                    _mc_run_queue.append(_entry)
                         else:
-                            # No run column — all claims in one run
                             _one_claims = []
                             _one_meta = []
                             for _, row in _mc_df.iterrows():
@@ -639,10 +844,11 @@ def render_arena_page():
                                     meta = {}
                                     if "claim_type" in _mc_df.columns and _pd.notna(row.get("claim_type")):
                                         meta["claim_type"] = str(row["claim_type"]).strip()
-                                        meta["claim_domain"] = str(row["claim_type"]).strip()
                                     _one_meta.append(meta)
                             if _one_claims:
-                                _mc_run_queue = [{"run": 1, "claims": _one_claims, "metadata": _one_meta}]
+                                _entry = {"run": 1, "claims": _one_claims, "metadata": _one_meta}
+                                _entry.update(_extract_run_models(_mc_df))
+                                _mc_run_queue = [_entry]
 
                         st.session_state["mc_run_queue"] = _mc_run_queue
 
@@ -651,13 +857,25 @@ def render_arena_page():
                             _first_run = _mc_run_queue[0]
                             claims_list = _first_run["claims"]
                             claim_metadata_list = _first_run["metadata"]
+                            # Apply model overrides from first run
+                            if _first_run.get("spreader_model"):
+                                st.session_state["spreader_model"] = _first_run["spreader_model"]
+                            if _first_run.get("debunker_model"):
+                                st.session_state["debunker_model"] = _first_run["debunker_model"]
+                            if _first_run.get("judge_model"):
+                                st.session_state["judge_model_select"] = _first_run["judge_model"]
 
                         _total_claims = sum(len(r["claims"]) for r in _mc_run_queue)
                         st.success(f"Loaded {len(_mc_run_queue)} run(s), {_total_claims} total claims")
 
                         with st.expander(f"Preview ({len(_mc_run_queue)} runs, {_total_claims} claims)", expanded=False):
                             for r in _mc_run_queue:
-                                st.markdown(f"**Run {r['run']}** — {len(r['claims'])} claims")
+                                _models_str = ""
+                                if r.get("spreader_model") or r.get("debunker_model"):
+                                    _models_str = f' · {r.get("spreader_model", "default")} vs {r.get("debunker_model", "default")}'
+                                    if r.get("judge_model"):
+                                        _models_str += f' (judge: {r["judge_model"]})'
+                                st.markdown(f"**Run {r['run']}** — {len(r['claims'])} claims{_models_str}")
                                 _types = [m.get("claim_type", "—") for m in r["metadata"]]
                                 _preview_df = _pd.DataFrame({
                                     "Claim": [c[:70] + ("..." if len(c) > 70 else "") for c in r["claims"]],
@@ -692,36 +910,60 @@ def render_arena_page():
             )
 
     # ===================================================================
-    # CLAIM TAXONOMY - tag the claim's domain for research filtering
+    # CLAIM TAXONOMY - auto-classify, user can override
     # ===================================================================
     st.markdown('<div class="ar-section">Claim Type</div>', unsafe_allow_html=True)
-    _claim_type_options = [
-        "", "Health / Vaccine", "Political / Election",
-        "Institutional Conspiracy", "Environmental", "Economic", "Hybrid",
-    ]
+
+    from arena.claim_metadata import classify_claim, CLAIM_TYPE_CATEGORIES
+
+    _claim_type_options = [""] + CLAIM_TYPE_CATEGORIES
+    _current_claim = st.session_state.get("claim_text", "")
+
+    # Auto-classify if claim changed since last classification
+    _last_classified = st.session_state.get("_last_classified_claim", "")
+    if _current_claim and _current_claim.strip() != _last_classified:
+        _auto_type, _auto_source = classify_claim(_current_claim.strip(), use_llm_fallback=False)
+        if _auto_type and _auto_type != "unknown" and _auto_type in _claim_type_options:
+            st.session_state["_pending_claim_type"] = _auto_type
+            st.session_state["_auto_classify_source"] = _auto_source
+        st.session_state["_last_classified_claim"] = _current_claim.strip()
+
+    # Apply pending auto-classification (staging pattern for widget-bound key)
+    if "_pending_claim_type" in st.session_state:
+        _pending = st.session_state.pop("_pending_claim_type")
+        if _pending in _claim_type_options:
+            st.session_state["claim_type"] = _pending
+
     st.session_state.setdefault("claim_type", "")
     st.selectbox(
         "Claim type",
         options=_claim_type_options,
         key="claim_type",
         label_visibility="collapsed",
-        help="Tag this claim's domain for analytics filtering and cross-claim comparison.",
+        help="Auto-classified from your claim text. Override if needed.",
     )
 
+    _source = st.session_state.get("_auto_classify_source", "")
+    _ct = st.session_state.get("claim_type", "")
+    if _ct and _source:
+        st.caption(f"Auto-classified as **{_ct}** (via {_source}). You can override above.")
+
     # ===================================================================
-    # RUN CONTROLS - Start new run boundary
+    # RUN CONTROLS - Single button to start run + first match
     # ===================================================================
     st.markdown('<div class="ar-section">Run Controls</div>', unsafe_allow_html=True)
     col_run_start, col_run_stop = st.columns(2)
     with col_run_start:
-        if st.button("Start new run", type="primary", use_container_width=True, key="arena_start_new_run_btn"):
-            # Validate API keys for selected models before starting
+        if st.button("Start debate", type="primary", use_container_width=True, key="arena_start_debate_btn"):
+            ss = st.session_state
+
+            # ── Validate API keys ──
             from arena.utils.api_keys import get_key_status
             from arena.agents import is_anthropic_model, is_gemini_model, is_grok_model
             _ks = get_key_status()
             _missing = []
             for _role, _mk in [("Spreader", "spreader_model"), ("Fact-checker", "debunker_model")]:
-                _m = st.session_state.get(_mk, "gpt-4o-mini")
+                _m = ss.get(_mk, "gpt-4o-mini")
                 if is_anthropic_model(_m) and not _ks.get("anthropic", {}).get("set"):
                     _missing.append(f"{_role} ({_m}): set ANTHROPIC_API_KEY")
                 elif is_gemini_model(_m) and not _ks.get("gemini", {}).get("set"):
@@ -734,38 +976,145 @@ def render_arena_page():
                 st.error("**Missing API key(s).** " + " · ".join(_missing) + ". Paste in the sidebar or `.streamlit/secrets.toml`.")
                 st.stop()
 
+            # ── Validate claim input ──
             if arena_mode == "multi_claim":
-                claims_list = st.session_state.get("claims_list", [])
+                claims_list = ss.get("claims_list", [])
                 if not claims_list:
                     st.error("Enter or upload at least one claim before starting.")
                     st.stop()
-            st.session_state["run_active"] = True
-            st.session_state["episodes_completed"] = 0
-            st.session_state["episode_idx"] = 1
-            st.session_state["current_claim_index"] = 0
-            if "run_id" in st.session_state:
-                del st.session_state["run_id"]
+                ui_claim = claims_list[0]
+                ss["current_claim_index"] = 0
+                ss["total_claims"] = len(claims_list)
+                ss["max_turns"] = 10
+                ss["num_episodes"] = len(claims_list)
+            else:
+                ui_claim = _get_ui_claim()
+                if not ui_claim:
+                    st.warning("Please enter a claim to debate.")
+                    st.stop()
+
+            if ss.get("turn_plan_valid") is False:
+                st.error("Fix the Run Plan (turn plan must be valid).")
+                st.stop()
+
+            # ── Create run boundary ──
+            ss["run_active"] = True
+            ss["episodes_completed"] = 0
+            ss["episode_idx"] = 1
+            ss["current_claim_index"] = ss.get("current_claim_index", 0)
+            if "run_id" in ss:
+                del ss["run_id"]
+
             try:
-                from arena.ui.run_planner import reset_episode_state_for_chaining
+                from arena.ui.run_planner import reset_episode_state_for_chaining, apply_turn_plan_to_episode
             except ImportError:
                 sys.path.insert(0, "src")
-                from arena.ui.run_planner import reset_episode_state_for_chaining
-            reset_episode_state_for_chaining(st.session_state)
-            st.session_state["match_in_progress"] = False
-            st.session_state["debate_running"] = False
+                from arena.ui.run_planner import reset_episode_state_for_chaining, apply_turn_plan_to_episode
+            reset_episode_state_for_chaining(ss)
+
             if arena_mode == "multi_claim":
-                st.session_state["num_episodes"] = st.session_state.get("total_claims", 1)
-                st.session_state["max_turns"] = 10
-                st.session_state["claim_metadata_list"] = st.session_state.get("claim_metadata_list") or []
-            if st.session_state.get("arena_debug", False):
-                print("[ARENA] Start new run: episode_idx=1 episodes_completed=0 run_id cleared")
+                ss["claim_metadata_list"] = ss.get("claim_metadata_list") or []
+
+            # ── Start first match immediately ──
+            ss["topic"] = ui_claim
+            ss["current_claim"] = ui_claim
+            ss["claim"] = ui_claim
+            ss["debate_messages"] = []
+            ss["episode_transcript"] = []
+            ss["completed_turn_pairs"] = 0
+            ss["turn_idx"] = 0
+            ss["debate_phase"] = "spreader"
+
+            if arena_mode != "multi_claim":
+                apply_turn_plan_to_episode(ss, ss.get("episode_idx", 1))
+
+            ss["match_in_progress"] = True
+            ss["debate_running"] = True
+            ss["debate_autoplay"] = True
+            ss["match_id"] = f"match_{ss['episode_idx']}"
+
             st.rerun()
+
     with col_run_stop:
-        if st.button("Stop run", use_container_width=True, key="arena_stop_run_btn"):
+        if st.button("Stop", use_container_width=True, key="arena_stop_run_btn"):
             st.session_state["run_active"] = False
             st.session_state["debate_running"] = False
             st.session_state["match_in_progress"] = False
+            st.session_state["auto_run_active"] = False
             st.rerun()
+
+    # ===================================================================
+    # AUTO-RUN ALL — batch-process entire run queue
+    # ===================================================================
+    _ar_sc_queue = st.session_state.get("sc_run_queue") or []
+    _ar_mc_queue = st.session_state.get("mc_run_queue") or []
+    _ar_full_queue = _ar_sc_queue or _ar_mc_queue
+    _ar_is_active = st.session_state.get("auto_run_active", False)
+
+    # Show completion message if just finished
+    _ar_done_msg = st.session_state.pop("auto_run_completed_msg", None)
+    if _ar_done_msg:
+        st.success(_ar_done_msg)
+
+    if len(_ar_full_queue) > 1 or _ar_is_active:
+        st.markdown('<div class="ar-section">Auto-Run Queue</div>', unsafe_allow_html=True)
+
+        if _ar_is_active:
+            # Show progress while running
+            _ar_q_idx = st.session_state.get("auto_run_queue_idx", 0)
+            _ar_q_total = len(_ar_full_queue)
+            _ar_ep_done = st.session_state.get("auto_run_total_episodes_done", 0)
+            _ar_ep_cur_run = st.session_state.get("episodes_completed", 0)
+            _ar_ep_running = _ar_ep_done + _ar_ep_cur_run
+
+            st.info(
+                f"Auto-running: run **{min(_ar_q_idx, _ar_q_total)}/{_ar_q_total}** "
+                f"({_ar_ep_running} episodes completed so far)"
+            )
+            _ar_prog = min(_ar_q_idx / _ar_q_total, 1.0) if _ar_q_total > 0 else 0
+            st.progress(_ar_prog, text=f"Queue: {_ar_q_idx}/{_ar_q_total} runs started")
+
+            if st.button("Cancel auto-run", use_container_width=True, key="auto_run_cancel_btn"):
+                st.session_state["auto_run_active"] = False
+                st.info("Auto-run cancelled. Current run will finish.")
+                st.rerun()
+        else:
+            # Show queue summary and start button
+            _ar_total_runs = len(_ar_full_queue)
+            if _ar_sc_queue:
+                _ar_total_eps = sum(r.get("num_episodes", 1) for r in _ar_sc_queue)
+            else:
+                _ar_total_eps = sum(len(r.get("claims", [])) for r in _ar_mc_queue)
+
+            # Cost estimate
+            _ar_model = st.session_state.get("spreader_model", "gpt-4o")
+            _ar_cost_per_turn = 0.0085 if ("mini" not in _ar_model and "haiku" not in _ar_model and "flash" not in _ar_model) else 0.0006
+            _ar_avg_turns = 6
+            _ar_est = _ar_total_eps * _ar_avg_turns * 2 * _ar_cost_per_turn  # x2 for both agents
+            _ar_est_low = _ar_est * 0.7
+            _ar_est_high = _ar_est * 1.3
+
+            st.markdown(
+                f"**{_ar_total_runs}** runs queued with **{_ar_total_eps}** total episodes. "
+                f"Estimated cost: **${_ar_est_low:.2f} -- ${_ar_est_high:.2f}**."
+            )
+
+            if st.button(
+                "Auto-run all queued runs",
+                type="primary",
+                use_container_width=True,
+                key="auto_run_start_btn",
+            ):
+                st.session_state["auto_run_active"] = True
+                st.session_state["auto_run_queue_idx"] = 0
+                st.session_state["auto_run_total_episodes_done"] = 0
+                st.session_state["auto_run_started_at"] = time.time()
+                # Clear any stale run state so the advance logic fires immediately
+                st.session_state["run_active"] = False
+                st.session_state["debate_running"] = False
+                st.session_state["match_in_progress"] = False
+                st.session_state["_pending_chain"] = False
+                st.rerun()
 
     # ===================================================================
     # ACTIVE CLAIM BANNER + STATUS -- visible when run is live

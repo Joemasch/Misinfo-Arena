@@ -1,8 +1,13 @@
 """
 Automatic claim metadata inference for Misinfo Arena.
 
-Heuristic-based, deterministic inference from claim text.
-Used at episode persistence to populate claim metadata for Claim Analysis.
+Two-tier classification:
+1. Heuristic (regex/keyword) — fast, deterministic, zero cost
+2. LLM fallback — used when heuristic returns "unknown" or confidence is low
+
+Category names match the Arena UI dropdown exactly:
+  Health / Vaccine, Political / Election, Institutional Conspiracy,
+  Environmental, Economic, Hybrid
 """
 
 from __future__ import annotations
@@ -12,39 +17,51 @@ import re
 
 UNKNOWN = "unknown"
 
-# Domain keyword buckets (lowercase)
-_DOMAIN_KEYWORDS: dict[str, list[str]] = {
-    "health": [
-        "vaccine", "vaccines", "covid", "virus", "infertility", "autism", "cancer",
-        "disease", "medicine", "drug", "drugs", "doctor", "doctors", "hospital",
-        "pharma", "injection", "side effect", "treatment", "cure", "flu",
-        "organic", "gmo", "genetically modified", "additive", "chemical",
+# ── Canonical categories (match UI dropdown) ──────────────────────────────
+CLAIM_TYPE_CATEGORIES = [
+    "Health / Vaccine",
+    "Political / Election",
+    "Institutional Conspiracy",
+    "Environmental",
+    "Economic",
+    "Hybrid",
+]
+
+# ── Keyword → category mapping (lowercase keywords) ──────────────────────
+_CATEGORY_KEYWORDS: dict[str, list[str]] = {
+    "Health / Vaccine": [
+        "vaccine", "vaccines", "vaccination", "covid", "virus", "pandemic",
+        "infertility", "autism", "cancer", "disease", "medicine", "drug",
+        "drugs", "doctor", "hospital", "pharma", "pharmaceutical", "injection",
+        "side effect", "treatment", "cure", "flu", "health", "healthcare",
+        "gmo", "genetically modified", "organic", "fluoride", "5g",
+        "microchip", "dna", "mrna", "ivermectin", "hydroxychloroquine",
     ],
-    "politics": [
-        "election", "elections", "vote", "votes", "ballot", "ballots", "fraud",
-        "government", "president", "congress", "democrat", "republican",
-        "stolen", "rigged", "voter", "recount",
+    "Political / Election": [
+        "election", "elections", "vote", "votes", "ballot", "ballots",
+        "fraud", "voter fraud", "rigged", "stolen", "recount",
+        "president", "congress", "democrat", "republican", "immigration",
+        "border", "deep state", "political", "politician",
     ],
-    "science": [
-        "evolution", "physics", "chemistry", "biology", "experiment",
-        "study", "studies", "research", "scientific", "scientists",
-        "peer review", "consensus",
+    "Institutional Conspiracy": [
+        "cover up", "cover-up", "coverup", "conspiracy", "they don't want",
+        "secretly", "hoax", "false flag", "agenda", "plandemic",
+        "big pharma", "elite", "establishment", "narrative", "suppressed",
+        "suppression", "censored", "censorship", "hidden truth",
+        "mainstream media", "controlled", "puppet", "new world order",
     ],
-    "environment": [
-        "climate", "warming", "pollution", "emissions", "environment",
-        "renewable", "carbon", "greenhouse", "extinction", "ecosystem",
+    "Environmental": [
+        "climate", "climate change", "global warming", "warming", "pollution",
+        "emissions", "carbon", "greenhouse", "extinction", "ecosystem",
+        "renewable", "fossil fuel", "deforestation", "sea level",
+        "environment", "environmental", "chemtrail",
     ],
-    "economics": [
-        "inflation", "jobs", "taxes", "unemployment", "recession",
-        "economy", "economies", "wages", "market", "markets", "wealth",
-    ],
-    "technology": [
-        "ai", "algorithm", "social media", "platform", "internet",
-        "5g", "microchip", "microchips", "surveillance", "tracking",
-    ],
-    "society": [
-        "conspiracy", "cover up", "hoax", "agenda", "culture",
-        "media", "mainstream", "elite", "establishment",
+    "Economic": [
+        "inflation", "jobs", "job", "taxes", "tax", "unemployment",
+        "recession", "economy", "economies", "wages", "wage",
+        "market", "markets", "wealth", "poverty", "trade",
+        "tariff", "debt", "deficit", "universal basic income",
+        "automation", "replace", "replacing", "eliminate",
     ],
 }
 
@@ -55,35 +72,8 @@ _DEFINITIONAL_PATTERNS = ["means", "defined as"]
 _CONSPIRATORIAL_PATTERNS = [
     "cover up", "cover-up", "coverup", "they don't want you to know", "they don't want",
     "secretly", "hoax", "false flag", "agenda", "plandemic", "big pharma",
-    "elite", "establishment", "narrative", "mainstream",
+    "elite", "establishment", "narrative", "mainstream", "suppressed",
 ]
-
-# claim_type mapping (overlap with domain but emphasizes style)
-_CLAIM_TYPE_KEYWORDS: dict[str, list[str]] = {
-    "scientific_medical": [
-        "vaccine", "covid", "virus", "cancer", "disease", "medicine", "drug",
-        "autism", "infertility", "study", "research", "scientific",
-    ],
-    "political": [
-        "election", "vote", "fraud", "government", "president", "stolen",
-    ],
-    "conspiracy": [
-        "cover up", "hoax", "false flag", "agenda", "plandemic", "elite",
-        "establishment", "secret", "they don't want",
-    ],
-    "economic": [
-        "inflation", "jobs", "taxes", "economy", "recession", "wages",
-    ],
-    "technological": [
-        "ai", "algorithm", "5g", "microchip", "surveillance", "social media",
-    ],
-    "environmental": [
-        "climate", "warming", "pollution", "emissions", "environment",
-    ],
-    "social": [
-        "culture", "media", "society",
-    ],
-}
 
 
 def normalize_claim_text(claim: str) -> str:
@@ -122,15 +112,6 @@ def build_claim_id(claim: str) -> str:
         return ""
 
 
-def _match_domain(text: str) -> str:
-    """Infer claim_domain from keywords. Prefer specific matches."""
-    for domain, keywords in _DOMAIN_KEYWORDS.items():
-        for kw in keywords:
-            if kw in text:
-                return domain
-    return UNKNOWN
-
-
 def _match_structure(text: str) -> str:
     """Infer claim_structure. Prefer: conspiratorial > causal > predictive > correlational > definitional."""
     for kw in _CONSPIRATORIAL_PATTERNS:
@@ -148,13 +129,92 @@ def _match_structure(text: str) -> str:
     return UNKNOWN
 
 
-def _match_claim_type(text: str) -> str:
-    """Infer claim_type from keywords."""
-    for ctype, keywords in _CLAIM_TYPE_KEYWORDS.items():
-        for kw in keywords:
-            if kw in text:
-                return ctype
-    return UNKNOWN
+def _match_claim_type(text: str) -> tuple[str, float]:
+    """
+    Infer claim_type from keywords. Returns (category, confidence).
+    Confidence: 1.0 = strong match, 0.5 = weak, 0.0 = unknown.
+    """
+    scores: dict[str, int] = {}
+    for category, keywords in _CATEGORY_KEYWORDS.items():
+        count = sum(1 for kw in keywords if kw in text)
+        if count > 0:
+            scores[category] = count
+
+    if not scores:
+        return UNKNOWN, 0.0
+
+    best = max(scores, key=scores.get)
+    best_count = scores[best]
+
+    # Check for hybrid (multiple categories with significant matches)
+    significant = {k: v for k, v in scores.items() if v >= 2}
+    if len(significant) >= 2:
+        return "Hybrid", 0.7
+
+    confidence = min(1.0, best_count / 3.0)  # 3+ keyword hits = full confidence
+    return best, confidence
+
+
+def classify_claim_llm(claim: str) -> str | None:
+    """
+    Classify a claim using a lightweight LLM call.
+    Returns one of CLAIM_TYPE_CATEGORIES or None on failure.
+    Used as fallback when heuristic returns unknown or low confidence.
+    """
+    try:
+        from arena.utils.api_keys import get_openai_api_key
+        api_key = get_openai_api_key()
+        if not api_key:
+            return None
+
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key)
+
+        categories_str = ", ".join(CLAIM_TYPE_CATEGORIES)
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": (
+                    f"Classify the following misinformation claim into exactly one category: {categories_str}. "
+                    "Respond with ONLY the category name, nothing else."
+                )},
+                {"role": "user", "content": claim},
+            ],
+            temperature=0.0,
+            max_tokens=20,
+        )
+        result = response.choices[0].message.content.strip()
+        # Validate it's one of our categories
+        for cat in CLAIM_TYPE_CATEGORIES:
+            if cat.lower() in result.lower():
+                return cat
+        return None
+    except Exception:
+        return None
+
+
+def classify_claim(claim: str, use_llm_fallback: bool = True) -> tuple[str, str]:
+    """
+    Classify a claim into a canonical category.
+
+    Returns (category, source) where source is "heuristic" or "llm".
+    Falls back to LLM if heuristic is uncertain and use_llm_fallback is True.
+    """
+    norm = normalize_claim_text(claim)
+    if not norm:
+        return UNKNOWN, "none"
+
+    category, confidence = _match_claim_type(norm)
+
+    if category != UNKNOWN and confidence >= 0.5:
+        return category, "heuristic"
+
+    if use_llm_fallback:
+        llm_result = classify_claim_llm(claim)
+        if llm_result:
+            return llm_result, "llm"
+
+    return category if category != UNKNOWN else UNKNOWN, "heuristic"
 
 
 def _infer_verifiability(text: str, structure: str) -> str:
@@ -205,15 +265,13 @@ def infer_claim_metadata_from_text(claim: str) -> dict[str, str]:
         if cid:
             out["claim_id"] = cid
 
-        # claim_domain
-        out["claim_domain"] = _match_domain(norm)
-
         # claim_structure
         structure = _match_structure(norm)
         out["claim_structure"] = structure
 
-        # claim_type
-        out["claim_type"] = _match_claim_type(norm)
+        # claim_type (uses new canonical categories)
+        ctype, _conf = _match_claim_type(norm)
+        out["claim_type"] = ctype
 
         # claim_verifiability (depends on structure)
         out["claim_verifiability"] = _infer_verifiability(norm, structure)

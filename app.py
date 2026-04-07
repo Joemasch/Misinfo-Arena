@@ -91,11 +91,7 @@ from arena.presentation.streamlit.pages.analytics_page import render_analytics_p
 from arena.presentation.streamlit.pages.claim_analysis_page import render_claim_analysis_page
 from arena.presentation.streamlit.pages.replay_page import render_episode_replay_page
 from arena.presentation.streamlit.pages.guide_page import render_guide_page
-from arena.presentation.streamlit.pages.prompts_page import render_prompts_page
-from arena.presentation.streamlit.pages.strategy_leaderboard_page import render_strategy_leaderboard_page
-from arena.presentation.streamlit.pages.citation_page import render_citation_page
-from arena.presentation.streamlit.pages.experiment_page import render_experiment_page
-from arena.presentation.streamlit.pages.annotation_page import render_annotation_page
+from arena.presentation.streamlit.pages.tools_page import render_tools_page
 from arena.presentation.streamlit.pages.arena_page import render_arena_page
 
 # Arena component imports
@@ -948,51 +944,31 @@ def main():
     # Main title
     st.title("Misinformation Arena")
 
-    # Navigation tabs
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
-        "🏠 Home", "🏟️ Arena", "📊 Analytics", "🎬 Run Replay",
-        "📋 Claim Analysis", "🏆 Strategy Leaderboard", "📚 Citation Tracker", "🎭 Prompts",
-        "🧪 Experiment", "📝 Annotate",
+    # Navigation tabs (6 tabs — organized by user workflow)
+    tab_home, tab_arena, tab_analytics, tab_claims, tab_replay, tab_tools = st.tabs([
+        "🏠 Home", "🏟️ Arena", "📊 Analytics", "📋 Claims",
+        "🎬 Replay", "🛠️ Tools",
     ])
 
-    with tab1:
-        # Home tab
+    with tab_home:
         render_guide_page()
 
-    with tab2:
+    with tab_arena:
         render_arena_page()
 
-    with tab3:
-        # Analytics tab
+    with tab_analytics:
+        # Sub-tabs: Performance, Models, Claims, Debate Patterns, Trends & Quality, Anomalies
         render_analytics_page()
 
-    with tab4:
-        # Run Replay tab
-        render_episode_replay_page()
-
-    with tab5:
-        # Claim Analysis tab
+    with tab_claims:
         render_claim_analysis_page()
 
-    with tab6:
-        # Strategy Leaderboard tab
-        render_strategy_leaderboard_page()
+    with tab_replay:
+        render_episode_replay_page()
 
-    with tab7:
-        # Citation Tracker tab
-        render_citation_page()
-
-    with tab8:
-        # Prompts tab
-        render_prompts_page()
-
-    with tab9:
-        # Batch Experiment tab
-        render_experiment_page()
-
-    with tab10:
-        # Human Annotation tab
-        render_annotation_page()
+    with tab_tools:
+        # Sub-tabs: Prompts, Experiment, Annotate
+        render_tools_page()
 
     # Footer
     st.markdown("---")

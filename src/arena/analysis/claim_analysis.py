@@ -33,7 +33,7 @@ def build_claim_level_df(df: pd.DataFrame) -> pd.DataFrame:
     Build a claim-level dataframe with difficulty index and aggregated metrics.
 
     Groups by claim text. Returns one row per unique claim with:
-    claim, claim_domain, claim_type, claim_complexity, episodes, debunker_win_rate,
+    claim, claim_type, claim_complexity, episodes, debunker_win_rate,
     avg_confidence, anomaly_rate, difficulty_index
     """
     if df.empty or "claim" not in df.columns:
@@ -67,7 +67,7 @@ def build_claim_level_df(df: pd.DataFrame) -> pd.DataFrame:
         "avg_confidence": grp["_conf"].mean().round(3),
         "anomaly_rate": (grp["_err"].sum() / grp.size()).round(3),
     })
-    for col in ["claim_domain", "claim_type", "claim_complexity"]:
+    for col in ["claim_type", "claim_complexity"]:
         if col in df_work.columns:
             out[col] = grp[col].first().fillna("unknown")
         else:

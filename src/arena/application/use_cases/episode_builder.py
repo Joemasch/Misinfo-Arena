@@ -27,7 +27,6 @@ def _extract_claim_metadata(ss) -> dict:
         "claim_id",
         "claim_type",
         "claim_complexity",
-        "claim_domain",
         "claim_verifiability",
         "claim_structure",
         "claim_label_source",
@@ -94,7 +93,7 @@ def _build_episode_object(ss, run_id, episode_id, turns, judge_decision, concess
                 },
                 "judge": {
                     "type": "agent" if ss.get("judge_mode") == "agent" else "heuristic",
-                    "model": os.getenv("AGENT_JUDGE_MODEL", "gpt-4o-mini") if ss.get("judge_mode") == "agent" else "heuristic",
+                    "model": (ss.get("judge_model_select") or os.getenv("AGENT_JUDGE_MODEL", "gpt-4o-mini")) if ss.get("judge_mode") == "agent" else "heuristic",
                     "temperature": ss.get("judge_temperature", None),
                     "prompt_version": JUDGE_STATIC_PROMPT_VERSION,
                     "prompt_customized": ss.get("judge_prompt_customized", False),
@@ -164,7 +163,7 @@ def _build_run_object(ss, run_id, arena_mode) -> dict:
             "agents": {
                 "spreader": {"model": ss.get("spreader_model"), "temperature": ss.get("spreader_temperature")},
                 "debunker": {"model": ss.get("debunker_model"), "temperature": ss.get("debunker_temperature")},
-                "judge": {"model": ss.get("judge_model", "heuristic"), "temperature": ss.get("judge_temperature", None)},
+                "judge": {"model": ss.get("judge_model_select") or os.getenv("AGENT_JUDGE_MODEL", "gpt-4o-mini"), "temperature": ss.get("judge_temperature", None)},
             },
             "judge_weights": {
                 "truthfulness_proxy": 0.2, "evidence_quality": 0.2,

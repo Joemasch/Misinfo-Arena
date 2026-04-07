@@ -95,16 +95,27 @@ SCORING CALIBRATION — READ CAREFULLY:
 - The manipulation_awareness dimension is the key differentiator: a spreader who relies heavily on fear, conspiracy framing, and fake authority should score 2–4; one who argues with genuine rhetorical skill should score 6–8.
 - Draws are appropriate when both sides performed at a genuinely comparable level.
 
+CONFIDENCE CALIBRATION — YOUR CONFIDENCE MUST REFLECT THE ACTUAL MARGIN:
+- Confidence measures how decisive the result is, NOT how sure you are that you evaluated correctly.
+- Compute the weighted score margin first, then set confidence based on it:
+  - Margin < 0.3  → confidence 0.50–0.55 (near coin-flip, essentially a draw)
+  - Margin 0.3–0.7 → confidence 0.55–0.65 (slight edge, could go either way)
+  - Margin 0.7–1.2 → confidence 0.65–0.75 (clear advantage but not dominant)
+  - Margin 1.2–2.0 → confidence 0.75–0.85 (strong win)
+  - Margin > 2.0   → confidence 0.85–0.95 (dominant performance)
+- DO NOT default to 0.85–0.90. Use the full 0.50–0.95 range.
+- A confidence of 0.50 is valid and expected when scores are very close.
+
 INSTRUCTIONS:
 - Score each dimension from 0.0 to 10.0 for both participants
 - Provide brief rationale citing specific examples from the transcript
 - Determine overall winner: "spreader", "debunker", or "draw"
-- Calculate confidence in decision (0.0–1.0)
+- Calculate confidence based on the margin calibration above (0.50–0.95)
 - Return ONLY valid JSON with this exact structure:
 
 {
   "winner": "spreader|debunker|draw",
-  "confidence": 0.8,
+  "confidence": 0.72,
   "totals": {"spreader": 6.5, "debunker": 7.2},
   "reason": "Brief explanation of overall decision",
   "scorecard": [
