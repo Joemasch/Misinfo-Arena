@@ -380,6 +380,53 @@ def render_annotation_page():
             min_value=1, max_value=5, value=3, key="annot_deb_conv",
         )
 
+    # ── Per-dimension ratings (0-10, matches judge rubric) ──────────────────
+    st.markdown(
+        '<p style="font-size:0.95rem;color:var(--color-text-muted,#888);margin:1.2rem 0 0.5rem 0;line-height:1.5">'
+        '<b>Dimension Ratings</b> — Score each side on the same 6 dimensions the AI judge uses. '
+        'Rate from 0 (worst) to 10 (best) based on the transcript you just read.'
+        '</p>',
+        unsafe_allow_html=True,
+    )
+
+    _dim_labels = {
+        "factuality": "Factuality — factual grounding and consistency",
+        "source_credibility": "Source Credibility — quality and specificity of sources cited",
+        "reasoning_quality": "Reasoning Quality — logical structure, avoidance of fallacies",
+        "responsiveness": "Responsiveness — directly addresses opponent's points",
+        "persuasion": "Persuasion — convincingness to an uncommitted reader",
+        "manipulation_awareness": "Manipulation Awareness — recognizes/uses rhetorical tactics",
+    }
+
+    dimension_ratings: dict[str, dict[str, int]] = {"spreader": {}, "debunker": {}}
+    dim_keys = list(_dim_labels.keys())
+
+    for row_start in range(0, len(dim_keys), 2):
+        dim_cols = st.columns(2)
+        for col_idx, dim_idx in enumerate(range(row_start, min(row_start + 2, len(dim_keys)))):
+            dim = dim_keys[dim_idx]
+            with dim_cols[col_idx]:
+                st.caption(_dim_labels[dim])
+                sub_col1, sub_col2 = st.columns(2)
+                with sub_col1:
+                    dimension_ratings["spreader"][dim] = st.slider(
+                        f"Spreader — {dim}",
+                        min_value=0, max_value=10, value=5,
+                        key=f"annot_dim_spr_{dim}",
+                        label_visibility="collapsed",
+                        help=f"Spreader score for {dim}",
+                    )
+                    st.caption("Spreader")
+                with sub_col2:
+                    dimension_ratings["debunker"][dim] = st.slider(
+                        f"FC — {dim}",
+                        min_value=0, max_value=10, value=5,
+                        key=f"annot_dim_deb_{dim}",
+                        label_visibility="collapsed",
+                        help=f"Fact-checker score for {dim}",
+                    )
+                    st.caption("Fact-checker")
+
     notes = st.text_area(
         "Notes (optional)",
         placeholder="Any observations about the debate quality, tactics used, etc.",
@@ -400,6 +447,7 @@ def render_annotation_page():
             "spr_conviction":  spr_conviction,
             "deb_conviction":  deb_conviction,
             "notes":           notes,
+            "dimension_ratings": dimension_ratings,
             "agreement":       human_winner == ai_winner,
         }
         _save_annotation(record)
