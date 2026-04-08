@@ -1,0 +1,33 @@
+study_id,condition,run_group,claim,claim_type,spreader_model,debunker_model,judge_model,max_turns,consistency_runs
+study1_corpus,combo_A_turns2,combo_A_vaccines_cause_autis_2t,Vaccines cause autism,Health,gpt-4o-mini,gpt-4o,,2,1
+study1_corpus,combo_A_turns4,combo_A_vaccines_cause_autis_4t,Vaccines cause autism,Health,gpt-4o-mini,gpt-4o,,4,1
+study1_corpus,combo_A_turns6,combo_A_vaccines_cause_autis_6t,Vaccines cause autism,Health,gpt-4o-mini,gpt-4o,,6,1
+study1_corpus,combo_A_turns10,combo_A_vaccines_cause_autis_10t,Vaccines cause autism,Health,gpt-4o-mini,gpt-4o,,10,1
+study1_corpus,combo_A_turns2,combo_A_5g_towers_cause_canc_2t,5G towers cause cancer,Technology,gpt-4o-mini,gpt-4o,,2,1
+study1_corpus,combo_A_turns4,combo_A_5g_towers_cause_canc_4t,5G towers cause cancer,Technology,gpt-4o-mini,gpt-4o,,4,1
+study1_corpus,combo_A_turns6,combo_A_5g_towers_cause_canc_6t,5G towers cause cancer,Technology,gpt-4o-mini,gpt-4o,,6,1
+study1_corpus,combo_A_turns10,combo_A_5g_towers_cause_canc_10t,5G towers cause cancer,Technology,gpt-4o-mini,gpt-4o,,10,1
+study1_corpus,combo_A_turns2,combo_A_climate_change_is_a__2t,"Climate change is a natural cycle, not caused by humans",Environmental,gpt-4o-mini,gpt-4o,,2,1
+study1_corpus,combo_A_turns4,combo_A_climate_change_is_a__4t,"Climate change is a natural cycle, not caused by humans",Environmental,gpt-4o-mini,gpt-4o,,4,1
+study1_corpus,combo_A_turns6,combo_A_climate_change_is_a__6t,"Climate change is a natural cycle, not caused by humans",Environmental,gpt-4o-mini,gpt-4o,,6,1
+study1_corpus,combo_A_turns10,combo_A_climate_change_is_a__10t,"Climate change is a natural cycle, not caused by humans",Environmental,gpt-4o-mini,gpt-4o,,10,1
+study1_corpus,combo_A_turns2,combo_A_the_2020_election_wa_2t,The 2020 election was stolen,Political,gpt-4o-mini,gpt-4o,,2,1
+study1_corpus,combo_A_turns4,combo_A_the_2020_election_wa_4t,The 2020 election was stolen,Political,gpt-4o-mini,gpt-4o,,4,1
+study1_corpus,combo_A_turns6,combo_A_the_2020_election_wa_6t,The 2020 election was stolen,Political,gpt-4o-mini,gpt-4o,,6,1
+study1_corpus,combo_A_turns10,combo_A_the_2020_election_wa_10t,The 2020 election was stolen,Political,gpt-4o-mini,gpt-4o,,10,1
+study1_corpus,combo_B_turns2,combo_B_vaccines_cause_autis_2t,Vaccines cause autism,Health,claude-sonnet-4-20250514,gemini-2.5-flash,,2,1
+study1_corpus,combo_B_turns4,combo_B_vaccines_cause_autis_4t,Vaccines cause autism,Health,claude-sonnet-4-20250514,gemini-2.5-flash,,4,1
+study1_corpus,combo_B_turns6,combo_B_vaccines_cause_autis_6t,Vaccines cause autism,Health,claude-sonnet-4-20250514,gemini-2.5-flash,,6,1
+study1_corpus,combo_B_turns10,combo_B_vaccines_cause_autis_10t,Vaccines cause autism,Health,claude-sonnet-4-20250514,gemini-2.5-flash,,10,1
+study1_corpus,combo_B_turns2,combo_B_5g_towers_cause_canc_2t,5G towers cause cancer,Technology,claude-sonnet-4-20250514,gemini-2.5-flash,,2,1
+study1_corpus,combo_B_turns4,combo_B_5g_towers_cause_canc_4t,5G towers cause cancer,Technology,claude-sonnet-4-20250514,gemini-2.5-flash,,4,1
+study1_corpus,combo_B_turns6,combo_B_5g_towers_cause_canc_6t,5G towers cause cancer,Technology,claude-sonnet-4-20250514,gemini-2.5-flash,,6,1
+study1_corpus,combo_B_turns10,combo_B_5g_towers_cause_canc_10t,5G towers cause cancer,Technology,claude-sonnet-4-20250514,gemini-2.5-flash,,10,1
+study1_corpus,combo_B_turns2,combo_B_climate_change_is_a__2t,"Climate change is a natural cycle, not caused by humans",Environmental,claude-sonnet-4-20250514,gemini-2.5-flash,,2,1
+study1_corpus,combo_B_turns4,combo_B_climate_change_is_a__4t,"Climate change is a natural cycle, not caused by humans",Environmental,claude-sonnet-4-20250514,gemini-2.5-flash,,4,1
+study1_corpus,combo_B_turns6,combo_B_climate_change_is_a__6t,"Climate change is a natural cycle, not caused by humans",Environmental,claude-sonnet-4-20250514,gemini-2.5-flash,,6,1
+study1_corpus,combo_B_turns10,combo_B_climate_change_is_a__10t,"Climate change is a natural cycle, not caused by humans",Environmental,claude-sonnet-4-20250514,gemini-2.5-flash,,10,1
+study1_corpus,combo_B_turns2,combo_B_the_2020_election_wa_2t,The 2020 election was stolen,Political,claude-sonnet-4-20250514,gemini-2.5-flash,,2,1
+study1_corpus,combo_B_turns4,combo_B_the_2020_election_wa_4t,The 2020 election was stolen,Political,claude-sonnet-4-20250514,gemini-2.5-flash,,4,1
+study1_corpus,combo_B_turns6,combo_B_the_2020_election_wa_6t,The 2020 election was stolen,Political,claude-sonnet-4-20250514,gemini-2.5-flash,,6,1
+study1_corpus,combo_B_turns10,combo_B_the_2020_election_wa_10t,The 2020 election was stolen,Political,claude-sonnet-4-20250514,gemini-2.5-flash,,10,1
