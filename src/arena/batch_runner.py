@@ -158,8 +158,13 @@ def _judge_turns(
     judge_temperature: float,
     judge_consistency_runs: int,
     judge_prompt_template: Optional[str] = None,
+    allow_heuristic_fallback: bool = True,
 ):
-    """Call AgentJudge; fall back to HeuristicJudge on failure."""
+    """Call AgentJudge. Falls back to HeuristicJudge only if allowed.
+
+    For experiment runs, set allow_heuristic_fallback=False so judge failures
+    produce explicit errors rather than silent lower-quality scores.
+    """
     from arena.judge import AgentJudge, HeuristicJudge, JudgeDecision
 
     class _FakeCfg:
@@ -175,7 +180,9 @@ def _judge_turns(
             consistency_runs=judge_consistency_runs,
         )
         return aj.evaluate_match(turns_for_judge, cfg)
-    except Exception:
+    except Exception as e:
+        if not allow_heuristic_fallback:
+            raise  # Let experiment engine handle the error explicitly
         hj = HeuristicJudge()
         return hj.evaluate_match(turns_for_judge, cfg)
 
@@ -456,6 +463,7 @@ def run_experiment_from_spec(
                     judge_temperature=judge_temperature,
                     judge_consistency_runs=row.consistency_runs,
                     judge_prompt_template=judge_prompt_template,
+                    allow_heuristic_fallback=False,  # Experiments: explicit errors only
                 )
 
                 def _get(obj, key, default=None):

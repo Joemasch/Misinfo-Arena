@@ -711,73 +711,155 @@ class AgentJudge(BaseJudge):
         return prompt
 
     def _call_llm(self, prompt: str) -> str:
-        """Call OpenAI API with the evaluation prompt.
+        """Call LLM API with the evaluation prompt.
+
+        Supports multi-provider routing based on model prefix:
+        - claude-*   → Anthropic API
+        - gemini-*   → Google GenAI API
+        - grok-*     → xAI API (OpenAI-compatible)
+        - gpt-* etc  → OpenAI API
 
         The rubric is placed in the system role for reliable instruction-following;
         the transcript + output format instruction goes in the user turn.
         """
+        # Split prompt into system (rubric) and user (transcript) parts
+        from arena.prompts.judge_static_prompt import TRANSCRIPT_PLACEHOLDER
+        if TRANSCRIPT_PLACEHOLDER in prompt:
+            split_marker = "=== DEBATE TRANSCRIPT"
+            if split_marker in prompt:
+                rubric_part = prompt[:prompt.index(split_marker)].strip()
+                user_part   = prompt[prompt.index(split_marker):].strip()
+            else:
+                rubric_part = prompt
+                user_part   = "Evaluate the transcript above and return JSON only."
+        else:
+            rubric_part = "You are an expert debate judge. Evaluate the transcript and return valid JSON only."
+            user_part   = prompt
+
         try:
-            # Lazy import to avoid issues when OpenAI not installed
-            from openai import OpenAI
+            from arena.agents import is_anthropic_model, is_gemini_model, is_grok_model
 
-            # Get API key using canonical method
-            from arena.utils.openai_config import get_openai_api_key
-            api_key = get_openai_api_key()
-            if not api_key:
-                raise RuntimeError("OpenAI API key not available")
-
-            # Create client if not already created
-            if self._client is None:
-                self._client = OpenAI(api_key=api_key)
-
-            # Split prompt at the transcript boundary so the rubric goes in
-            # the system role (better instruction-following) and the actual
-            # transcript content goes in the user turn.
-            from arena.prompts.judge_static_prompt import TRANSCRIPT_PLACEHOLDER
-            if TRANSCRIPT_PLACEHOLDER in prompt:
-                # Rubric = everything before the transcript section
-                # User content = transcript + post-transcript instructions
-                split_marker = "=== DEBATE TRANSCRIPT"
-                if split_marker in prompt:
-                    rubric_part = prompt[:prompt.index(split_marker)].strip()
-                    user_part   = prompt[prompt.index(split_marker):].strip()
-                else:
-                    rubric_part = prompt
-                    user_part   = "Evaluate the transcript above and return JSON only."
+            if is_anthropic_model(self.model):
+                return self._call_anthropic(rubric_part, user_part)
+            elif is_gemini_model(self.model):
+                return self._call_gemini(rubric_part, user_part)
+            elif is_grok_model(self.model):
+                return self._call_grok(rubric_part, user_part)
             else:
-                # Prompt was already assembled with transcript inline
-                rubric_part = "You are an expert debate judge. Evaluate the transcript and return valid JSON only."
-                user_part   = prompt
-
-            # json_object response_format is only supported on gpt-4o / gpt-4o-mini
-            _supports_json_mode = any(
-                tag in self.model for tag in ("gpt-4o", "gpt-4-turbo")
-            )
-            call_kwargs = dict(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": rubric_part},
-                    {"role": "user",   "content": user_part},
-                ],
-                temperature=self.temperature,
-                max_tokens=2500,
-            )
-            if _supports_json_mode:
-                call_kwargs["response_format"] = {"type": "json_object"}
-            response = self._client.chat.completions.create(**call_kwargs)
-
-            if response.choices and len(response.choices) > 0:
-                return response.choices[0].message.content.strip()
-            else:
-                raise RuntimeError("No response from OpenAI API")
+                return self._call_openai(rubric_part, user_part)
 
         except Exception as e:
-            # Provide clearer error messages for common issues
             error_str = str(e)
             if "401" in error_str or "Incorrect API key" in error_str or "invalid_api_key" in error_str:
-                raise RuntimeError("OpenAI authentication failed (401). Your OPENAI_API_KEY is missing or invalid.") from e
+                raise RuntimeError(f"Authentication failed (401) for model {self.model}. Check your API key.") from e
             else:
-                raise RuntimeError(f"OpenAI API Error: {error_str}") from e
+                raise RuntimeError(f"LLM API Error ({self.model}): {error_str}") from e
+
+    def _call_openai(self, system_prompt: str, user_prompt: str) -> str:
+        """Call OpenAI API."""
+        from openai import OpenAI
+        from arena.utils.api_keys import get_key_status
+
+        keys = get_key_status()
+        api_key = keys.get("openai", {}).get("key") or None
+        if not api_key:
+            from arena.utils.openai_config import get_openai_api_key
+            api_key = get_openai_api_key()
+        if not api_key:
+            raise RuntimeError("OpenAI API key not available")
+
+        if self._client is None or not isinstance(self._client, OpenAI):
+            self._client = OpenAI(api_key=api_key)
+
+        call_kwargs = dict(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user",   "content": user_prompt},
+            ],
+            temperature=self.temperature,
+            max_tokens=2500,
+        )
+        _supports_json_mode = any(tag in self.model for tag in ("gpt-4o", "gpt-4-turbo"))
+        if _supports_json_mode:
+            call_kwargs["response_format"] = {"type": "json_object"}
+
+        response = self._client.chat.completions.create(**call_kwargs)
+        if response.choices and len(response.choices) > 0:
+            return response.choices[0].message.content.strip()
+        raise RuntimeError("No response from OpenAI API")
+
+    def _call_anthropic(self, system_prompt: str, user_prompt: str) -> str:
+        """Call Anthropic API."""
+        from anthropic import Anthropic
+        from arena.utils.api_keys import get_key_status
+
+        keys = get_key_status()
+        api_key = keys.get("anthropic", {}).get("key")
+        if not api_key:
+            raise RuntimeError("Anthropic API key not available. Set ANTHROPIC_API_KEY.")
+
+        client = Anthropic(api_key=api_key)
+        response = client.messages.create(
+            model=self.model,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
+            temperature=self.temperature,
+            max_tokens=2500,
+        )
+        if response.content and len(response.content) > 0:
+            return response.content[0].text.strip()
+        raise RuntimeError("No response from Anthropic API")
+
+    def _call_gemini(self, system_prompt: str, user_prompt: str) -> str:
+        """Call Google GenAI API."""
+        from google import genai
+        from google.genai import types as genai_types
+        from arena.utils.api_keys import get_key_status
+
+        keys = get_key_status()
+        api_key = keys.get("gemini", {}).get("key")
+        if not api_key:
+            raise RuntimeError("Gemini API key not available. Set GEMINI_API_KEY.")
+
+        client = genai.Client(api_key=api_key)
+        config = genai_types.GenerateContentConfig(
+            system_instruction=system_prompt,
+            temperature=self.temperature,
+            max_output_tokens=2500,
+        )
+        response = client.models.generate_content(
+            model=self.model,
+            contents=user_prompt,
+            config=config,
+        )
+        if response.text:
+            return response.text.strip()
+        raise RuntimeError("No response from Gemini API")
+
+    def _call_grok(self, system_prompt: str, user_prompt: str) -> str:
+        """Call xAI Grok API (OpenAI-compatible)."""
+        from openai import OpenAI
+        from arena.utils.api_keys import get_key_status
+
+        keys = get_key_status()
+        api_key = keys.get("xai", {}).get("key")
+        if not api_key:
+            raise RuntimeError("xAI API key not available. Set XAI_API_KEY.")
+
+        client = OpenAI(api_key=api_key, base_url="https://api.x.ai/v1")
+        response = client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user",   "content": user_prompt},
+            ],
+            temperature=self.temperature,
+            max_tokens=2500,
+        )
+        if response.choices and len(response.choices) > 0:
+            return response.choices[0].message.content.strip()
+        raise RuntimeError("No response from xAI API")
 
     def _parse_agent_judgment(self, text: str) -> JudgeDecision:
         """Parse LLM response into JudgeDecision."""
