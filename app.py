@@ -87,8 +87,8 @@ from arena.config import (
 from arena.state import initialize_session_state, is_concession
 
 # Page module imports
-from arena.presentation.streamlit.pages.analytics_page import render_analytics_page
-from arena.presentation.streamlit.pages.claim_analysis_page import render_claim_analysis_page
+from arena.presentation.streamlit.pages.explore_page import render_explore_page
+from arena.presentation.streamlit.pages.study_results_page import render_study_results_page
 from arena.presentation.streamlit.pages.replay_page import render_episode_replay_page
 from arena.presentation.streamlit.pages.guide_page import render_guide_page
 from arena.presentation.streamlit.pages.tools_page import render_tools_page
@@ -947,9 +947,9 @@ def main():
             "Debates cannot run without a valid API key."
         )
 
-    # Navigation tabs (6 tabs — organized by user workflow)
-    tab_home, tab_arena, tab_analytics, tab_claims, tab_replay, tab_tools = st.tabs([
-        "Home", "Arena", "Analytics", "Claims",
+    # Navigation tabs (6 tabs — organized by research workflow)
+    tab_home, tab_arena, tab_studies, tab_explore, tab_replay, tab_tools = st.tabs([
+        "Home", "Arena", "Study Results", "Explore",
         "Replay", "Tools",
     ])
 
@@ -959,18 +959,16 @@ def main():
     with tab_arena:
         render_arena_page()
 
-    with tab_analytics:
-        # Sub-tabs: Performance, Models, Claims, Debate Patterns, Trends & Quality, Anomalies
-        render_analytics_page()
+    with tab_studies:
+        render_study_results_page()
 
-    with tab_claims:
-        render_claim_analysis_page()
+    with tab_explore:
+        render_explore_page()
 
     with tab_replay:
         render_episode_replay_page()
 
     with tab_tools:
-        # Sub-tabs: Prompts, Experiment, Annotate
         render_tools_page()
 
     # Footer

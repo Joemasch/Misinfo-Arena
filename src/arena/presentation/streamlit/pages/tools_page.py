@@ -1,10 +1,9 @@
-"""Tools page — combines Prompts, Experiment, Annotate, and Exports sub-tabs."""
+"""Tools page — combines Annotate, Exports, and Prompts sub-tabs."""
 
 import pandas as pd
 import streamlit as st
 
 from arena.presentation.streamlit.pages.prompts_page import render_prompts_page
-from arena.presentation.streamlit.pages.experiment_page import render_experiment_page
 from arena.presentation.streamlit.pages.annotation_page import render_annotation_page
 
 
@@ -218,20 +217,18 @@ def render_tools_page():
     st.markdown(
         '<p style="font-size:1rem;color:var(--color-text-muted);margin-bottom:1.5rem;'
         'line-height:1.5;text-align:center">'
-        'Prompt reference, model comparison experiments, human annotation, and statistical exports.'
+        'Human annotation, statistical exports, and prompt reference.'
         '</p>',
         unsafe_allow_html=True,
     )
 
-    tab_prompts, tab_experiment, tab_annotate, tab_exports = st.tabs([
-        "Prompts", "Experiment", "Annotate", "Exports"
+    tab_annotate, tab_exports, tab_prompts = st.tabs([
+        "Annotate", "Exports", "Prompts"
     ])
 
-    with tab_prompts:
-        render_prompts_page()
-    with tab_experiment:
-        render_experiment_page()
     with tab_annotate:
         render_annotation_page()
     with tab_exports:
         _render_exports_tab()
+    with tab_prompts:
+        render_prompts_page()
