@@ -108,13 +108,14 @@ def _render_sidebar():
     st.sidebar.markdown("**Judge**")
     st.sidebar.caption("The judge evaluates each debate using a 6-dimension rubric.")
 
-    _judge_models = ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo"]
+    from arena.config import AVAILABLE_MODELS
+    _judge_models = [m for m in AVAILABLE_MODELS if "turbo" not in m and "3.5" not in m and "2.0" not in m]
     st.sidebar.selectbox(
         "Judge model",
         options=_judge_models,
-        index=0,
+        index=_judge_models.index("gpt-4o-mini") if "gpt-4o-mini" in _judge_models else 0,
         key="judge_model_select",
-        help="Which model scores the debate. gpt-4o-mini is cheapest; gpt-4o is most capable.",
+        help="Which model scores the debate. Supports OpenAI, Anthropic, Google, and xAI models.",
     )
 
     st.sidebar.selectbox(
