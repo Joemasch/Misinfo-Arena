@@ -286,28 +286,30 @@ def _update_chat_display(chat_placeholder, status_placeholder, progress_bar, tur
 
 def render_arena_page():
     """Render the full Arena tab content."""
+    from arena.presentation.streamlit.styles import inject_global_css
+    inject_global_css()
 
     # -- Arena page CSS ----------------------------------------------------
     st.markdown("""
     <style>
-    /* Arena section labels -- match rp-tab-section pattern */
+    /* Arena section labels */
     .ar-section {
         font-size: 0.72rem;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.09em;
-        color: #9ca3af;
-        border-bottom: 1px solid rgba(0,0,0,0.08);
+        color: var(--color-text-muted, #888);
+        border-bottom: 1px solid var(--color-border, #2A2A2A);
         padding-bottom: 0.3rem;
         margin: 1.4rem 0 0.75rem 0;
     }
     .ar-section:first-child { margin-top: 0; }
 
-    /* Active claim banner -- mirrors rp-claim-banner */
+    /* Active claim banner */
     .ar-claim-banner {
-        border-left: 4px solid #3A7EC7;
-        background: rgba(58,126,199,0.06);
-        border-radius: 0 8px 8px 0;
+        border-left: 4px solid var(--color-accent-blue, #4A7FA5);
+        background: rgba(74, 127, 165, 0.08);
+        border-radius: 0 4px 4px 0;
         padding: 0.75rem 1.1rem;
         margin: 0.5rem 0 1rem 0;
     }
@@ -316,17 +318,17 @@ def render_arena_page():
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.09em;
-        color: #3A7EC7;
+        color: var(--color-accent-blue, #4A7FA5);
         margin-bottom: 0.2rem;
     }
     .ar-claim-text {
         font-size: 1rem;
         font-weight: 600;
-        color: #1f2937;
+        color: var(--color-text-primary, #E8E4D9);
         line-height: 1.4;
     }
 
-    /* Status strip -- run/match state at a glance */
+    /* Status strip */
     .ar-status-strip {
         display: flex;
         gap: 0.6rem;
@@ -338,38 +340,42 @@ def render_arena_page():
         font-size: 0.75rem;
         font-weight: 600;
         padding: 0.2rem 0.65rem;
-        border-radius: 999px;
-        border: 1px solid rgba(128,128,128,0.25);
-        color: #374151;
+        border-radius: 4px;
+        border: 1px solid var(--color-border, #2A2A2A);
+        color: var(--color-text-muted, #888);
+        font-family: 'IBM Plex Mono', monospace;
     }
     .ar-status-badge.active {
-        border-color: rgba(34,197,94,0.5);
-        color: #166534;
-        background: rgba(34,197,94,0.07);
+        border-color: rgba(76, 175, 125, 0.5);
+        color: var(--color-accent-green, #4CAF7D);
+        background: rgba(76, 175, 125, 0.1);
     }
     .ar-status-badge.running {
-        border-color: rgba(58,126,199,0.5);
-        color: #1a5fa8;
-        background: rgba(58,126,199,0.07);
+        border-color: rgba(74, 127, 165, 0.5);
+        color: var(--color-accent-blue, #4A7FA5);
+        background: rgba(74, 127, 165, 0.1);
     }
     .ar-status-badge.idle {
-        border-color: rgba(107,114,128,0.4);
-        color: #6b7280;
+        border-color: var(--color-border, #2A2A2A);
+        color: var(--color-text-faint, #444);
     }
 
     /* Page title */
     .ar-page-title {
-        font-size: 1.9rem;
-        font-weight: 800;
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 2.6rem;
+        font-weight: 700;
         letter-spacing: -0.025em;
-        color: #111;
+        color: var(--color-text-primary, #E8E4D9);
         margin: 0 0 0.2rem 0;
         line-height: 1.2;
+        text-align: center;
     }
     .ar-page-sub {
         font-size: 0.95rem;
-        color: #6b7280;
+        color: var(--color-text-muted, #888);
         margin: 0 0 1.2rem 0;
+        text-align: center;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -910,43 +916,25 @@ def render_arena_page():
             )
 
     # ===================================================================
-    # CLAIM TAXONOMY - auto-classify, user can override
+    # CLAIM TAXONOMY - fully automatic, no dropdown
     # ===================================================================
-    st.markdown('<div class="ar-section">Claim Type</div>', unsafe_allow_html=True)
+    from arena.claim_metadata import classify_claim
 
-    from arena.claim_metadata import classify_claim, CLAIM_TYPE_CATEGORIES
-
-    _claim_type_options = [""] + CLAIM_TYPE_CATEGORIES
     _current_claim = st.session_state.get("claim_text", "")
-
-    # Auto-classify if claim changed since last classification
     _last_classified = st.session_state.get("_last_classified_claim", "")
+
+    # Auto-classify whenever the claim text changes
     if _current_claim and _current_claim.strip() != _last_classified:
         _auto_type, _auto_source = classify_claim(_current_claim.strip(), use_llm_fallback=False)
-        if _auto_type and _auto_type != "unknown" and _auto_type in _claim_type_options:
-            st.session_state["_pending_claim_type"] = _auto_type
+        if _auto_type and _auto_type != "unknown":
+            st.session_state["claim_type"] = _auto_type
             st.session_state["_auto_classify_source"] = _auto_source
+        else:
+            st.session_state["claim_type"] = ""
+            st.session_state["_auto_classify_source"] = ""
         st.session_state["_last_classified_claim"] = _current_claim.strip()
 
-    # Apply pending auto-classification (staging pattern for widget-bound key)
-    if "_pending_claim_type" in st.session_state:
-        _pending = st.session_state.pop("_pending_claim_type")
-        if _pending in _claim_type_options:
-            st.session_state["claim_type"] = _pending
-
     st.session_state.setdefault("claim_type", "")
-    st.selectbox(
-        "Claim type",
-        options=_claim_type_options,
-        key="claim_type",
-        label_visibility="collapsed",
-        help="Auto-classified from your claim text. Override if needed.",
-    )
-
-    _source = st.session_state.get("_auto_classify_source", "")
-    _ct = st.session_state.get("claim_type", "")
-    if _ct and _source:
-        st.caption(f"Auto-classified as **{_ct}** (via {_source}). You can override above.")
 
     # ===================================================================
     # RUN CONTROLS - Single button to start run + first match

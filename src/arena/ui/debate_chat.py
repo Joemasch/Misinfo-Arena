@@ -24,9 +24,9 @@ def inject_debate_chat_css():
         <style>
           /* ---- Debate Chat Container ---- */
           .debate-chat-wrap {
-            border: 1px solid rgba(0,0,0,0.08);
-            border-radius: 14px;
-            background: #ffffff;
+            border: 1px solid var(--color-border, #2A2A2A);
+            border-radius: 4px;
+            background: var(--color-bg, #0A0A0A);
             padding: 0;
             margin: 0;
           }
@@ -52,23 +52,25 @@ def inject_debate_chat_css():
           /* ---- Bubbles ---- */
           .bubble {
             max-width: 76%;
-            border-radius: 20px;
-            padding: 10px 12px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
-            line-height: 1.35;
+            border-radius: 10px;
+            padding: 0.85rem 1.1rem;
+            line-height: 1.65;
             font-size: 0.95rem;
             white-space: pre-wrap;
             word-wrap: break-word;
+            color: var(--color-text-primary, #E8E4D9);
           }
 
           .bubble.spreader {
-            background: rgba(229,57,53,0.10);
-            border: 1px solid rgba(229,57,53,0.25);
+            background: rgba(212, 168, 67, 0.08);
+            border-left: 3px solid var(--color-accent-amber, #D4A843);
+            border-top: none; border-right: none; border-bottom: none;
           }
 
           .bubble.debunker {
-            background: rgba(33,150,243,0.08);
-            border: 1px solid rgba(33,150,243,0.18);
+            background: rgba(74, 127, 165, 0.08);
+            border-left: 3px solid var(--color-accent-blue, #4A7FA5);
+            border-top: none; border-right: none; border-bottom: none;
           }
 
           /* ---- Structured content inside bubbles ---- */
@@ -87,15 +89,15 @@ def inject_debate_chat_css():
 
           /* ---- Citation links ---- */
           .cite-link {
-            color: #1a73e8;
+            color: var(--color-accent-blue, #4A7FA5);
             text-decoration: none;
-            border-bottom: 1px dotted #1a73e8;
+            border-bottom: 1px dotted var(--color-accent-blue, #4A7FA5);
             font-weight: 500;
             transition: border-color 0.15s;
           }
           .cite-link:hover {
             border-bottom-style: solid;
-            color: #1558b0;
+            color: #6BA3C7;
           }
 
           /* ---- Turn summary card ---- */
@@ -103,10 +105,10 @@ def inject_debate_chat_css():
             display: flex;
             gap: 0;
             margin: 18px 0 6px 0;
-            border-radius: 8px;
+            border-radius: 4px;
             overflow: hidden;
-            border: 1px solid rgba(0,0,0,0.08);
-            background: #fff;
+            border: 1px solid var(--color-border, #2A2A2A);
+            background: var(--color-surface, #111111);
           }
           .turn-summary-header {
             font-size: 0.68rem;
@@ -114,21 +116,21 @@ def inject_debate_chat_css():
             text-transform: uppercase;
             letter-spacing: 0.6px;
             padding: 6px 10px 2px 10px;
-            color: #9ca3af;
+            color: var(--color-text-muted, #888);
           }
           .turn-summary-side {
             flex: 1;
             padding: 4px 12px 8px 12px;
             font-size: 0.82rem;
             line-height: 1.45;
-            color: #374151;
+            color: var(--color-text-primary, #E8E4D9);
           }
           .turn-summary-side.spr {
-            border-right: 1px solid rgba(0,0,0,0.06);
-            background: rgba(229,57,53,0.03);
+            border-right: 1px solid var(--color-border, #2A2A2A);
+            background: rgba(212, 168, 67, 0.05);
           }
           .turn-summary-side.fc {
-            background: rgba(33,150,243,0.03);
+            background: rgba(74, 127, 165, 0.05);
           }
           .turn-summary-side .ts-role {
             font-size: 0.68rem;
@@ -137,8 +139,8 @@ def inject_debate_chat_css():
             letter-spacing: 0.5px;
             margin-bottom: 2px;
           }
-          .turn-summary-side.spr .ts-role { color: #e53935; }
-          .turn-summary-side.fc .ts-role { color: #1e88e5; }
+          .turn-summary-side.spr .ts-role { color: var(--color-accent-amber, #D4A843); }
+          .turn-summary-side.fc .ts-role { color: var(--color-accent-blue, #4A7FA5); }
 
           /* ---- Bubble Meta ---- */
           .bubble-meta {
@@ -162,7 +164,7 @@ def inject_debate_chat_css():
             width: 6px;
             height: 6px;
             border-radius: 50%;
-            background: rgba(0,0,0,0.4);
+            background: var(--color-text-muted, #888);
             margin: 0 2px;
             animation: typing 1.4s infinite ease-in-out;
           }
@@ -188,12 +190,12 @@ def inject_debate_chat_css():
           }
 
           .chat-scroll::-webkit-scrollbar-track {
-            background: rgba(0,0,0,0.05);
+            background: var(--color-surface, #111);
             border-radius: 3px;
           }
 
           .chat-scroll::-webkit-scrollbar-thumb {
-            background: rgba(0,0,0,0.2);
+            background: var(--color-border, #2A2A2A);
             border-radius: 3px;
           }
 
@@ -605,8 +607,8 @@ def _build_chat_html(messages: List[Dict[str, Any]]) -> str:
                 fc_move = _extract_key_move(fc_text)
                 spr_tactics = _detect_tactics(spr_text, "spreader")
                 fc_tactics = _detect_tactics(fc_text, "debunker")
-                spr_tactic_html = f'<div style="font-size:0.72rem;color:#e53935;margin-top:3px;font-style:italic">{spr_tactics}</div>' if spr_tactics else ''
-                fc_tactic_html = f'<div style="font-size:0.72rem;color:#1e88e5;margin-top:3px;font-style:italic">{fc_tactics}</div>' if fc_tactics else ''
+                spr_tactic_html = f'<div style="font-size:0.72rem;color:#D4A843;margin-top:3px;font-style:italic">{spr_tactics}</div>' if spr_tactics else ''
+                fc_tactic_html = f'<div style="font-size:0.72rem;color:#4A7FA5;margin-top:3px;font-style:italic">{fc_tactics}</div>' if fc_tactics else ''
                 summary_html = (
                     f'<div class="turn-summary">'
                     f'<div class="turn-summary-side spr">'

@@ -8,40 +8,40 @@ brief with clear sections and visual hierarchy.
 import json
 import streamlit as st
 
-DEBUNKER_COLOR = "#3A7EC7"
-SPREADER_COLOR = "#E8524A"
+DEBUNKER_COLOR = "#4A7FA5"
+SPREADER_COLOR = "#D4A843"
 
 
 def _inject_insights_css():
     st.markdown("""
     <style>
     .di-card {
-        background: rgba(0,0,0,0.015); border: 1px solid rgba(0,0,0,0.07);
-        border-radius: 12px; padding: 1.2rem 1.5rem; margin-bottom: 1rem;
+        background: var(--color-surface, #111); border: 1px solid var(--color-border, #2A2A2A);
+        border-radius: 4px; padding: 1.2rem 1.5rem; margin-bottom: 1rem;
     }
     .di-section-label {
         font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
-        letter-spacing: 0.09em; color: #9ca3af; margin: 0.9rem 0 0.3rem 0;
+        letter-spacing: 0.09em; color: var(--color-text-muted, #888); margin: 0.9rem 0 0.3rem 0;
     }
     .di-section-label:first-child { margin-top: 0; }
     .di-body {
-        font-size: 0.95rem; color: #1f2937; line-height: 1.65;
+        font-size: 0.95rem; color: var(--color-text-primary, #E8E4D9); line-height: 1.65;
     }
     .di-tldr {
-        background: rgba(58,126,199,0.06); border-left: 4px solid #3A7EC7;
-        border-radius: 0 8px 8px 0; padding: 0.7rem 1rem;
-        font-size: 0.95rem; font-weight: 500; color: #1a2e4a; line-height: 1.5;
+        background: rgba(74, 127, 165, 0.08); border-left: 4px solid var(--color-accent-blue, #4A7FA5);
+        border-radius: 0 4px 4px 0; padding: 0.7rem 1rem;
+        font-size: 0.95rem; font-weight: 500; color: var(--color-text-primary, #E8E4D9); line-height: 1.5;
         margin-bottom: 0.8rem;
     }
     .di-key-turns {
         display: inline-block; font-size: 0.78rem; font-weight: 600;
-        padding: 0.2rem 0.55rem; border-radius: 999px;
-        border: 1px solid rgba(58,126,199,0.3); color: #1a5fa8;
-        background: rgba(58,126,199,0.05); margin-right: 0.3rem;
+        padding: 0.2rem 0.55rem; border-radius: 4px;
+        border: 1px solid rgba(74, 127, 165, 0.4); color: var(--color-accent-blue, #4A7FA5);
+        background: rgba(74, 127, 165, 0.1); margin-right: 0.3rem;
     }
     .di-meta {
-        font-size: 0.78rem; color: #9ca3af; margin-top: 0.6rem;
-        padding-top: 0.5rem; border-top: 1px solid rgba(0,0,0,0.06);
+        font-size: 0.78rem; color: var(--color-text-muted, #888); margin-top: 0.6rem;
+        padding-top: 0.5rem; border-top: 1px solid var(--color-border, #2A2A2A);
     }
     </style>
     """, unsafe_allow_html=True)

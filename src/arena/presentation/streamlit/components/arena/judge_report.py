@@ -10,9 +10,9 @@ import pandas as pd
 import streamlit as st
 
 
-SPREADER_COLOR = "#E8524A"
-DEBUNKER_COLOR = "#3A7EC7"
-DRAW_COLOR     = "#F0A500"
+SPREADER_COLOR = "#D4A843"
+DEBUNKER_COLOR = "#4A7FA5"
+DRAW_COLOR     = "#D4A843"
 
 _METRIC_EXPLANATIONS = {
     "Factuality": (
@@ -61,49 +61,54 @@ def _inject_report_css():
     <style>
     .jr-section {
         font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
-        letter-spacing: 0.09em; color: #9ca3af;
-        border-bottom: 1px solid rgba(0,0,0,0.08);
+        letter-spacing: 0.09em; color: var(--color-text-muted, #888);
+        border-bottom: 1px solid var(--color-border, #2A2A2A);
         padding-bottom: 0.3rem; margin: 1.4rem 0 0.75rem 0;
     }
     .jr-verdict-card {
-        border: 1px solid rgba(128,128,128,0.15);
-        border-radius: 12px; padding: 1.2rem 1.5rem;
-        margin: 0.5rem 0 1.2rem 0; background: #fff;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        border: 1px solid rgba(128,128,128,0.2);
+        border-radius: 10px; padding: 1.2rem 1.5rem;
+        margin: 0.5rem 0 1.2rem 0; background: var(--color-surface, #111);
     }
     .jr-verdict-winner { border-left: 5px solid #888; }
-    .jr-verdict-debunker { border-left-color: #3A7EC7; }
-    .jr-verdict-spreader { border-left-color: #E8524A; }
-    .jr-verdict-draw { border-left-color: #F0A500; }
+    .jr-verdict-debunker { border-left-color: var(--color-accent-blue, #4A7FA5); }
+    .jr-verdict-spreader { border-left-color: var(--color-accent-amber, #D4A843); }
+    .jr-verdict-draw { border-left-color: var(--color-accent-amber, #D4A843); }
     .jr-winner-text {
-        font-size: 1.6rem; font-weight: 800; line-height: 1.2; margin-bottom: 0.3rem;
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 1.6rem; font-weight: 700; line-height: 1.2; margin-bottom: 0.3rem;
+        color: var(--color-text-primary, #E8E4D9);
     }
     .jr-conf-text {
-        font-size: 0.9rem; color: #555; margin-bottom: 0.6rem;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 0.9rem; color: var(--color-text-muted, #888); margin-bottom: 0.6rem;
     }
     .jr-reason-box {
-        background: rgba(0,0,0,0.025); border-radius: 8px;
-        border: 1px solid rgba(0,0,0,0.06);
+        background: var(--color-surface-alt, #1A1A1A); border-radius: 4px;
+        border: 1px solid var(--color-border, #2A2A2A);
         padding: 0.8rem 1rem; font-size: 0.93rem;
-        line-height: 1.6; color: #374151; margin-top: 0.6rem;
+        line-height: 1.6; color: var(--color-text-primary, #E8E4D9);
+        font-style: italic; margin-top: 0.6rem;
     }
     .jr-metric-grid {
         display: flex; gap: 0.8rem; margin: 0.8rem 0; flex-wrap: wrap;
     }
     .jr-metric-card {
         flex: 1; min-width: 100px;
-        background: #fff; border: 1px solid #e5e7eb;
-        border-radius: 8px; padding: 0.7rem 0.9rem;
-        text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        background: var(--color-surface, #111); border: 1px solid var(--color-border, #2A2A2A);
+        border-radius: 4px; padding: 0.7rem 0.9rem;
+        text-align: center;
     }
     .jr-metric-label {
         font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
-        letter-spacing: 0.06em; color: #9ca3af; margin-bottom: 0.15rem;
+        letter-spacing: 0.06em; color: var(--color-text-muted, #888); margin-bottom: 0.15rem;
+        font-family: 'IBM Plex Sans', sans-serif;
     }
     .jr-metric-value {
+        font-family: 'IBM Plex Mono', monospace;
         font-size: 1.4rem; font-weight: 700; line-height: 1.1;
     }
-    .jr-metric-sub { font-size: 0.72rem; color: #9ca3af; margin-top: 0.1rem; }
+    .jr-metric-sub { font-size: 0.72rem; color: var(--color-text-muted, #888); margin-top: 0.1rem; }
     </style>
     """, unsafe_allow_html=True)
 

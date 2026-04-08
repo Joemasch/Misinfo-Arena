@@ -545,7 +545,7 @@ def render_transcript_fallback(transcript: list) -> None:
     Handles both message lists and Turn objects.
     """
     if not transcript:
-        st.info("💬 Enter a claim above and click Start Debate!")
+        st.info("Enter a claim above and click Start Debate.")
         return
 
     # Handle message dicts with turn_index
@@ -563,7 +563,7 @@ def render_transcript_fallback(transcript: list) -> None:
             _render_turn_messages_fallback(turn_idx, messages)
     else:
         # Unknown format - show raw
-        st.warning("⚠️ Unknown transcript format, showing raw data:")
+        st.warning("Unknown transcript format, showing raw data:")
         st.code(str(transcript)[:500] + "..." if len(str(transcript)) > 500 else str(transcript))
 
 
@@ -583,10 +583,10 @@ def _render_turn_messages_fallback(turn_idx: int, messages: list) -> None:
 
         if role == "spreader":
             spreader_found = True
-            st.markdown(f"🔴 **Spreader:** {content}")
+            st.markdown(f"**Spreader:** {content}")
         elif role == "debunker":
             debunker_found = True
-            st.markdown(f"🟣 **Debunker:** {content}")
+            st.markdown(f"**Fact-checker:** {content}")
 
     # Show pending status for incomplete turns
     if spreader_found and not debunker_found:
@@ -619,7 +619,7 @@ def render_transcript_box(transcript: list) -> None:
 
     # If transcript is empty, show placeholder and return
     if not transcript:
-        st.info("💬 Enter a claim above and click Start Debate!")
+        st.info("Enter a claim above and click Start Debate.")
         return
 
     # Group messages by turn_index
@@ -642,50 +642,51 @@ def render_transcript_box(transcript: list) -> None:
             body {{
                 margin: 0;
                 padding: 0;
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                color: #000000;
-                background: transparent;
+                font-family: 'IBM Plex Sans', sans-serif;
+                color: #E8E4D9;
+                background: #0A0A0A;
             }}
             #transcript-box {{
                 height: 520px;
                 overflow-y: auto;
-                border: 1px solid rgba(0, 0, 0, 0.12);
+                border: 1px solid #2A2A2A;
                 padding: 12px;
-                border-radius: 12px;
-                background: rgba(255, 255, 255, 0.98);
+                border-radius: 4px;
+                background: #0A0A0A;
                 box-sizing: border-box;
-                color: #000000;
+                color: #E8E4D9;
             }}
             .turn-header {{
                 margin: 16px 0 10px 0;
-                font-weight: 800;
+                font-weight: 700;
                 font-size: 18px;
-                color: #000000;
+                color: #E8E4D9;
                 text-align: center;
-                border-bottom: 2px solid rgba(0, 0, 0, 0.15);
+                border-bottom: 1px solid #2A2A2A;
                 padding-bottom: 6px;
             }}
             .message-bubble {{
                 margin: 6px 0;
                 padding: 10px 12px;
-                border-radius: 12px;
+                border-radius: 10px;
                 box-sizing: border-box;
             }}
             .spreader {{
-                background-color: rgba(220, 38, 38, 0.12);
-                border: 1px solid rgba(220, 38, 38, 0.35);
+                background-color: rgba(212, 168, 67, 0.1);
+                border-left: 3px solid #D4A843;
                 margin-left: 20%;
                 margin-right: 0;
                 text-align: right;
             }}
             .debunker {{
-                background-color: rgba(124, 58, 237, 0.12);
-                border: 1px solid rgba(124, 58, 237, 0.35);
+                background-color: rgba(74, 127, 165, 0.1);
+                border-left: 3px solid #4A7FA5;
                 margin-left: 0;
                 margin-right: 20%;
                 text-align: left;
             }}
             .role {{
+                font-family: 'IBM Plex Sans', sans-serif;
                 font-size: 15px;
                 font-weight: 700;
                 opacity: 0.95;
@@ -694,17 +695,18 @@ def render_transcript_box(transcript: list) -> None:
                 letter-spacing: 0.6px;
             }}
             .spreader .role {{
-                color: rgb(185, 28, 28);
+                color: #D4A843;
             }}
             .debunker .role {{
-                color: rgb(109, 40, 217);
+                color: #4A7FA5;
             }}
             .content {{
                 white-space: pre-wrap;
                 word-wrap: break-word;
+                font-family: 'IBM Plex Sans', sans-serif;
                 font-size: 14px;
                 line-height: 1.5;
-                color: #000000;
+                color: #E8E4D9;
             }}
         </style>
     </head>
@@ -923,10 +925,14 @@ def main():
     # Page configuration
     st.set_page_config(
         page_title="Misinformation Arena v2",
-        page_icon="⚔️",
+        page_icon="MA",
         layout="wide",
         initial_sidebar_state="expanded"
     )
+
+    # Inject global design system CSS
+    from arena.presentation.streamlit.styles import inject_global_css
+    inject_global_css()
 
     # API key validation for OpenAI agents
     # Check for OpenAI API key (always required now)
@@ -941,13 +947,10 @@ def main():
             "Debates cannot run without a valid API key."
         )
 
-    # Main title
-    st.title("Misinformation Arena")
-
     # Navigation tabs (6 tabs — organized by user workflow)
     tab_home, tab_arena, tab_analytics, tab_claims, tab_replay, tab_tools = st.tabs([
-        "🏠 Home", "🏟️ Arena", "📊 Analytics", "📋 Claims",
-        "🎬 Replay", "🛠️ Tools",
+        "Home", "Arena", "Analytics", "Claims",
+        "Replay", "Tools",
     ])
 
     with tab_home:

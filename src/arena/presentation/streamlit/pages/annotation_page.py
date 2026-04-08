@@ -21,28 +21,32 @@ import streamlit as st
 ANNOTATIONS_PATH = Path("annotations/annotations.jsonl")
 RUNS_DIR = "runs"
 
-SPREADER_COLOR = "#E8524A"
-DEBUNKER_COLOR = "#3A7EC7"
-DRAW_COLOR     = "#F0A500"
+SPREADER_COLOR = "#D4A843"
+DEBUNKER_COLOR = "#4A7FA5"
+DRAW_COLOR     = "#D4A843"
 
 
 def _inject_styles():
     st.markdown("""
     <style>
     .an-page-title {
-        font-size: 2.4rem; font-weight: 800; letter-spacing: -0.02em;
-        color: #111; margin-bottom: 0.15rem;
+        font-family: 'Playfair Display', Georgia, serif !important;
+        font-size: 2rem !important; font-weight: 400 !important;
+        color: var(--color-accent-red, #C9363E) !important; margin-top: 1rem !important; margin-bottom: 0.2rem !important;
+        padding-bottom: 0.3rem !important; border-bottom: 1px solid var(--color-border, #2A2A2A) !important;
+        text-align: left !important;
     }
     .an-page-subtitle {
-        font-size: 1rem; color: #555; margin-bottom: 1.5rem; line-height: 1.5;
+        font-size: 0.95rem !important; color: var(--color-text-muted, #888) !important; margin-bottom: 1.5rem !important; line-height: 1.5 !important;
+        text-align: left !important;
     }
     .an-section {
-        font-size: 1.35rem; font-weight: 700; color: #111;
+        font-size: 1.35rem; font-weight: 700; color: var(--color-text-primary, #E8E4D9);
         margin-top: 2rem; margin-bottom: 0.3rem;
-        padding-bottom: 0.3rem; border-bottom: 2px solid #e8e8e8;
+        padding-bottom: 0.3rem; border-bottom: 2px solid var(--color-border, #2A2A2A);
     }
     .an-prose {
-        font-size: 0.95rem; color: #444; line-height: 1.65;
+        font-size: 0.95rem; color: var(--color-text-muted, #888); line-height: 1.65;
         margin-bottom: 1rem; max-width: 760px;
     }
     .an-metric-grid {
@@ -50,33 +54,33 @@ def _inject_styles():
     }
     .an-metric-card {
         flex: 1; min-width: 130px;
-        background: #fff; border: 1px solid #e4e4e4;
+        background: var(--color-surface, #111); border: 1px solid var(--color-border, #2A2A2A);
         border-radius: 8px; padding: 0.9rem 1.1rem;
         box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
     .an-metric-label {
         font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
-        letter-spacing: 0.07em; color: #888; margin-bottom: 0.2rem;
+        letter-spacing: 0.07em; color: var(--color-text-muted, #888); margin-bottom: 0.2rem;
     }
     .an-metric-value {
-        font-size: 1.8rem; font-weight: 700; color: #111; line-height: 1.1;
+        font-size: 1.8rem; font-weight: 700; color: var(--color-text-primary, #E8E4D9); line-height: 1.1;
     }
-    .an-metric-sub { font-size: 0.78rem; color: #777; margin-top: 0.15rem; }
-    .an-divider { border: none; border-top: 1px solid #e5e7eb; margin: 1.8rem 0; }
+    .an-metric-sub { font-size: 0.78rem; color: var(--color-text-muted, #888); margin-top: 0.15rem; }
+    .an-divider { border: none; border-top: 1px solid var(--color-border, #2A2A2A); margin: 1.8rem 0; }
     .an-verdict-card {
         border: 1px solid rgba(128,128,128,0.2);
         border-radius: 10px; padding: 1rem 1.3rem;
         margin: 0.8rem 0 1rem 0; background: transparent;
     }
     .an-claim-banner {
-        border-left: 4px solid #3A7EC7;
-        background: rgba(58,126,199,0.06);
+        border-left: 4px solid #4A7FA5;
+        background: rgba(74,127,165,0.08);
         border-radius: 0 8px 8px 0;
         padding: 0.75rem 1.1rem; margin-bottom: 1rem;
     }
     .an-turn-label {
         font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
-        letter-spacing: 0.08em; color: #9ca3af;
+        letter-spacing: 0.08em; color: var(--color-text-muted, #888);
         margin: 1.2rem 0 0.5rem 0;
     }
     .an-bubble {
@@ -84,10 +88,10 @@ def _inject_styles():
         margin-bottom: 0.5rem; line-height: 1.6; font-size: 0.93rem;
     }
     .an-bubble-spreader {
-        background: rgba(232,82,74,0.05); border-left: 3px solid #E8524A;
+        background: rgba(212,168,67,0.08); border-left: 3px solid #D4A843;
     }
     .an-bubble-debunker {
-        background: rgba(58,126,199,0.05); border-left: 3px solid #3A7EC7;
+        background: rgba(74,127,165,0.08); border-left: 3px solid #4A7FA5;
     }
     .an-bubble-role {
         font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
@@ -241,6 +245,8 @@ def _render_agreement_stats(annotations: list[dict]) -> None:
 # ---------------------------------------------------------------------------
 
 def render_annotation_page():
+    from arena.presentation.streamlit.styles import inject_global_css
+    inject_global_css()
     _inject_styles()
 
     st.markdown('<p class="an-page-title">Human Annotation</p>', unsafe_allow_html=True)
@@ -299,7 +305,7 @@ def render_annotation_page():
     st.markdown(
         f'<div class="an-claim-banner">'
         f'<div class="an-bubble-role" style="color:{DEBUNKER_COLOR}">Claim</div>'
-        f'<span style="font-weight:600;color:#1a1a2e">{claim}</span></div>',
+        f'<span style="font-weight:600;color:var(--color-text-primary, #E8E4D9)">{claim}</span></div>',
         unsafe_allow_html=True,
     )
 
@@ -332,10 +338,10 @@ def render_annotation_page():
     ai_reason = results.get("reason", "")
 
     _verdict_border = DEBUNKER_COLOR if ai_winner == "debunker" else SPREADER_COLOR if ai_winner == "spreader" else DRAW_COLOR
-    _reason_html = f'<br><span style="font-size:0.9rem;color:#555">{ai_reason[:200]}…</span>' if ai_reason else ""
+    _reason_html = f'<br><span style="font-size:0.9rem;color:var(--color-text-muted, #888)">{ai_reason[:200]}…</span>' if ai_reason else ""
     st.markdown(
         f'<div class="an-verdict-card" style="border-left:5px solid {_verdict_border}">'
-        f'<div class="an-bubble-role" style="color:#b45309">AI Judge Verdict</div>'
+        f'<div class="an-bubble-role" style="color:#D4A843">AI Judge Verdict</div>'
         f'<b>{ai_winner.title()}</b> won · Confidence {float(ai_conf):.0%}'
         f'{_reason_html}</div>',
         unsafe_allow_html=True,

@@ -21,11 +21,12 @@ from arena.analysis.research_analytics import (
     compute_run_level_strategy_report,
 )
 from arena.presentation.streamlit.state.runs_refresh import get_auto_run_ids
+from arena.presentation.streamlit.styles import PLOTLY_LAYOUT
 
 RUNS_DIR       = "runs"
-SPREADER_COLOR = "#E8524A"
-DEBUNKER_COLOR = "#3A7EC7"
-DRAW_COLOR     = "#F0A500"
+SPREADER_COLOR = "#D4A843"
+DEBUNKER_COLOR = "#4A7FA5"
+DRAW_COLOR     = "#D4A843"
 
 
 # ---------------------------------------------------------------------------
@@ -54,34 +55,38 @@ def _inject_styles() -> None:
     st.markdown("""
     <style>
     .sl-page-title {
-        font-size: 2rem; font-weight: 700; letter-spacing: -0.02em;
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 2.6rem; font-weight: 700; letter-spacing: -0.02em;
+        color: var(--color-text-primary, #E8E4D9);
         margin: 0 0 0.2rem 0; line-height: 1.2;
+        text-align: center;
     }
     .sl-page-subtitle {
-        font-size: 1rem; color: #6b7280; margin: 0 0 1.5rem 0;
+        font-size: 1rem; color: var(--color-text-muted, #888); margin: 0 0 1.5rem 0;
+        text-align: center;
     }
     .sl-section {
-        font-size: 1.35rem; font-weight: 700; color: #111;
+        font-size: 1.35rem; font-weight: 700; color: var(--color-text-primary, #E8E4D9);
         margin: 2.2rem 0 0.2rem 0;
         padding-bottom: 0.3rem;
-        border-bottom: 2px solid #e8e8e8;
+        border-bottom: 2px solid var(--color-border, #2A2A2A);
     }
     .sl-question {
-        font-size: 1rem; font-weight: 700; color: #222; margin-bottom: 0.35rem;
+        font-size: 1rem; font-weight: 700; color: var(--color-text-primary, #E8E4D9); margin-bottom: 0.35rem;
     }
     .sl-prose {
-        font-size: 0.94rem; color: #444; line-height: 1.65;
+        font-size: 0.94rem; color: var(--color-text-muted, #888); line-height: 1.65;
         margin-bottom: 1rem; max-width: 760px;
     }
     .sl-caption {
-        font-size: 0.82rem; color: #6b7280; line-height: 1.5;
+        font-size: 0.82rem; color: var(--color-text-muted, #888); line-height: 1.5;
         margin-top: 0.3rem; margin-bottom: 1rem; max-width: 760px;
     }
-    .sl-divider { border: none; border-top: 1px solid #e8e8e8; margin: 2rem 0; }
+    .sl-divider { border: none; border-top: 1px solid var(--color-border, #2A2A2A); margin: 2rem 0; }
     .sl-sub {
         font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
         letter-spacing: 0.08em; color: #9ca3af;
-        border-bottom: 1px solid rgba(0,0,0,0.07);
+        border-bottom: 1px solid var(--color-border, #2A2A2A);
         padding-bottom: 0.25rem; margin: 1.2rem 0 0.6rem 0;
     }
     </style>
@@ -163,11 +168,11 @@ def _freq_chart(freq_df: pd.DataFrame, color: str, label_col: str = "strategy_la
     ))
     fig.update_layout(
         xaxis=dict(title="Episodes", tickfont=dict(size=10),
-                   gridcolor="rgba(200,200,200,0.3)"),
+                   gridcolor="#2A2A2A"),
         yaxis=dict(tickfont=dict(size=11)),
         margin=dict(t=10, b=35, l=10, r=80),
         height=max(220, len(labels) * 34 + 60),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        **{k: v for k, v in PLOTLY_LAYOUT.items() if k in ("paper_bgcolor", "plot_bgcolor", "font")},
     )
     return fig
 
@@ -182,7 +187,7 @@ def _win_rate_chart(wr_df: pd.DataFrame, side: str) -> go.Figure:
 
     # Color each bar: green/amber/red based on win rate
     bar_colors = [
-        "#22c55e" if wr >= 65 else ("#eab308" if wr >= 45 else "#ef4444")
+        "#4CAF7D" if wr >= 65 else ("#D4A843" if wr >= 45 else "#C9363E")
         for wr in win_rates
     ]
 
@@ -199,11 +204,11 @@ def _win_rate_chart(wr_df: pd.DataFrame, side: str) -> go.Figure:
                   annotation_font_color="#aaa")
     fig.update_layout(
         xaxis=dict(title="Win rate (%)", range=[0, 115], ticksuffix="%",
-                   tickfont=dict(size=10), gridcolor="rgba(200,200,200,0.3)"),
+                   tickfont=dict(size=10), gridcolor="#2A2A2A"),
         yaxis=dict(tickfont=dict(size=11)),
         margin=dict(t=10, b=40, l=10, r=90),
         height=max(220, len(labels) * 34 + 60),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        **{k: v for k, v in PLOTLY_LAYOUT.items() if k in ("paper_bgcolor", "plot_bgcolor", "font")},
     )
     return fig
 
@@ -236,12 +241,12 @@ def _primary_perf_chart(primary_df: pd.DataFrame) -> go.Figure:
     fig.update_layout(
         barmode="group",
         xaxis=dict(title="Used as primary strategy (episode count)",
-                   gridcolor="rgba(200,200,200,0.3)", tickfont=dict(size=10)),
+                   gridcolor="#2A2A2A", tickfont=dict(size=10)),
         yaxis=dict(tickfont=dict(size=11)),
         legend=dict(orientation="h", y=-0.22, x=0.5, xanchor="center", font=dict(size=12)),
         margin=dict(t=10, b=70, l=10, r=60),
         height=max(280, len(primary_df["strategy_label"].unique()) * 22 + 100),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        **{k: v for k, v in PLOTLY_LAYOUT.items() if k in ("paper_bgcolor", "plot_bgcolor", "font")},
     )
     return fig
 
@@ -266,7 +271,7 @@ def _claim_heatmap(pivot_df: pd.DataFrame, colorscale: str, title: str) -> go.Fi
         yaxis=dict(tickfont=dict(size=10), autorange="reversed"),
         margin=dict(t=10, b=100, l=10, r=10),
         height=max(350, len(row_labels) * 26 + 140),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        **{k: v for k, v in PLOTLY_LAYOUT.items() if k in ("paper_bgcolor", "plot_bgcolor", "font")},
     )
     return fig
 
@@ -276,6 +281,8 @@ def _claim_heatmap(pivot_df: pd.DataFrame, colorscale: str, title: str) -> go.Fi
 # ---------------------------------------------------------------------------
 
 def render_strategy_leaderboard_page():
+    from arena.presentation.streamlit.styles import inject_global_css
+    inject_global_css()
     _inject_styles()
 
     st.markdown('<p class="sl-page-title">Strategy Leaderboard</p>', unsafe_allow_html=True)
@@ -353,10 +360,10 @@ def render_strategy_leaderboard_page():
         deb_wr.loc[deb_wr["win_rate"].idxmax()] if not deb_wr.empty and "win_rate" in deb_wr.columns else None
     )
 
-    def _card(label: str, value: str, sub: str = "", color: str = "#1f2937") -> str:
+    def _card(label: str, value: str, sub: str = "", color: str = "#E8E4D9") -> str:
         return (
-            f'<div style="flex:1;min-width:140px;background:rgba(0,0,0,0.02);'
-            f'border:1px solid rgba(0,0,0,0.08);border-radius:10px;padding:0.85rem 1.1rem;">'
+            f'<div style="flex:1;min-width:140px;background:var(--color-surface, #111);'
+            f'border:1px solid var(--color-border, #2A2A2A);border-radius:10px;padding:0.85rem 1.1rem;">'
             f'<div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;'
             f'letter-spacing:0.08em;color:#9ca3af;margin-bottom:0.2rem;">{label}</div>'
             f'<div style="font-size:1.55rem;font-weight:700;color:{color};line-height:1.15;">{value}</div>'
@@ -428,11 +435,11 @@ def render_strategy_leaderboard_page():
         '<p class="sl-prose">'
         'Win rate = percentage of episodes where the labelled agent won, '
         'among all episodes where that strategy was detected. '
-        '<span style="color:#22c55e;font-weight:600;">Green ≥ 65%</span> — '
+        '<span style="color:#4CAF7D;font-weight:600;">Green &ge; 65%</span> — '
         'consistently wins. '
-        '<span style="color:#eab308;font-weight:600;">Amber 45–65%</span> — '
+        '<span style="color:#D4A843;font-weight:600;">Amber 45–65%</span> — '
         'mixed results. '
-        '<span style="color:#ef4444;font-weight:600;">Red &lt; 45%</span> — '
+        '<span style="color:#C9363E;font-weight:600;">Red &lt; 45%</span> — '
         'associated with losing. '
         'Sample size (n=) is shown — treat low-n rates with caution.'
         '</p>',
@@ -661,7 +668,7 @@ def render_strategy_leaderboard_page():
                     f'{_label(row["label"])}</span>'
                     f'<span style="margin-left:0.6rem;font-size:0.8rem;color:#9ca3af;">'
                     f'× {int(row["count"])}</span>'
-                    f'<div style="font-size:0.85rem;color:#4b5563;margin-top:0.2rem;">'
+                    f'<div style="font-size:0.85rem;color:var(--color-text-muted, #888);margin-top:0.2rem;">'
                     f'{row["description"]}</div>'
                     f'</div></div>',
                     unsafe_allow_html=True,

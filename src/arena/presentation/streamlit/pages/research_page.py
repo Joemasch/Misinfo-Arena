@@ -22,12 +22,13 @@ from arena.analysis.episode_dataset import (
 from arena.io.run_store_v2_read import list_runs
 from arena.presentation.streamlit.pages.citation_page import render_citation_page
 from arena.presentation.streamlit.state.runs_refresh import get_auto_run_ids
+from arena.presentation.streamlit.styles import PLOTLY_LAYOUT
 
 RUNS_DIR = "runs"
 
-SPREADER_COLOR = "#E8524A"
-DEBUNKER_COLOR = "#3A7EC7"
-DRAW_COLOR     = "#F0A500"
+SPREADER_COLOR = "#D4A843"
+DEBUNKER_COLOR = "#4A7FA5"
+DRAW_COLOR     = "#D4A843"
 
 
 def _inject_styles():
@@ -35,22 +36,22 @@ def _inject_styles():
     <style>
     .rs-page-title {
         font-size: 2.4rem; font-weight: 800; letter-spacing: -0.02em;
-        color: #111; margin-bottom: 0.15rem;
+        color: var(--color-text-primary, #E8E4D9); margin-bottom: 0.15rem;
     }
     .rs-page-subtitle {
-        font-size: 1rem; color: #555; margin-bottom: 1.5rem; line-height: 1.5;
+        font-size: 1rem; color: var(--color-text-muted, #888); margin-bottom: 1.5rem; line-height: 1.5;
     }
     .rs-section {
-        font-size: 1.35rem; font-weight: 700; color: #111;
+        font-size: 1.35rem; font-weight: 700; color: var(--color-text-primary, #E8E4D9);
         margin-top: 2rem; margin-bottom: 0.3rem;
-        padding-bottom: 0.3rem; border-bottom: 2px solid #e8e8e8;
+        padding-bottom: 0.3rem; border-bottom: 2px solid var(--color-border, #2A2A2A);
     }
     .rs-prose {
-        font-size: 0.95rem; color: #444; line-height: 1.65;
+        font-size: 0.95rem; color: var(--color-text-muted, #888); line-height: 1.65;
         margin-bottom: 1rem; max-width: 760px;
     }
     .rs-caption {
-        font-size: 0.82rem; color: #666; line-height: 1.5;
+        font-size: 0.82rem; color: var(--color-text-muted, #888); line-height: 1.5;
         margin-top: 0.3rem; margin-bottom: 1rem;
     }
     </style>
@@ -218,12 +219,12 @@ def render_research_page():
                     fig.update_layout(
                         xaxis=dict(title="Max Turns", tickvals=turn_counts, tickfont=dict(size=11)),
                         yaxis=dict(title="% of debates using this strategy", tickfont=dict(size=11),
-                                   gridcolor="rgba(200,200,200,0.3)"),
+                                   gridcolor="#2A2A2A"),
                         legend=dict(orientation="h", y=-0.25, x=0.5, xanchor="center", font=dict(size=11)),
                         margin=dict(t=10, b=80, l=60, r=15), height=350,
-                        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                        **{k: v for k, v in PLOTLY_LAYOUT.items() if k in ("paper_bgcolor", "plot_bgcolor", "font")},
                     )
-                    fig.update_xaxes(showgrid=True, gridcolor="rgba(200,200,200,0.3)")
+                    fig.update_xaxes(showgrid=True, gridcolor="#2A2A2A")
                     fig.update_yaxes(showgrid=True)
                     st.plotly_chart(fig, use_container_width=True)
 
@@ -296,9 +297,9 @@ def render_research_page():
                     ))
             fig_conf.update_layout(
                 yaxis=dict(title="Judge Confidence", tickformat=".0%", range=[0, 1.05],
-                           gridcolor="rgba(200,200,200,0.3)"),
+                           gridcolor="#2A2A2A"),
                 margin=dict(t=10, b=40, l=60, r=15), height=300,
-                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                **{k: v for k, v in PLOTLY_LAYOUT.items() if k in ("paper_bgcolor", "plot_bgcolor", "font")},
                 showlegend=False,
             )
             fig_conf.update_yaxes(showgrid=True)

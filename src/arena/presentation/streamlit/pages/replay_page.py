@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 
 import pandas as pd
+from arena.presentation.streamlit.styles import PLOTLY_LAYOUT
 import plotly.graph_objects as go
 import streamlit as st
 
@@ -22,9 +23,9 @@ from arena.presentation.streamlit.state.runs_refresh import get_auto_run_ids
 from arena.presentation.streamlit.components.replay_styles import inject_replay_css, verdict_card_html
 
 RUNS_DIR = "runs"
-SPREADER_COLOR = "#E8524A"
-DEBUNKER_COLOR = "#3A7EC7"
-DRAW_COLOR     = "#F0A500"
+SPREADER_COLOR = "#D4A843"
+DEBUNKER_COLOR = "#4A7FA5"
+DRAW_COLOR     = "#D4A843"
 
 SIGNAL_LABELS = {
     "citation_like":          "Citations / source references",
@@ -187,18 +188,18 @@ def _scorecard_html_table(rows: list[dict], winner_role: str) -> str:
     seen = set(canonical_order)
     ordered += [r for r in rows if r.get("metric", "") not in seen]
 
-    html = '<table style="width:100%;border-collapse:collapse;font-size:0.93rem;">'
+    html = '<table style="width:100%;border-collapse:collapse;font-size:0.93rem;color:#E8E4D9;">'
     html += (
         '<thead><tr>'
         '<th style="text-align:left;padding:0.4rem 0.5rem;font-size:0.72rem;'
-        'text-transform:uppercase;letter-spacing:0.07em;color:#9ca3af;font-weight:700;'
-        'border-bottom:1px solid rgba(0,0,0,0.08);">Dimension</th>'
+        'text-transform:uppercase;letter-spacing:0.07em;color:#888;font-weight:700;'
+        'border-bottom:1px solid #2A2A2A;">Dimension</th>'
         '<th style="text-align:center;padding:0.4rem 0.5rem;font-size:0.72rem;'
-        'text-transform:uppercase;letter-spacing:0.07em;color:#E8524A;font-weight:700;'
-        'border-bottom:1px solid rgba(0,0,0,0.08);">Spreader</th>'
+        'text-transform:uppercase;letter-spacing:0.07em;color:#D4A843;font-weight:700;'
+        'border-bottom:1px solid var(--color-border,#2A2A2A);">Spreader</th>'
         '<th style="text-align:center;padding:0.4rem 0.5rem;font-size:0.72rem;'
-        'text-transform:uppercase;letter-spacing:0.07em;color:#3A7EC7;font-weight:700;'
-        'border-bottom:1px solid rgba(0,0,0,0.08);">Fact-checker</th>'
+        'text-transform:uppercase;letter-spacing:0.07em;color:#4A7FA5;font-weight:700;'
+        'border-bottom:1px solid var(--color-border,#2A2A2A);">Fact-checker</th>'
         '<th style="text-align:center;padding:0.4rem 0.5rem;font-size:0.72rem;'
         'text-transform:uppercase;letter-spacing:0.07em;color:#9ca3af;font-weight:700;'
         'border-bottom:1px solid rgba(0,0,0,0.08);">Wt.</th>'
@@ -220,9 +221,9 @@ def _scorecard_html_table(rows: list[dict], winner_role: str) -> str:
 
         row_winner = "debunker" if delta > 0.05 else ("spreader" if delta < -0.05 else "draw")
         if row_winner == "debunker":
-            win_label = '<span style="color:#3A7EC7;font-weight:700;">✓ FC</span>'
+            win_label = '<span style="color:#4A7FA5;font-weight:700;">FC</span>'
         elif row_winner == "spreader":
-            win_label = '<span style="color:#E8524A;font-weight:700;">✓ Sp</span>'
+            win_label = '<span style="color:#D4A843;font-weight:700;">Sp</span>'
         else:
             win_label = '<span style="color:#9ca3af;">—</span>'
 
@@ -361,7 +362,7 @@ def _trajectory_chart(trajectory: list[dict], winner_role: str) -> go.Figure:
         ),
         legend=dict(orientation="h", y=-0.28, x=0.5, xanchor="center", font=dict(size=12)),
         margin=dict(t=15, b=75, l=55, r=15), height=260,
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        **{k: v for k, v in PLOTLY_LAYOUT.items() if k in ("paper_bgcolor", "plot_bgcolor", "font")},
     )
     return fig
 
@@ -456,6 +457,8 @@ def _render_debate_brief(ep: dict, d: dict) -> None:
 # ---------------------------------------------------------------------------
 
 def render_episode_replay_page():
+    from arena.presentation.streamlit.styles import inject_global_css
+    inject_global_css()
     inject_replay_css()
 
     if "runs_refresh_token" not in st.session_state:
@@ -1040,11 +1043,11 @@ def render_episode_replay_page():
                 'text-transform:uppercase;letter-spacing:0.07em;color:#9ca3af;font-weight:700;'
                 'border-bottom:1px solid rgba(0,0,0,0.08);">Tactic</th>'
                 '<th style="text-align:left;padding:0.35rem 0.5rem;font-size:0.72rem;'
-                'text-transform:uppercase;letter-spacing:0.07em;color:#E8524A;font-weight:700;'
-                'border-bottom:1px solid rgba(0,0,0,0.08);width:32%;">Spreader</th>'
+                'text-transform:uppercase;letter-spacing:0.07em;color:#D4A843;font-weight:700;'
+                'border-bottom:1px solid var(--color-border,#2A2A2A);width:32%;">Spreader</th>'
                 '<th style="text-align:left;padding:0.35rem 0.5rem;font-size:0.72rem;'
-                'text-transform:uppercase;letter-spacing:0.07em;color:#3A7EC7;font-weight:700;'
-                'border-bottom:1px solid rgba(0,0,0,0.08);width:32%;">Fact-checker</th>'
+                'text-transform:uppercase;letter-spacing:0.07em;color:#4A7FA5;font-weight:700;'
+                'border-bottom:1px solid var(--color-border,#2A2A2A);width:32%;">Fact-checker</th>'
                 '</tr></thead><tbody>'
             )
 
@@ -1283,8 +1286,7 @@ def render_episode_replay_page():
                 barmode="group",
                 height=380,
                 margin=dict(l=0, r=0, t=30, b=0),
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
+                **{k: v for k, v in PLOTLY_LAYOUT.items() if k in ("paper_bgcolor", "plot_bgcolor", "font")},
                 legend=dict(
                     orientation="h",
                     yanchor="bottom",
@@ -1295,12 +1297,11 @@ def render_episode_replay_page():
                 ),
                 yaxis=dict(
                     range=[0, 11],
-                    gridcolor="rgba(0,0,0,0.06)",
+                    gridcolor="#2A2A2A",
                     title="Score (0–10)",
                     title_font_size=11,
                 ),
                 xaxis=dict(tickfont_size=11),
-                font=dict(family="system-ui, -apple-system, sans-serif"),
             )
             st.plotly_chart(fig_cmp, use_container_width=True)
             st.caption(

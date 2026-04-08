@@ -17,14 +17,18 @@ def _render_exports_tab():
     RUNS_DIR = "runs"
 
     st.markdown(
-        '<p style="font-size:2rem;font-weight:800;color:#111;margin-bottom:0.1rem">Statistical Exports</p>',
+        '<p style="font-family:Playfair Display,Georgia,serif;font-size:2rem;font-weight:400;'
+        'color:var(--color-accent-red,#C9363E);margin-top:1rem;margin-bottom:0.2rem;'
+        'padding-bottom:0.3rem;border-bottom:1px solid var(--color-border,#2A2A2A);'
+        'text-align:left">Statistical Exports</p>',
         unsafe_allow_html=True,
     )
     st.markdown(
-        '<p style="font-size:0.95rem;color:#555;margin-bottom:1.5rem;line-height:1.5">'
+        '<p style="font-size:0.95rem;color:var(--color-text-muted,#888);margin-bottom:1.5rem;line-height:1.5">'
         'Pre-formatted CSVs for statistical significance testing in Minitab, SPSS, or R. '
         'Each export contains only the columns needed for that specific analysis. '
-        'See <code>docs/statistical_analysis_guide.md</code> for step-by-step Minitab instructions.'
+        'See <code style="color:var(--color-accent-blue,#4A7FA5)">docs/statistical_analysis_guide.md</code> '
+        'for step-by-step Minitab instructions.'
         '</p>',
         unsafe_allow_html=True,
     )
@@ -43,7 +47,11 @@ def _render_exports_tab():
         st.info("No episode data found.")
         return
 
-    st.success(f"**{len(df)} episodes** from {df['run_id'].nunique()} runs available for export.")
+    st.markdown(
+        f'<div class="ds-callout"><strong>{len(df)} episodes</strong> from '
+        f'{df["run_id"].nunique()} runs available for export.</div>',
+        unsafe_allow_html=True,
+    )
 
     # ── Helper to build and offer download ────────────────────────────────
     def _export_button(label: str, export_df: pd.DataFrame, filename: str, description: str):
@@ -199,12 +207,17 @@ def _render_exports_tab():
 
 
 def render_tools_page():
+    from arena.presentation.streamlit.styles import inject_global_css
+    inject_global_css()
     st.markdown(
-        '<p style="font-size:2.4rem;font-weight:800;letter-spacing:-0.02em;color:#111;margin-bottom:0.15rem">Tools</p>',
+        '<p style="font-size:2.6rem;font-weight:700;letter-spacing:-0.02em;'
+        'color:var(--color-text-primary);margin-bottom:0.15rem;'
+        'font-family:Playfair Display,Georgia,serif;text-align:center">Tools</p>',
         unsafe_allow_html=True,
     )
     st.markdown(
-        '<p style="font-size:1rem;color:#555;margin-bottom:1.5rem;line-height:1.5">'
+        '<p style="font-size:1rem;color:var(--color-text-muted);margin-bottom:1.5rem;'
+        'line-height:1.5;text-align:center">'
         'Prompt reference, model comparison experiments, human annotation, and statistical exports.'
         '</p>',
         unsafe_allow_html=True,

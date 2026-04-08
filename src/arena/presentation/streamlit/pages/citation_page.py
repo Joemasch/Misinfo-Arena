@@ -28,11 +28,12 @@ from arena.analysis.citation_tracker import (
     CREDIBILITY_ORDER,
 )
 from arena.presentation.streamlit.state.runs_refresh import get_auto_run_ids
+from arena.presentation.streamlit.styles import PLOTLY_LAYOUT
 
 RUNS_DIR      = "runs"
-SPREADER_COLOR = "#E8524A"
-DEBUNKER_COLOR = "#3A7EC7"
-DRAW_COLOR     = "#F0A500"
+SPREADER_COLOR = "#D4A843"
+DEBUNKER_COLOR = "#4A7FA5"
+DRAW_COLOR     = "#D4A843"
 
 TIER_ORDER = ["high", "moderate", "questionable", "uncreditable"]
 
@@ -154,10 +155,10 @@ def _credibility_comparison_chart(flat_df: pd.DataFrame) -> go.Figure:
     """Stacked horizontal bar: credibility tier breakdown for each side."""
     fig = go.Figure()
     tier_colors = {
-        "high":          "#22c55e",
-        "moderate":      "#84cc16",
-        "questionable":  "#eab308",
-        "uncreditable":  "#ef4444",
+        "high":          "#4CAF7D",
+        "moderate":      "#6BA87D",
+        "questionable":  "#D4A843",
+        "uncreditable":  "#C9363E",
     }
     for tier in TIER_ORDER:
         vals = []
@@ -183,13 +184,13 @@ def _credibility_comparison_chart(flat_df: pd.DataFrame) -> go.Figure:
     fig.update_layout(
         barmode="stack",
         xaxis=dict(range=[0, 105], ticksuffix="%", showgrid=False, tickfont=dict(size=11)),
-        yaxis=dict(tickfont=dict(size=13, color="#1f2937")),
+        yaxis=dict(tickfont=dict(size=13)),
         legend=dict(
             orientation="h", y=-0.25, x=0.5, xanchor="center",
             font=dict(size=11), traceorder="normal",
         ),
         margin=dict(t=5, b=65, l=10, r=10), height=160,
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        **{k: v for k, v in PLOTLY_LAYOUT.items() if k in ("paper_bgcolor", "plot_bgcolor", "font")},
     )
     return fig
 
@@ -229,11 +230,11 @@ def _source_type_chart(flat_df: pd.DataFrame) -> go.Figure:
 
     fig.update_layout(
         barmode="group",
-        yaxis=dict(ticksuffix="%", gridcolor="rgba(200,200,200,0.3)", tickfont=dict(size=11)),
+        yaxis=dict(ticksuffix="%", gridcolor="#2A2A2A", tickfont=dict(size=11)),
         xaxis=dict(tickfont=dict(size=11)),
         legend=dict(orientation="h", y=-0.22, x=0.5, xanchor="center", font=dict(size=12)),
         margin=dict(t=10, b=70, l=45, r=10), height=310,
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        **{k: v for k, v in PLOTLY_LAYOUT.items() if k in ("paper_bgcolor", "plot_bgcolor", "font")},
     )
     return fig
 
@@ -273,15 +274,15 @@ def _credibility_over_time_chart(ep_records: list[dict]) -> "go.Figure | None":
     fig.add_hline(y=0.5, line_dash="dot", line_color="rgba(150,150,150,0.4)",
                   annotation_text="50%", annotation_font_size=10, annotation_font_color="#aaa")
     fig.update_layout(
-        xaxis=dict(tickfont=dict(size=10), gridcolor="rgba(200,200,200,0.2)"),
+        xaxis=dict(tickfont=dict(size=10), gridcolor="#2A2A2A"),
         yaxis=dict(
             tickformat=".0%", range=[0, 1.05],
-            gridcolor="rgba(200,200,200,0.3)", tickfont=dict(size=11),
+            gridcolor="#2A2A2A", tickfont=dict(size=11),
             title="Credibility score",
         ),
         legend=dict(orientation="h", y=-0.22, x=0.5, xanchor="center", font=dict(size=12)),
         margin=dict(t=10, b=70, l=55, r=10), height=300,
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        **{k: v for k, v in PLOTLY_LAYOUT.items() if k in ("paper_bgcolor", "plot_bgcolor", "font")},
     )
     return fig
 
@@ -300,7 +301,7 @@ def _top_sources_html(flat_df: pd.DataFrame, side: str, top_n: int = 10) -> str:
 
     parts = []
     for (raw, cred), n in top:
-        bg, fg = CREDIBILITY_COLORS.get(cred, ("rgba(0,0,0,0.04)", "#374151"))
+        bg, fg = CREDIBILITY_COLORS.get(cred, ("rgba(255,255,255,0.04)", "#888"))
         label  = CREDIBILITY_LABELS.get(cred, cred.title())
         display = raw[:80] + ("…" if len(raw) > 80 else "")
         parts.append(
@@ -309,7 +310,7 @@ def _top_sources_html(flat_df: pd.DataFrame, side: str, top_n: int = 10) -> str:
             f'background:{bg};border-radius:6px;">'
             f'<span style="font-size:0.78rem;font-weight:700;color:{fg};'
             f'min-width:5.5rem;">{label}</span>'
-            f'<span style="font-size:0.88rem;color:#1f2937;flex:1;'
+            f'<span style="font-size:0.88rem;color:var(--color-text-primary, #E8E4D9);flex:1;'
             f'font-family:monospace;word-break:break-all;">{display}</span>'
             f'<span style="font-size:0.78rem;color:#9ca3af;white-space:nowrap;">×{n}</span>'
             f'</div>'
@@ -322,28 +323,34 @@ def _top_sources_html(flat_df: pd.DataFrame, side: str, top_n: int = 10) -> str:
 # ---------------------------------------------------------------------------
 
 def render_citation_page():
+    from arena.presentation.streamlit.styles import inject_global_css
+    inject_global_css()
     # ── Page CSS ──────────────────────────────────────────────────────────
     st.markdown("""
     <style>
     .ct-page-title {
-        font-size: 2rem; font-weight: 700; letter-spacing: -0.02em;
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 2.6rem; font-weight: 700; letter-spacing: -0.02em;
+        color: var(--color-text-primary, #E8E4D9);
         margin: 0 0 0.2rem 0; line-height: 1.2;
+        text-align: center;
     }
     .ct-page-subtitle {
-        font-size: 1rem; color: #6b7280; margin: 0 0 1.5rem 0;
+        font-size: 1rem; color: var(--color-text-muted, #888); margin: 0 0 1.5rem 0;
+        text-align: center;
     }
     .ct-section {
         font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
         letter-spacing: 0.08em; color: #9ca3af;
-        border-bottom: 1px solid rgba(0,0,0,0.08);
+        border-bottom: 1px solid var(--color-border, #2A2A2A);
         padding-bottom: 0.3rem; margin: 1.6rem 0 0.8rem 0;
     }
     .ct-section:first-child { margin-top: 0; }
     .ct-prose {
-        font-size: 0.94rem; color: #374151; line-height: 1.65;
+        font-size: 0.94rem; color: var(--color-text-muted, #888); line-height: 1.65;
         margin-bottom: 1rem; max-width: 760px;
     }
-    .ct-divider { border: none; border-top: 1px solid rgba(0,0,0,0.08); margin: 1.6rem 0; }
+    .ct-divider { border: none; border-top: 1px solid var(--color-border, #2A2A2A); margin: 1.6rem 0; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -421,12 +428,12 @@ def render_citation_page():
     # ── Overview cards ────────────────────────────────────────────────────
     st.markdown('<p class="ct-section" style="margin-top:0;">Overview</p>', unsafe_allow_html=True)
 
-    def _card(label: str, value: str, sub: str = "", color: str = "#1f2937") -> str:
+    def _card(label: str, value: str, sub: str = "", color: str = "#E8E4D9") -> str:
         # Shrink font for long values (e.g., "Comparable", "Fact-checker")
         _fs = "1.3rem" if len(value) > 6 else "1.8rem"
         return (
-            f'<div style="flex:1;min-width:130px;background:rgba(0,0,0,0.02);'
-            f'border:1px solid rgba(0,0,0,0.08);border-radius:10px;padding:0.9rem 1.1rem;">'
+            f'<div style="flex:1;min-width:130px;background:var(--color-surface, #111);'
+            f'border:1px solid var(--color-border, #2A2A2A);border-radius:10px;padding:0.9rem 1.1rem;">'
             f'<div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;'
             f'letter-spacing:0.08em;color:#9ca3af;margin-bottom:0.2rem;">{label}</div>'
             f'<div style="font-size:{_fs};font-weight:700;color:{color};line-height:1.2;">{value}</div>'
@@ -482,31 +489,22 @@ def render_citation_page():
     )
     st.plotly_chart(_credibility_comparison_chart(filt_flat), use_container_width=True)
 
-    # Tier count table for reference
-    tier_rows = []
+    # Compact tier summary (replaces redundant table — chart above shows the same data)
+    tier_parts = []
     for tier in TIER_ORDER:
         fc_n  = int((fc_cites_all["credibility"] == tier).sum()) if not fc_cites_all.empty else 0
         spr_n = int((spr_cites_all["credibility"] == tier).sum()) if not spr_cites_all.empty else 0
-        fc_pct  = fc_n  / len(fc_cites_all)  * 100 if len(fc_cites_all)  else 0
-        spr_pct = spr_n / len(spr_cites_all) * 100 if len(spr_cites_all) else 0
-        tier_rows.append({
-            "Tier":          CREDIBILITY_LABELS[tier],
-            "FC count":      fc_n,
-            "FC %":          f"{fc_pct:.0f}%",
-            "Spr count":     spr_n,
-            "Spr %":         f"{spr_pct:.0f}%",
-        })
-    st.dataframe(
-        pd.DataFrame(tier_rows),
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Tier":      st.column_config.TextColumn(),
-            "FC count":  st.column_config.NumberColumn(width="small"),
-            "FC %":      st.column_config.TextColumn(width="small"),
-            "Spr count": st.column_config.NumberColumn(width="small"),
-            "Spr %":     st.column_config.TextColumn(width="small"),
-        },
+        label = CREDIBILITY_LABELS[tier]
+        color = CREDIBILITY_COLORS.get(tier, "#888")
+        tier_parts.append(
+            f'<span style="color:{color};font-weight:600">{label}</span>: '
+            f'FC {fc_n} · Spr {spr_n}'
+        )
+    st.markdown(
+        '<p style="font-size:0.85rem;color:var(--color-text-muted,#888);margin-top:0.5rem">'
+        + ' &nbsp;│&nbsp; '.join(tier_parts)
+        + '</p>',
+        unsafe_allow_html=True,
     )
 
     # ── Citation type breakdown ────────────────────────────────────────────
@@ -602,9 +600,9 @@ def render_citation_page():
 
     def _outcome_style(val: str) -> str:
         return {
-            "FC Won":  "background-color:rgba(58,126,199,0.14);color:#1a5fa8;font-weight:700;",
-            "Spr Won": "background-color:rgba(232,82,74,0.12);color:#c0392b;font-weight:700;",
-            "Draw":    "background-color:rgba(240,165,0,0.12);color:#92650a;font-weight:700;",
+            "FC Won":  "background-color:rgba(74,127,165,0.18);color:#4A7FA5;font-weight:700;",
+            "Spr Won": "background-color:rgba(212,168,67,0.18);color:#D4A843;font-weight:700;",
+            "Draw":    "background-color:rgba(212,168,67,0.12);color:#D4A843;font-weight:700;",
         }.get(val, "")
 
     def _cred_style(val) -> str:

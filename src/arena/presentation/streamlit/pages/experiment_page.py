@@ -21,28 +21,32 @@ from arena.config import AVAILABLE_MODELS
 
 EXPERIMENTS_DIR = Path("runs/experiments")
 
-SPREADER_COLOR = "#E8524A"
-DEBUNKER_COLOR = "#3A7EC7"
-DRAW_COLOR     = "#F0A500"
+SPREADER_COLOR = "#D4A843"
+DEBUNKER_COLOR = "#4A7FA5"
+DRAW_COLOR     = "#D4A843"
 
 
 def _inject_styles():
     st.markdown("""
     <style>
     .ex-page-title {
-        font-size: 2.4rem; font-weight: 800; letter-spacing: -0.02em;
-        color: #111; margin-bottom: 0.15rem;
+        font-family: 'Playfair Display', Georgia, serif !important;
+        font-size: 2rem !important; font-weight: 400 !important;
+        color: var(--color-accent-red, #C9363E) !important; margin-top: 1rem !important; margin-bottom: 0.2rem !important;
+        padding-bottom: 0.3rem !important; border-bottom: 1px solid var(--color-border, #2A2A2A) !important;
+        text-align: left !important;
     }
     .ex-page-subtitle {
-        font-size: 1rem; color: #555; margin-bottom: 1.5rem; line-height: 1.5;
+        font-size: 0.95rem !important; color: var(--color-text-muted, #888) !important; margin-bottom: 1.5rem !important; line-height: 1.5 !important;
+        text-align: left !important;
     }
     .ex-section {
-        font-size: 1.35rem; font-weight: 700; color: #111;
+        font-size: 1.35rem; font-weight: 700; color: var(--color-text-primary, #E8E4D9);
         margin-top: 2rem; margin-bottom: 0.3rem;
-        padding-bottom: 0.3rem; border-bottom: 2px solid #e8e8e8;
+        padding-bottom: 0.3rem; border-bottom: 2px solid var(--color-border, #2A2A2A);
     }
     .ex-prose {
-        font-size: 0.95rem; color: #444; line-height: 1.65;
+        font-size: 0.95rem; color: var(--color-text-muted, #888); line-height: 1.65;
         margin-bottom: 1rem; max-width: 760px;
     }
     .ex-metric-grid {
@@ -50,27 +54,27 @@ def _inject_styles():
     }
     .ex-metric-card {
         flex: 1; min-width: 140px;
-        background: #fff; border: 1px solid #e4e4e4;
+        background: var(--color-surface, #111); border: 1px solid var(--color-border, #2A2A2A);
         border-radius: 8px; padding: 0.9rem 1.1rem;
         box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
     .ex-metric-label {
         font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
-        letter-spacing: 0.07em; color: #888; margin-bottom: 0.2rem;
+        letter-spacing: 0.07em; color: var(--color-text-muted, #888); margin-bottom: 0.2rem;
     }
     .ex-metric-value {
-        font-size: 1.8rem; font-weight: 700; color: #111; line-height: 1.1;
+        font-size: 1.8rem; font-weight: 700; color: var(--color-text-primary, #E8E4D9); line-height: 1.1;
     }
-    .ex-metric-sub { font-size: 0.78rem; color: #777; margin-top: 0.15rem; }
-    .ex-divider { border: none; border-top: 1px solid #e5e7eb; margin: 1.8rem 0; }
+    .ex-metric-sub { font-size: 0.78rem; color: var(--color-text-muted, #888); margin-top: 0.15rem; }
+    .ex-divider { border: none; border-top: 1px solid var(--color-border, #2A2A2A); margin: 1.8rem 0; }
     .ex-callout {
-        background: #f0f6ff; border-left: 4px solid #3A7EC7;
+        background: rgba(74,127,165,0.08); border-left: 4px solid #4A7FA5;
         border-radius: 0 6px 6px 0; padding: 0.8rem 1.1rem;
-        margin-bottom: 1.2rem; font-size: 0.95rem; color: #1a2e4a; line-height: 1.6;
+        margin-bottom: 1.2rem; font-size: 0.95rem; color: var(--color-text-primary, #E8E4D9); line-height: 1.6;
     }
     .ex-variant-label {
         font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
-        letter-spacing: 0.07em; color: #9ca3af; margin: 0.5rem 0 0.3rem 0;
+        letter-spacing: 0.07em; color: var(--color-text-muted, #888); margin: 0.5rem 0 0.3rem 0;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -87,7 +91,7 @@ def _winner_badge(winner: str) -> str:
         return f'<span style="color:{SPREADER_COLOR};font-weight:700">SPR</span>'
     if winner == "error":
         return '<span style="color:#888">ERR</span>'
-    return '<span style="color:#F0A500;font-weight:700">DRAW</span>'
+    return f'<span style="color:{DRAW_COLOR};font-weight:700">DRAW</span>'
 
 
 def _build_matrix(outcomes: list) -> pd.DataFrame:
@@ -112,6 +116,8 @@ def _build_matrix(outcomes: list) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 def render_experiment_page():
+    from arena.presentation.streamlit.styles import inject_global_css
+    inject_global_css()
     _inject_styles()
 
     st.markdown('<p class="ex-page-title">Model Comparison Experiment</p>', unsafe_allow_html=True)
@@ -158,10 +164,10 @@ def render_experiment_page():
             unsafe_allow_html=True,
         )
         st.markdown(
-            '<div style="background:#f8f9fa;border:1px solid #e5e7eb;border-radius:8px;'
+            '<div style="background:var(--color-surface, #111);border:1px solid var(--color-border, #2A2A2A);border-radius:8px;'
             'padding:0.7rem 1rem;margin-bottom:0.8rem;font-family:monospace;font-size:0.8rem;'
-            'line-height:1.6;color:#374151">'
-            '<span style="color:#9ca3af">CSV format:</span><br>'
+            'line-height:1.6;color:var(--color-text-primary, #E8E4D9)">'
+            '<span style="color:var(--color-text-muted, #888)">CSV format:</span><br>'
             'name,role,prompt_text<br>'
             'IME507 Spreader,spreader,"You are a misinformation spreader agent..."<br>'
             'Naive Debunker,debunker,"You are a fact-checker in a debate..."'
@@ -263,10 +269,10 @@ def render_experiment_page():
             unsafe_allow_html=True,
         )
         st.markdown(
-            '<div style="background:#f8f9fa;border:1px solid #e5e7eb;border-radius:8px;'
+            '<div style="background:var(--color-surface, #111);border:1px solid var(--color-border, #2A2A2A);border-radius:8px;'
             'padding:0.7rem 1rem;margin-bottom:0.8rem;font-family:monospace;font-size:0.8rem;'
-            'line-height:1.6;color:#374151">'
-            '<span style="color:#9ca3af">CSV format:</span><br>'
+            'line-height:1.6;color:var(--color-text-primary, #E8E4D9)">'
+            '<span style="color:var(--color-text-muted, #888)">CSV format:</span><br>'
             'claim,claim_type<br>'
             'Vaccines cause autism,Health / Vaccine<br>'
             '5G towers spread COVID,Health / Vaccine<br>'
@@ -369,9 +375,9 @@ def render_experiment_page():
 
         st.markdown("**Claims CSV**")
         st.markdown(
-            '<div style="background:#f8f9fa;border:1px solid #e5e7eb;border-radius:8px;'
+            '<div style="background:var(--color-surface, #111);border:1px solid var(--color-border, #2A2A2A);border-radius:8px;'
             'padding:0.7rem 1rem;margin-bottom:0.6rem;font-family:monospace;font-size:0.8rem;'
-            'line-height:1.6;color:#374151">'
+            'line-height:1.6;color:var(--color-text-primary, #E8E4D9)">'
             'claim,claim_type<br>'
             'Vaccines cause autism,Health / Vaccine<br>'
             '5G towers spread COVID,Health / Vaccine<br>'
@@ -385,9 +391,9 @@ def render_experiment_page():
 
         st.markdown("**Prompt Variants CSV**")
         st.markdown(
-            '<div style="background:#f8f9fa;border:1px solid #e5e7eb;border-radius:8px;'
+            '<div style="background:var(--color-surface, #111);border:1px solid var(--color-border, #2A2A2A);border-radius:8px;'
             'padding:0.7rem 1rem;margin-bottom:0.6rem;font-family:monospace;font-size:0.8rem;'
-            'line-height:1.6;color:#374151">'
+            'line-height:1.6;color:var(--color-text-primary, #E8E4D9)">'
             'name,role,prompt_text<br>'
             'IME507 Spreader,spreader,"You are a misinformation spreader agent..."<br>'
             'Naive Spreader,spreader,"You are a misinformation spreader in a debate..."<br>'
@@ -539,7 +545,37 @@ def render_experiment_page():
                 .reset_index()
             )
             if not win_summary.empty:
-                st.dataframe(win_summary, use_container_width=True, hide_index=True)
+                _win_colors = {
+                    "debunker": DEBUNKER_COLOR, "fact-checker": DEBUNKER_COLOR,
+                    "spreader": SPREADER_COLOR, "draw": "#888888",
+                }
+                win_summary["_color"] = win_summary["Winner"].str.lower().map(
+                    lambda w: _win_colors.get(w, "#888888")
+                )
+                win_summary["_label"] = win_summary.apply(
+                    lambda r: f"{r['Spreader']} vs {r['Fact-checker']}", axis=1
+                )
+                fig_ws = go.Figure()
+                for winner_val in win_summary["Winner"].unique():
+                    sub = win_summary[win_summary["Winner"] == winner_val]
+                    fig_ws.add_trace(go.Bar(
+                        name=winner_val.title(),
+                        x=sub["_label"], y=sub["Win %"],
+                        marker_color=sub["_color"].iloc[0],
+                        text=sub["Win %"].map(lambda v: f"{v:.0f}%"),
+                        textposition="outside",
+                        hovertemplate="%{x}<br>" + winner_val.title() + ": <b>%{y:.1f}%</b><extra></extra>",
+                    ))
+                fig_ws.update_layout(
+                    barmode="group",
+                    yaxis=dict(title="Win %", range=[0, 110], gridcolor="#2A2A2A"),
+                    xaxis=dict(tickfont=dict(size=11)),
+                    legend=dict(orientation="h", y=1.08, x=0.5, xanchor="center"),
+                    margin=dict(l=40, r=10, t=40, b=40), height=300,
+                    **{k: v for k, v in PLOTLY_LAYOUT.items()
+                       if k in ("paper_bgcolor", "plot_bgcolor", "font")},
+                )
+                st.plotly_chart(fig_ws, use_container_width=True)
 
             # Download
             st.download_button(

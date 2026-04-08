@@ -11,6 +11,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from arena.presentation.streamlit.styles import PLOTLY_LAYOUT
+
 from arena.analysis.anomaly_detection import compute_iqr_outliers, compute_mad_outliers
 from arena.analysis.episode_dataset import (
     CANONICAL_METRICS,
@@ -33,9 +35,9 @@ RUNS_DIR = "runs"
 # ---------------------------------------------------------------------------
 # Design constants
 # ---------------------------------------------------------------------------
-SPREADER_COLOR  = "#E8524A"   # Coral red  — misinformation spreader
-DEBUNKER_COLOR  = "#3A7EC7"   # Steel blue — fact-checker / debunker
-DRAW_COLOR      = "#F0A500"   # Amber      — draw
+SPREADER_COLOR  = "#D4A843"   # Amber  — misinformation spreader
+DEBUNKER_COLOR  = "#4A7FA5"   # Steel blue — fact-checker / debunker
+DRAW_COLOR      = "#888888"   # Grey       — draw / other
 
 METRIC_LABELS = {
     "factuality":              "Factuality",
@@ -106,51 +108,54 @@ def _fmt_trigger(val) -> str:
 def _inject_styles():
     st.markdown("""
     <style>
-    /* ── Global typography ── */
-    [data-testid="stAppViewContainer"] {
-        font-family: "Source Sans Pro", "Segoe UI", sans-serif;
-    }
-
     /* ── Page title ── */
     .ma-page-title {
-        font-size: 2.4rem;
-        font-weight: 800;
-        letter-spacing: -0.02em;
-        color: #111;
-        margin-bottom: 0.15rem;
+        font-family: 'Playfair Display', Georgia, serif !important;
+        font-size: 2.6rem !important;
+        font-weight: 700 !important;
+        letter-spacing: -0.02em !important;
+        color: var(--color-text-primary, #E8E4D9) !important;
+        margin-bottom: 0.15rem !important;
+        text-align: center !important;
+        line-height: 1.15 !important;
     }
     .ma-page-subtitle {
         font-size: 1rem;
-        color: #555;
+        color: var(--color-text-muted, #888);
         margin-bottom: 1.5rem;
         line-height: 1.5;
+        text-align: center;
     }
 
-    /* ── Section headers (Part I / Part II style) ── */
+    /* ── Section headers ── */
     .ma-section-header {
-        font-size: 1.6rem;
-        font-weight: 700;
-        color: #111;
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 2rem;
+        font-weight: 400;
+        color: var(--color-accent-red, #C9363E);
         margin-top: 2.5rem;
         margin-bottom: 0.2rem;
         padding-bottom: 0.3rem;
-        border-bottom: 2px solid #e8e8e8;
+        border-bottom: 1px solid var(--color-border, #2A2A2A);
+        text-align: left;
     }
     .ma-section-question {
         font-size: 1rem;
         font-weight: 700;
-        color: #222;
+        color: var(--color-text-primary, #E8E4D9);
         margin-bottom: 0.4rem;
+        text-align: left;
     }
     .ma-section-prose {
         font-size: 0.95rem;
-        color: #444;
+        color: var(--color-text-muted, #888);
         line-height: 1.65;
         margin-bottom: 1.2rem;
         max-width: 760px;
+        text-align: left;
     }
 
-    /* ── Metric cards ── */
+    /* ── Metric cards (red left-border style) ── */
     .ma-metric-grid {
         display: flex;
         gap: 1rem;
@@ -160,60 +165,61 @@ def _inject_styles():
     .ma-metric-card {
         flex: 1;
         min-width: 130px;
-        background: #fff;
-        border: 1px solid #e4e4e4;
-        border-radius: 8px;
+        background: var(--color-surface, #111);
+        border-left: 3px solid var(--color-accent-red, #C9363E);
+        border-radius: 4px;
         padding: 1rem 1.2rem;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
     .ma-metric-label {
+        font-family: 'IBM Plex Sans', sans-serif;
         font-size: 0.72rem;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.07em;
-        color: #888;
+        color: var(--color-text-muted, #888);
         margin-bottom: 0.25rem;
     }
     .ma-metric-value {
+        font-family: 'IBM Plex Mono', monospace;
         font-size: 2rem;
         font-weight: 700;
-        color: #111;
+        color: var(--color-accent-red, #C9363E);
         line-height: 1.1;
     }
-    .ma-metric-value.highlight-debunker { color: #3A7EC7; }
-    .ma-metric-value.highlight-spreader  { color: #E8524A; }
-    .ma-metric-value.highlight-neutral   { color: #F0A500; }
+    .ma-metric-value.highlight-debunker { color: var(--color-accent-blue, #4A7FA5); }
+    .ma-metric-value.highlight-spreader  { color: var(--color-accent-amber, #D4A843); }
+    .ma-metric-value.highlight-neutral   { color: var(--color-accent-amber, #D4A843); }
     .ma-metric-sub {
         font-size: 0.78rem;
-        color: #777;
+        color: var(--color-text-muted, #888);
         margin-top: 0.2rem;
     }
 
     /* ── Summary callout ── */
     .ma-callout {
-        background: #f0f6ff;
-        border-left: 4px solid #3A7EC7;
-        border-radius: 0 6px 6px 0;
+        background: rgba(74, 127, 165, 0.08);
+        border-left: 4px solid var(--color-accent-blue, #4A7FA5);
+        border-radius: 0 4px 4px 0;
         padding: 0.85rem 1.1rem;
         margin-bottom: 1.5rem;
         font-size: 0.95rem;
-        color: #1a2e4a;
+        color: var(--color-text-primary, #E8E4D9);
         line-height: 1.6;
     }
     .ma-callout.warning {
-        background: #fff8f0;
-        border-left-color: #F0A500;
-        color: #4a3000;
+        background: rgba(212, 168, 67, 0.08);
+        border-left-color: var(--color-accent-amber, #D4A843);
     }
 
     /* ── Chart caption ── */
     .ma-chart-caption {
         font-size: 0.82rem;
-        color: #666;
+        color: var(--color-text-muted, #888);
         line-height: 1.5;
         margin-top: 0.3rem;
         margin-bottom: 1rem;
         max-width: 760px;
+        text-align: left;
     }
 
     /* ── Dimension definition grid ── */
@@ -224,27 +230,27 @@ def _inject_styles():
         margin: 0.5rem 0 1.5rem 0;
     }
     .ma-dim-card {
-        background: #fafafa;
-        border: 1px solid #e8e8e8;
-        border-radius: 6px;
+        background: var(--color-surface, #111);
+        border: 1px solid var(--color-border, #2A2A2A);
+        border-radius: 4px;
         padding: 0.75rem 1rem;
     }
     .ma-dim-name {
         font-size: 0.85rem;
         font-weight: 700;
-        color: #222;
+        color: var(--color-text-primary, #E8E4D9);
         margin-bottom: 0.2rem;
     }
     .ma-dim-desc {
         font-size: 0.8rem;
-        color: #666;
+        color: var(--color-text-muted, #888);
         line-height: 1.45;
     }
 
     /* ── Divider ── */
     .ma-divider {
         border: none;
-        border-top: 1px solid #e8e8e8;
+        border-top: 1px solid var(--color-border, #2A2A2A);
         margin: 2rem 0;
     }
 
@@ -252,25 +258,10 @@ def _inject_styles():
     .ma-filter-label {
         font-size: 0.8rem;
         font-weight: 600;
-        color: #666;
+        color: var(--color-text-muted, #888);
         text-transform: uppercase;
         letter-spacing: 0.05em;
         margin-bottom: 0.3rem;
-    }
-
-    /* Fix Streamlit expander border color (override red/orange) */
-    [data-testid="stExpander"] {
-        border: 1px solid #e4e4e4 !important;
-        border-radius: 6px !important;
-    }
-
-    /* Tighten default Streamlit metric spacing */
-    [data-testid="metric-container"] {
-        background: #fff;
-        border: 1px solid #e4e4e4;
-        border-radius: 8px;
-        padding: 0.8rem 1rem;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
     </style>
     """, unsafe_allow_html=True)
@@ -323,11 +314,11 @@ def _bar(fp_df: pd.DataFrame) -> go.Figure:
     fig.update_layout(
         barmode="group",
         yaxis=dict(title="Average score (0–10)", range=[0, 11.5], tickfont=dict(size=11),
-                   gridcolor="rgba(200,200,200,0.3)"),
+                   gridcolor="#2A2A2A"),
         xaxis=dict(tickfont=dict(size=12)),
         legend=dict(orientation="h", y=-0.22, x=0.5, xanchor="center", font=dict(size=12)),
         margin=dict(t=30, b=80, l=55, r=15), height=390,
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        **{k: v for k, v in PLOTLY_LAYOUT.items() if k in ("paper_bgcolor", "plot_bgcolor", "font")},
     )
     fig.add_hline(y=5, line_dash="dot", line_color="rgba(150,150,150,0.5)",
                   annotation_text="midpoint (5)", annotation_font_size=10,
@@ -381,7 +372,7 @@ def _win_dist_bar(win_dist_df: pd.DataFrame) -> go.Figure:
         yaxis=dict(showticklabels=False),
         legend=dict(orientation="h", y=-0.55, x=0.5, xanchor="center", font=dict(size=12)),
         margin=dict(t=5, b=55, l=10, r=10), height=100,
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        **{k: v for k, v in PLOTLY_LAYOUT.items() if k in ("paper_bgcolor", "plot_bgcolor", "font")},
     )
     return fig
 
@@ -391,8 +382,8 @@ def _score_dist(long_df: pd.DataFrame) -> go.Figure:
     canon = [m for m in CANONICAL_METRICS if m in long_df["metric_name"].unique()]
     fig = go.Figure()
     for side, color, fill, name in [
-        ("spreader", SPREADER_COLOR, "rgba(232,82,74,0.08)",   "Spreader"),
-        ("debunker", DEBUNKER_COLOR, "rgba(58,126,199,0.08)",  "Fact-checker"),
+        ("spreader", SPREADER_COLOR, "rgba(212,168,67,0.1)",   "Spreader"),
+        ("debunker", DEBUNKER_COLOR, "rgba(74,127,165,0.1)",  "Fact-checker"),
     ]:
         x_cats, y_vals = [], []
         for metric in canon:
@@ -417,11 +408,11 @@ def _score_dist(long_df: pd.DataFrame) -> go.Figure:
     fig.update_layout(
         boxmode="group",
         yaxis=dict(title="Score (0–10)", range=[0, 10.5], tickfont=dict(size=11),
-                   gridcolor="rgba(200,200,200,0.3)"),
+                   gridcolor="#2A2A2A"),
         xaxis=dict(tickfont=dict(size=12)),
         legend=dict(orientation="h", y=-0.22, x=0.5, xanchor="center", font=dict(size=12)),
         margin=dict(t=10, b=80, l=55, r=15), height=420,
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        **{k: v for k, v in PLOTLY_LAYOUT.items() if k in ("paper_bgcolor", "plot_bgcolor", "font")},
     )
     return fig
 
@@ -477,10 +468,10 @@ def _strip(values: pd.Series, flagged: pd.Series, label: str,
         ))
     fig.update_layout(
         xaxis=dict(showticklabels=False, showgrid=False, zeroline=False, range=[-0.7, 0.7]),
-        yaxis=dict(title=label, tickfont=dict(size=11), gridcolor="rgba(200,200,200,0.3)"),
+        yaxis=dict(title=label, tickfont=dict(size=11), gridcolor="#2A2A2A"),
         legend=dict(orientation="h", y=-0.2, x=0.5, xanchor="center", font=dict(size=12)),
         margin=dict(t=10, b=60, l=55, r=15), height=300,
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        **{k: v for k, v in PLOTLY_LAYOUT.items() if k in ("paper_bgcolor", "plot_bgcolor", "font")},
     )
     return fig
 
@@ -505,13 +496,13 @@ def _scatter(scatter_df: pd.DataFrame) -> go.Figure:
         ))
     fig.update_layout(
         xaxis=dict(title="Score Margin  (how decisive was the result?)",
-                   tickfont=dict(size=11), gridcolor="rgba(200,200,200,0.3)"),
+                   tickfont=dict(size=11), gridcolor="#2A2A2A"),
         yaxis=dict(title="Judge Confidence  (0% = uncertain, 100% = certain)",
                    tickformat=".0%", tickfont=dict(size=11),
-                   gridcolor="rgba(200,200,200,0.3)", range=[0, 1.05]),
+                   gridcolor="#2A2A2A", range=[0, 1.05]),
         legend=dict(orientation="h", y=-0.22, x=0.5, xanchor="center", font=dict(size=12)),
         margin=dict(t=10, b=80, l=70, r=15), height=380,
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        **{k: v for k, v in PLOTLY_LAYOUT.items() if k in ("paper_bgcolor", "plot_bgcolor", "font")},
         hovermode="closest",
     )
     fig.update_xaxes(showgrid=True)
@@ -568,11 +559,10 @@ def _calibration_plot(df: pd.DataFrame) -> go.Figure | None:
     fig.update_layout(
         xaxis=dict(title="Judge Confidence Bucket", tickfont=dict(size=11)),
         yaxis=dict(title="Mean Score Margin", tickfont=dict(size=11),
-                   gridcolor="rgba(200,200,200,0.3)"),
+                   gridcolor="#2A2A2A"),
         margin=dict(t=10, b=60, l=60, r=15),
         height=340,
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
+        **{k: v for k, v in PLOTLY_LAYOUT.items() if k in ("paper_bgcolor", "plot_bgcolor", "font")},
         showlegend=False,
     )
     fig.update_yaxes(showgrid=True)
@@ -605,6 +595,8 @@ def _legacy_expander():
 # ---------------------------------------------------------------------------
 
 def render_analytics_page():
+    from arena.presentation.streamlit.styles import inject_global_css
+    inject_global_css()
     _inject_styles()
 
     # ── Load runs ──────────────────────────────────────────────────────────
@@ -848,8 +840,8 @@ def render_analytics_page():
                     '<p class="ma-section-question">Side-by-side scores — with advantage delta</p>'
                     '<p class="ma-chart-caption">Average score per dimension, out of 10. '
                     'The number above each pair shows the fact-checker\'s advantage '
-                    '(<span style="color:#3A7EC7"><b>blue = fact-checker leads</b></span>, '
-                    '<span style="color:#E8524A"><b>red = spreader leads</b></span>). '
+                    '(<span style="color:#4A7FA5"><b>steel blue = fact-checker leads</b></span>, '
+                    '<span style="color:#D4A843"><b>amber = spreader leads</b></span>). '
                     'Bars above 7 are a clear strength; below 4 is a weakness.</p>',
                     unsafe_allow_html=True,
                 )
@@ -920,7 +912,47 @@ def render_analytics_page():
                 "model_debunker": "Debunker Model",
             })[["Spreader Model", "Debunker Model", "Debates", "FC Win %", "Avg Confidence", "Avg Margin"]]
 
-            st.dataframe(display_matchup, use_container_width=True, hide_index=True)
+            # Heatmap view of FC Win % by model matchup
+            spr_models = sorted(matchup["model_spreader"].unique())
+            deb_models = sorted(matchup["model_debunker"].unique())
+            if len(spr_models) >= 2 or len(deb_models) >= 2:
+                pivot = matchup.pivot_table(
+                    index="model_spreader", columns="model_debunker",
+                    values="FC Win %", aggfunc="first",
+                )
+                n_pivot = matchup.pivot_table(
+                    index="model_spreader", columns="model_debunker",
+                    values="Debates", aggfunc="first",
+                )
+                text_vals = [
+                    [f"{v:.0f}%<br>n={int(n_pivot.iloc[r, c])}" if pd.notna(v) else "—"
+                     for c, v in enumerate(row)]
+                    for r, row in enumerate(pivot.values)
+                ]
+                fig_hm = go.Figure(go.Heatmap(
+                    z=pivot.values,
+                    x=[str(c) for c in pivot.columns],
+                    y=[str(r) for r in pivot.index],
+                    text=text_vals,
+                    texttemplate="%{text}",
+                    textfont=dict(size=12),
+                    colorscale=[[0, "#C9363E"], [0.5, "#D4A843"], [1, "#4A7FA5"]],
+                    zmin=0, zmax=100,
+                    colorbar=dict(title="FC Win %", ticksuffix="%"),
+                    hovertemplate="Spreader: %{y}<br>Debunker: %{x}<br>FC Win: %{z:.0f}%<extra></extra>",
+                ))
+                fig_hm.update_layout(
+                    xaxis=dict(title="Debunker Model", tickfont=dict(size=11)),
+                    yaxis=dict(title="Spreader Model", tickfont=dict(size=11), autorange="reversed"),
+                    height=max(250, len(spr_models) * 60 + 100),
+                    margin=dict(l=10, r=10, t=10, b=40),
+                    **{k: v for k, v in PLOTLY_LAYOUT.items() if k in ("paper_bgcolor", "plot_bgcolor", "font")},
+                )
+                st.plotly_chart(fig_hm, use_container_width=True)
+                with st.expander("Full matchup table"):
+                    st.dataframe(display_matchup, use_container_width=True, hide_index=True)
+            else:
+                st.dataframe(display_matchup, use_container_width=True, hide_index=True)
 
             # ── 2. Model effectiveness by role ───────────────────────────
             st.markdown(
@@ -969,7 +1001,7 @@ def render_analytics_page():
                         yaxis_title="",
                         margin=dict(l=10, r=40, t=40, b=40),
                         height=max(250, len(spr_perf) * 45 + 80),
-                        plot_bgcolor="#fafafa",
+                        plot_bgcolor="#111111",
                     )
                     fig_spr.update_xaxes(range=[0, 10], gridcolor="#e8e8e8")
                     fig_spr.update_yaxes(gridcolor="#e8e8e8")
@@ -1000,7 +1032,7 @@ def render_analytics_page():
                     yaxis_title="",
                     margin=dict(l=10, r=40, t=40, b=40),
                     height=max(250, len(deb_perf) * 45 + 80),
-                    plot_bgcolor="#fafafa",
+                    plot_bgcolor="#111111",
                 )
                 fig_deb.update_xaxes(range=[0, 105], gridcolor="#e8e8e8")
                 fig_deb.update_yaxes(gridcolor="#e8e8e8")
@@ -1071,9 +1103,9 @@ def render_analytics_page():
                     ))
             fig_jconf.update_layout(
                 yaxis=dict(title="Judge Confidence", tickformat=".0%", range=[0, 1.05],
-                           gridcolor="rgba(200,200,200,0.3)"),
+                           gridcolor="#2A2A2A"),
                 margin=dict(t=10, b=40, l=60, r=15), height=300,
-                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                **{k: v for k, v in PLOTLY_LAYOUT.items() if k in ("paper_bgcolor", "plot_bgcolor", "font")},
                 showlegend=False,
             )
             fig_jconf.update_yaxes(showgrid=True)
@@ -1084,19 +1116,46 @@ def render_analytics_page():
 
             if metric_cols_spr:
                 st.markdown("**Average metric scores by judge model**")
-                jm_rows = []
+                # Build data for grouped bar chart
+                jm_bar_data = []
                 for jm in judge_models:
                     jm_df = df[df[judge_col] == jm]
-                    row = {"Judge Model": jm}
                     for mc in metric_cols_spr:
-                        metric_name = mc.replace("metric_", "").replace("_spreader", "")
+                        metric_name = mc.replace("metric_", "").replace("_spreader", "").replace("_", " ").title()
                         s_mean = pd.to_numeric(jm_df[mc], errors="coerce").mean()
                         d_col = mc.replace("_spreader", "_debunker")
                         d_mean = pd.to_numeric(jm_df[d_col], errors="coerce").mean() if d_col in jm_df.columns else None
-                        row[f"{metric_name} (Spr)"] = round(s_mean, 1) if pd.notna(s_mean) else "—"
-                        row[f"{metric_name} (FC)"] = round(d_mean, 1) if pd.notna(d_mean) else "—"
-                    jm_rows.append(row)
-                st.dataframe(pd.DataFrame(jm_rows), use_container_width=True, hide_index=True)
+                        if pd.notna(s_mean):
+                            jm_bar_data.append({"Judge": jm, "Metric": metric_name, "Side": "Spreader", "Score": round(s_mean, 1)})
+                        if d_mean is not None and pd.notna(d_mean):
+                            jm_bar_data.append({"Judge": jm, "Metric": metric_name, "Side": "Fact-checker", "Score": round(d_mean, 1)})
+
+                if jm_bar_data:
+                    jm_bar_df = pd.DataFrame(jm_bar_data)
+                    fig_jm = go.Figure()
+                    side_colors = {"Spreader": SPREADER_COLOR, "Fact-checker": DEBUNKER_COLOR}
+                    for side in ["Spreader", "Fact-checker"]:
+                        sub = jm_bar_df[jm_bar_df["Side"] == side]
+                        if sub.empty:
+                            continue
+                        # x-axis labels combine judge + metric
+                        x_labels = [f"{r['Metric']}<br><span style='font-size:10px'>{r['Judge']}</span>" for _, r in sub.iterrows()]
+                        fig_jm.add_trace(go.Bar(
+                            name=side, x=sub["Metric"], y=sub["Score"],
+                            marker_color=side_colors[side], opacity=0.85,
+                            text=sub["Score"].map(lambda v: f"{v:.1f}"),
+                            textposition="outside", textfont=dict(size=10),
+                            hovertemplate="%{x}: <b>%{y:.1f}</b> / 10<extra>" + side + "</extra>",
+                        ))
+                    fig_jm.update_layout(
+                        barmode="group",
+                        yaxis=dict(title="Score (0-10)", range=[0, 10.5], gridcolor="#2A2A2A"),
+                        xaxis=dict(tickfont=dict(size=10)),
+                        legend=dict(orientation="h", y=1.08, x=0.5, xanchor="center"),
+                        margin=dict(l=40, r=10, t=40, b=40), height=350,
+                        **{k: v for k, v in PLOTLY_LAYOUT.items() if k in ("paper_bgcolor", "plot_bgcolor", "font")},
+                    )
+                    st.plotly_chart(fig_jm, use_container_width=True)
 
             st.markdown(
                 '<p class="ma-chart-caption">'
@@ -1160,7 +1219,7 @@ def render_analytics_page():
                         xaxis=dict(title="Turn number when concession occurred"),
                         yaxis=dict(title="Count"),
                         margin=dict(t=10, b=40, l=50, r=15), height=250,
-                        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                        **{k: v for k, v in PLOTLY_LAYOUT.items() if k in ("paper_bgcolor", "plot_bgcolor", "font")},
                     )
                     st.plotly_chart(fig_ct, use_container_width=True)
                     st.markdown(
@@ -1182,7 +1241,27 @@ def render_analytics_page():
                     ct_grp = conc_by_type.groupby("claim_type")["conceded_by"].value_counts().unstack(fill_value=0)
                     if not ct_grp.empty:
                         ct_grp.columns = [c.title() for c in ct_grp.columns]
-                        st.dataframe(ct_grp, use_container_width=True)
+                        fig_ctc = go.Figure()
+                        conc_colors = {"Spreader": SPREADER_COLOR, "Debunker": DEBUNKER_COLOR}
+                        for col_name in ct_grp.columns:
+                            fig_ctc.add_trace(go.Bar(
+                                name=col_name if col_name != "Debunker" else "Fact-checker",
+                                x=ct_grp.index.tolist(),
+                                y=ct_grp[col_name].tolist(),
+                                marker_color=conc_colors.get(col_name, "#888"),
+                                text=ct_grp[col_name].tolist(),
+                                textposition="inside",
+                                hovertemplate="%{x}<br>" + col_name + ": <b>%{y}</b><extra></extra>",
+                            ))
+                        fig_ctc.update_layout(
+                            barmode="stack",
+                            yaxis=dict(title="Concessions", gridcolor="#2A2A2A"),
+                            xaxis=dict(tickangle=-25, tickfont=dict(size=11)),
+                            legend=dict(orientation="h", y=1.08, x=0.5, xanchor="center"),
+                            margin=dict(l=40, r=10, t=30, b=60), height=300,
+                            **{k: v for k, v in PLOTLY_LAYOUT.items() if k in ("paper_bgcolor", "plot_bgcolor", "font")},
+                        )
+                        st.plotly_chart(fig_ctc, use_container_width=True)
 
             # ── Concession rates by model ──
             if "conceded_by" in df.columns and "model_spreader" in df.columns:
