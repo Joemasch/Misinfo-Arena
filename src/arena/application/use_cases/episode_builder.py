@@ -68,6 +68,8 @@ def _build_episode_object(ss, run_id, episode_id, turns, judge_decision, concess
         "schema_version": "2.0",
         "run_id": run_id,
         "episode_id": episode_id,
+        "study_id": ss.get("study_id"),
+        "condition": ss.get("condition"),
         "created_at": datetime.now().isoformat(),
         "claim": ss.get("topic", ""),
         "claim_index": claim_idx,
