@@ -575,17 +575,28 @@ def render_arena_page():
             st.session_state["auto_run_started_at"] = None
 
     # ===================================================================
-    # ARENA MODE - Single-Claim vs Multi-Claim
+    # ARENA MODE - Single-Claim vs Multi-Claim vs Experiment
     # ===================================================================
     st.markdown('<div class="ar-section">Mode</div>', unsafe_allow_html=True)
+    _mode_labels = {
+        "single_claim": "Single debate",
+        "multi_claim": "Multi-claim batch",
+        "experiment": "Experiment (CSV)",
+    }
     arena_mode = st.selectbox(
         "Arena mode",
-        options=["single_claim", "multi_claim"],
-        format_func=lambda x: "Single debate" if x == "single_claim" else "Multi-claim batch",
+        options=["single_claim", "multi_claim", "experiment"],
+        format_func=lambda x: _mode_labels.get(x, x),
         key="arena_mode_select",
         label_visibility="collapsed",
     )
     st.session_state["arena_mode"] = arena_mode
+
+    # ── Experiment mode: delegate to spec CSV runner ─────────────────
+    if arena_mode == "experiment":
+        from arena.presentation.streamlit.pages.experiment_page import render_experiment_page
+        render_experiment_page()
+        return
 
     # ===================================================================
     # CLAIM INPUT + RUN PLAN (combined — depends on mode)
