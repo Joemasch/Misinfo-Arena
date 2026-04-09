@@ -452,3 +452,61 @@ Claims were selected to span the misinformation landscape (Wardle & Derakhshan 2
 ### Why repeat claims across model combos?
 
 Holding claims constant when varying models isolates the model effect. If claims changed simultaneously, outcome differences could not be attributed to either variable.
+
+---
+
+## Cost & Time Estimates
+
+### API Cost Estimates
+
+Based on April 2026 per-model pricing (per 1M tokens):
+
+| Model | Input | Output |
+|---|---|---|
+| `gpt-4o-mini` | $0.15 | $0.60 |
+| `gpt-4o` | $2.50 | $10.00 |
+| `claude-sonnet-4` | $3.00 | $15.00 |
+| `gemini-2.5-flash` | $0.15 | $3.50 |
+
+Assumptions: ~450 tokens per message, ~750 token system prompt, context grows linearly with turn count.
+
+| Study | Component | Episodes/Calls | Cost (low) | Cost (high) |
+|---|---|---|---|---|
+| **Study 1** | Corpus generation | 32 episodes | $3 | $3 |
+| | Judge evaluation | 384 judge calls | $5 | $6 |
+| **Study 2** | Debates | 320 episodes | $33 | $33 |
+| | Judge calls | 320 calls | $1 | $9 |
+| **Study 3** | Debates | 400 episodes | $37 | $37 |
+| | Judge calls | 400 calls | $1 | $11 |
+| **Total** | | **752 episodes + 1,104 judge calls** | **~$80** | **~$100** |
+
+Judge cost range depends on which model wins Study 1 (gpt-4o-mini = cheapest, claude-sonnet-4 = most expensive).
+
+### Time Estimates
+
+Each API call takes ~10-30 seconds. Episode runtime scales with turn count:
+
+| Turn count | Time per episode |
+|---|---|
+| 2 turns | ~1-2 min |
+| 4 turns | ~2-4 min |
+| 6 turns | ~3-5 min |
+| 8 turns | ~5-7 min |
+| 10 turns | ~7-10 min |
+
+| Study | Compute time | Human time | Notes |
+|---|---|---|---|
+| **Study 1** — Corpus | ~2-3 hours | — | 32 episodes, mixed turn lengths |
+| **Study 1** — Judge eval | ~2-3 hours | — | 384 sequential judge calls |
+| **Study 1** — Annotation | — | ~3-5 hours | 5-10 min per transcript × 32 |
+| **Study 2** | ~20-24 hours | Monitoring | Run overnight over 2-3 days |
+| **Study 3** | ~25-30 hours | Monitoring | Run overnight over 2-3 days |
+| **Total** | **~50-60 hours compute** | **~5-7 hours hands-on** | |
+
+### Suggested Timeline
+
+| Week | Activity |
+|---|---|
+| **Week 1** | Run Study 1 corpus (2-3 hrs) → Annotate 32 transcripts (3-5 hrs) → Run judge evaluation (2-3 hrs) → Select judge model |
+| **Week 2** | Run Study 2 (overnight runs, 2-3 days) → Begin preliminary analysis |
+| **Week 3** | Run Study 3 (overnight runs, 2-3 days) → Full analysis + statistical testing |
