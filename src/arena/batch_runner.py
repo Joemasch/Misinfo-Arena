@@ -90,6 +90,22 @@ class BatchResult:
 # Core runner
 # ---------------------------------------------------------------------------
 
+def _retry_with_backoff(fn, max_retries: int = 3, base_delay: float = 2.0):
+    """Call fn(), retrying on rate-limit (429) or transient errors with exponential backoff."""
+    import time as _time
+    for attempt in range(max_retries + 1):
+        try:
+            return fn()
+        except Exception as e:
+            err = str(e).lower()
+            is_retryable = any(s in err for s in ("429", "rate limit", "rate_limit", "overloaded", "529", "timeout", "timed out"))
+            if not is_retryable or attempt >= max_retries:
+                raise
+            delay = base_delay * (2 ** attempt)
+            print(f"[RETRY] Attempt {attempt + 1}/{max_retries} failed ({e}). Retrying in {delay:.0f}s...")
+            _time.sleep(delay)
+
+
 def _build_debate_messages(
     spreader_prompt: str,
     debunker_prompt: str,
@@ -132,7 +148,7 @@ def _build_debate_messages(
             "system_prompt": _sub(spreader_prompt),
             "conversation_history": history,
         }
-        s_text = spreader.generate(s_context)
+        s_text = _retry_with_backoff(lambda: spreader.generate(s_context))
         history.append({"role": "spreader", "content": s_text})
 
         # ── Debunker turn ──
@@ -141,7 +157,7 @@ def _build_debate_messages(
             "system_prompt": _sub(debunker_prompt),
             "conversation_history": history,
         }
-        d_text = debunker.generate(d_context)
+        d_text = _retry_with_backoff(lambda: debunker.generate(d_context))
         history.append({"role": "debunker", "content": d_text})
 
         turns_for_judge.append({
@@ -179,7 +195,7 @@ def _judge_turns(
             static_prompt_template=judge_prompt_template,
             consistency_runs=judge_consistency_runs,
         )
-        return aj.evaluate_match(turns_for_judge, cfg)
+        return _retry_with_backoff(lambda: aj.evaluate_match(turns_for_judge, cfg))
     except Exception as e:
         if not allow_heuristic_fallback:
             raise  # Let experiment engine handle the error explicitly
