@@ -16,13 +16,13 @@ This document defines the complete experimental design for the Misinformation Ar
 | **Study 2** | Conversation Length Effects | 500 | Study 1 (fixed judge) |
 | **Study 3** | Claim Type Effects | 625 | Study 1 (fixed judge), Study 2 (fixed turn length) |
 
-**Grand totals: 1,157 episodes, 1,605 judge calls, 32 human annotations, 233 runs.**
+**Grand totals: 752 episodes, 1,136 judge calls, 32 human annotations, 168 runs.**
 
 ---
 
 ## Models Under Test
 
-Five models spanning four providers and multiple capability tiers:
+Four models spanning three providers and multiple capability tiers:
 
 | Model | Provider | Tier |
 |---|---|---|
@@ -30,12 +30,12 @@ Five models spanning four providers and multiple capability tiers:
 | `gpt-4o` | OpenAI | Premium |
 | `claude-sonnet-4` | Anthropic | Premium |
 | `gemini-2.5-flash` | Google | Mid |
-| `grok-3-mini` | xAI | Budget |
 
 These were selected to provide:
-- Cross-provider architectural diversity
+- Cross-provider architectural diversity (OpenAI, Anthropic, Google)
 - Within-provider tier comparison (gpt-4o-mini vs gpt-4o)
-- Coverage of the major providers a thesis committee would expect
+- Coverage of the three major LLM providers a thesis committee would expect
+- Practical balance: 3 API keys, 32% fewer episodes vs 5 models, minimal research impact
 
 ---
 
@@ -178,7 +178,7 @@ This produces the ground truth baseline.
 
 Run all 5 candidate judge models against the 32-transcript corpus.
 
-**5 judges x 32 transcripts x 3 consistency runs = 480 judge calls**
+**4 judges x 32 transcripts x 3 consistency runs = 384 judge calls**
 
 | Judge Candidate | Transcripts | Consistency Runs | Total Calls |
 |---|---|---|---|
@@ -186,7 +186,6 @@ Run all 5 candidate judge models against the 32-transcript corpus.
 | gpt-4o | 32 | 3 | 96 |
 | claude-sonnet-4 | 32 | 3 | 96 |
 | gemini-2.5-flash | 32 | 3 | 96 |
-| grok-3-mini | 32 | 3 | 96 |
 
 ### Phase 4: Judge Selection Criteria
 
@@ -208,7 +207,7 @@ Select the model that ranks highest across these metrics. If two are close, brea
 |---|---|
 | Transcripts generated | 32 |
 | Human annotations | 32 |
-| Judge evaluation calls | 480 |
+| Judge evaluation calls | 384 |
 | Runs | 8 |
 
 ---
@@ -222,14 +221,14 @@ Determine how conversation length (number of debate turns) affects debate outcom
 ### Design
 
 **Fixed judge** (winner of Study 1).
-**5 spreader x 5 debunker x 5 turn lengths x 4 claims = 500 episodes.**
+**4 spreader x 4 debunker x 5 turn lengths x 4 claims = 320 episodes.**
 
 ### Independent Variables
 
 | Variable | Levels | Values |
 |---|---|---|
-| Spreader model | 5 | gpt-4o-mini, gpt-4o, claude-sonnet-4, gemini-2.5-flash, grok-3-mini |
-| Debunker model | 5 | gpt-4o-mini, gpt-4o, claude-sonnet-4, gemini-2.5-flash, grok-3-mini |
+| Spreader model | 4 | gpt-4o-mini, gpt-4o, claude-sonnet-4, gemini-2.5-flash |
+| Debunker model | 4 | gpt-4o-mini, gpt-4o, claude-sonnet-4, gemini-2.5-flash |
 | Max turns | 5 | 2, 4, 6, 8, 10 |
 | Claim | 4 | C1, C2, C3, C4 |
 | Judge model | 1 (fixed) | Winner of Study 1 |
@@ -245,7 +244,7 @@ Determine how conversation length (number of debate turns) affects debate outcom
 | Score margin | Derived (debunker total - spreader total) |
 | Strategy labels | Strategy analyst |
 
-### Model Pair Matrix (25 pairs)
+### Model Pair Matrix (16 pairs)
 
 | Pair | Spreader | Debunker | Runs | Episodes |
 |---|---|---|---|---|
@@ -253,33 +252,24 @@ Determine how conversation length (number of debate turns) affects debate outcom
 | 2 | gpt-4o-mini | gpt-4o | 4 | 20 |
 | 3 | gpt-4o-mini | claude-sonnet-4 | 4 | 20 |
 | 4 | gpt-4o-mini | gemini-2.5-flash | 4 | 20 |
-| 5 | gpt-4o-mini | grok-3-mini | 4 | 20 |
-| 6 | gpt-4o | gpt-4o-mini | 4 | 20 |
-| 7 | gpt-4o | gpt-4o | 4 | 20 |
-| 8 | gpt-4o | claude-sonnet-4 | 4 | 20 |
-| 9 | gpt-4o | gemini-2.5-flash | 4 | 20 |
-| 10 | gpt-4o | grok-3-mini | 4 | 20 |
-| 11 | claude-sonnet-4 | gpt-4o-mini | 4 | 20 |
-| 12 | claude-sonnet-4 | gpt-4o | 4 | 20 |
-| 13 | claude-sonnet-4 | claude-sonnet-4 | 4 | 20 |
-| 14 | claude-sonnet-4 | gemini-2.5-flash | 4 | 20 |
-| 15 | claude-sonnet-4 | grok-3-mini | 4 | 20 |
-| 16 | gemini-2.5-flash | gpt-4o-mini | 4 | 20 |
-| 17 | gemini-2.5-flash | gpt-4o | 4 | 20 |
-| 18 | gemini-2.5-flash | claude-sonnet-4 | 4 | 20 |
-| 19 | gemini-2.5-flash | gemini-2.5-flash | 4 | 20 |
-| 20 | gemini-2.5-flash | grok-3-mini | 4 | 20 |
-| 21 | grok-3-mini | gpt-4o-mini | 4 | 20 |
-| 22 | grok-3-mini | gpt-4o | 4 | 20 |
-| 23 | grok-3-mini | claude-sonnet-4 | 4 | 20 |
-| 24 | grok-3-mini | gemini-2.5-flash | 4 | 20 |
-| 25 | grok-3-mini | grok-3-mini | 4 | 20 |
+| 5 | gpt-4o | gpt-4o-mini | 4 | 20 |
+| 6 | gpt-4o | gpt-4o | 4 | 20 |
+| 7 | gpt-4o | claude-sonnet-4 | 4 | 20 |
+| 8 | gpt-4o | gemini-2.5-flash | 4 | 20 |
+| 9 | claude-sonnet-4 | gpt-4o-mini | 4 | 20 |
+| 10 | claude-sonnet-4 | gpt-4o | 4 | 20 |
+| 11 | claude-sonnet-4 | claude-sonnet-4 | 4 | 20 |
+| 12 | claude-sonnet-4 | gemini-2.5-flash | 4 | 20 |
+| 13 | gemini-2.5-flash | gpt-4o-mini | 4 | 20 |
+| 14 | gemini-2.5-flash | gpt-4o | 4 | 20 |
+| 15 | gemini-2.5-flash | claude-sonnet-4 | 4 | 20 |
+| 16 | gemini-2.5-flash | gemini-2.5-flash | 4 | 20 |
 
 ### Run Organization
 
 One run per (model pair x claim). Each run contains 5 episodes of escalating turn length.
 
-**25 pairs x 4 claims = 100 runs, 5 episodes each.**
+**16 pairs x 4 claims = 64 runs, 5 episodes each.**
 
 Within each run:
 
@@ -297,7 +287,7 @@ Within each run:
 |---|---|
 | Does conversation length affect who wins? | Winner distribution by max_turns, aggregated across all pairs |
 | Do some models improve more with length? | Interaction: model x max_turns on score margin |
-| Does same-model pairing behave differently? | Compare 5 diagonal pairs (1, 7, 13, 19, 25) against off-diagonal |
+| Does same-model pairing behave differently? | Compare 4 diagonal pairs (1, 6, 11, 16) against off-diagonal |
 | Are some claims harder to debunk at any length? | Claim x max_turns interaction on debunker win rate |
 | Does model tier predict length sensitivity? | Group by tier (budget vs premium) and compare slopes |
 | Does length matter more for hard claims? | Length x difficulty interaction: compare score margin slopes for easy (C1, C2) vs hard (C3, C4) claims |
@@ -306,9 +296,9 @@ Within each run:
 
 | Component | Count |
 |---|---|
-| Episodes | 500 |
-| Judge calls | 500 |
-| Runs | 100 |
+| Episodes | 320 |
+| Judge calls | 320 |
+| Runs | 64 |
 
 ---
 
@@ -324,7 +314,7 @@ Determine how claim type (domain/category of misinformation) affects model perfo
 
 The primary independent variable is **claim type**, with 5 types and 5 claims per type (25 claims total).
 
-**5 spreader x 5 debunker x 25 claims = 625 episodes.**
+**4 spreader x 4 debunker x 25 claims = 400 episodes.**
 
 ### Independent Variables
 
@@ -332,8 +322,8 @@ The primary independent variable is **claim type**, with 5 types and 5 claims pe
 |---|---|---|
 | Claim type | 5 | Health, Political, Environmental, Technology, Economic |
 | Claim | 5 per type | 25 total (nested within type) |
-| Spreader model | 5 | gpt-4o-mini, gpt-4o, claude-sonnet-4, gemini-2.5-flash, grok-3-mini |
-| Debunker model | 5 | gpt-4o-mini, gpt-4o, claude-sonnet-4, gemini-2.5-flash, grok-3-mini |
+| Spreader model | 4 | gpt-4o-mini, gpt-4o, claude-sonnet-4, gemini-2.5-flash |
+| Debunker model | 4 | gpt-4o-mini, gpt-4o, claude-sonnet-4, gemini-2.5-flash |
 | Max turns | 1 (fixed) | Best length from Study 2 |
 | Judge model | 1 (fixed) | Winner of Study 1 |
 
@@ -351,7 +341,7 @@ The primary independent variable is **claim type**, with 5 types and 5 claims pe
 
 One run per (model pair x claim type). Each run contains 5 episodes (one per claim in that type).
 
-**25 pairs x 5 types = 125 runs, 5 episodes each.**
+**16 pairs x 5 types = 80 runs, 5 episodes each.**
 
 | Run | Pair | Claim Type | Episodes |
 |---|---|---|---|
@@ -399,9 +389,9 @@ This enables additional analyses without increasing episode count:
 
 | Component | Count |
 |---|---|
-| Episodes | 625 |
-| Judge calls | 625 |
-| Runs | 125 |
+| Episodes | 400 |
+| Judge calls | 400 |
+| Runs | 80 |
 
 ---
 
@@ -410,10 +400,10 @@ This enables additional analyses without increasing episode count:
 | | Episodes | Judge Calls | Human Annotations | Runs |
 |---|---|---|---|---|
 | **Study 1** — Corpus generation | 32 | — | 32 | 8 |
-| **Study 1** — Judge evaluation | — | 480 | — | — |
-| **Study 2** — Length effects | 500 | 500 | — | 100 |
-| **Study 3** — Claim type effects | 625 | 625 | — | 125 |
-| **Total** | **1,157** | **1,605** | **32** | **233** |
+| **Study 1** — Judge evaluation | — | 384 | — | — |
+| **Study 2** — Length effects | 320 | 320 | — | 64 |
+| **Study 3** — Claim type effects | 400 | 400 | — | 80 |
+| **Total** | **752** | **1,104** | **32** | **152** |
 
 ---
 
@@ -446,13 +436,14 @@ If the judge model varies across experiments, outcome differences could be attri
 
 ### Why vary turn length and claim type in separate studies?
 
-Combining all three variables (models x turns x claim types) in a single factorial design would require 5 x 5 x 5 x 25 = 3,125 episodes — impractical in cost and analysis complexity. Separating them into sequential studies allows each to build on prior findings while keeping individual study sizes manageable.
+Combining all three variables (models x turns x claim types) in a single factorial design would require 4 x 4 x 5 x 25 = 2,000 episodes — impractical in cost and analysis complexity. Separating them into sequential studies allows each to build on prior findings while keeping individual study sizes manageable.
 
-### Why 5 models?
+### Why 4 models?
 
 - 3 is too few to generalize across providers
-- 11 (the full system roster) produces an unmanageable factorial explosion
-- 5 provides cross-provider diversity, tier comparison, and coverage of major players
+- 5+ models across 4+ providers adds operational overhead (multiple API accounts) with diminishing research returns
+- 4 models across 3 providers (OpenAI, Anthropic, Google) provides cross-provider diversity, within-provider tier comparison (gpt-4o-mini vs gpt-4o), and coverage of the three major LLM providers
+- Reduces total episodes by 32% vs 5 models (752 vs 1,157) with minimal impact on analytical power
 
 ### Why these specific claims?
 

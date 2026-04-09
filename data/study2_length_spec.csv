@@ -79,26 +79,6 @@ study2_length,pair=gptmin_vs_geminifla_claim=the_2020_election_wa_turns=4,gptmin
 study2_length,pair=gptmin_vs_geminifla_claim=the_2020_election_wa_turns=6,gptmin_vs_geminifla_the_2020_election_wa,The 2020 election was stolen,Political,gpt-4o-mini,gemini-2.5-flash,gpt-4o,6,1
 study2_length,pair=gptmin_vs_geminifla_claim=the_2020_election_wa_turns=8,gptmin_vs_geminifla_the_2020_election_wa,The 2020 election was stolen,Political,gpt-4o-mini,gemini-2.5-flash,gpt-4o,8,1
 study2_length,pair=gptmin_vs_geminifla_claim=the_2020_election_wa_turns=10,gptmin_vs_geminifla_the_2020_election_wa,The 2020 election was stolen,Political,gpt-4o-mini,gemini-2.5-flash,gpt-4o,10,1
-study2_length,pair=gptmin_vs_grokmin_claim=vaccines_cause_autis_turns=2,gptmin_vs_grokmin_vaccines_cause_autis,Vaccines cause autism,Health,gpt-4o-mini,grok-3-mini,gpt-4o,2,1
-study2_length,pair=gptmin_vs_grokmin_claim=vaccines_cause_autis_turns=4,gptmin_vs_grokmin_vaccines_cause_autis,Vaccines cause autism,Health,gpt-4o-mini,grok-3-mini,gpt-4o,4,1
-study2_length,pair=gptmin_vs_grokmin_claim=vaccines_cause_autis_turns=6,gptmin_vs_grokmin_vaccines_cause_autis,Vaccines cause autism,Health,gpt-4o-mini,grok-3-mini,gpt-4o,6,1
-study2_length,pair=gptmin_vs_grokmin_claim=vaccines_cause_autis_turns=8,gptmin_vs_grokmin_vaccines_cause_autis,Vaccines cause autism,Health,gpt-4o-mini,grok-3-mini,gpt-4o,8,1
-study2_length,pair=gptmin_vs_grokmin_claim=vaccines_cause_autis_turns=10,gptmin_vs_grokmin_vaccines_cause_autis,Vaccines cause autism,Health,gpt-4o-mini,grok-3-mini,gpt-4o,10,1
-study2_length,pair=gptmin_vs_grokmin_claim=5g_towers_cause_canc_turns=2,gptmin_vs_grokmin_5g_towers_cause_canc,5G towers cause cancer,Technology,gpt-4o-mini,grok-3-mini,gpt-4o,2,1
-study2_length,pair=gptmin_vs_grokmin_claim=5g_towers_cause_canc_turns=4,gptmin_vs_grokmin_5g_towers_cause_canc,5G towers cause cancer,Technology,gpt-4o-mini,grok-3-mini,gpt-4o,4,1
-study2_length,pair=gptmin_vs_grokmin_claim=5g_towers_cause_canc_turns=6,gptmin_vs_grokmin_5g_towers_cause_canc,5G towers cause cancer,Technology,gpt-4o-mini,grok-3-mini,gpt-4o,6,1
-study2_length,pair=gptmin_vs_grokmin_claim=5g_towers_cause_canc_turns=8,gptmin_vs_grokmin_5g_towers_cause_canc,5G towers cause cancer,Technology,gpt-4o-mini,grok-3-mini,gpt-4o,8,1
-study2_length,pair=gptmin_vs_grokmin_claim=5g_towers_cause_canc_turns=10,gptmin_vs_grokmin_5g_towers_cause_canc,5G towers cause cancer,Technology,gpt-4o-mini,grok-3-mini,gpt-4o,10,1
-study2_length,pair=gptmin_vs_grokmin_claim=climate_change_is_a__turns=2,gptmin_vs_grokmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,gpt-4o-mini,grok-3-mini,gpt-4o,2,1
-study2_length,pair=gptmin_vs_grokmin_claim=climate_change_is_a__turns=4,gptmin_vs_grokmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,gpt-4o-mini,grok-3-mini,gpt-4o,4,1
-study2_length,pair=gptmin_vs_grokmin_claim=climate_change_is_a__turns=6,gptmin_vs_grokmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,gpt-4o-mini,grok-3-mini,gpt-4o,6,1
-study2_length,pair=gptmin_vs_grokmin_claim=climate_change_is_a__turns=8,gptmin_vs_grokmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,gpt-4o-mini,grok-3-mini,gpt-4o,8,1
-study2_length,pair=gptmin_vs_grokmin_claim=climate_change_is_a__turns=10,gptmin_vs_grokmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,gpt-4o-mini,grok-3-mini,gpt-4o,10,1
-study2_length,pair=gptmin_vs_grokmin_claim=the_2020_election_wa_turns=2,gptmin_vs_grokmin_the_2020_election_wa,The 2020 election was stolen,Political,gpt-4o-mini,grok-3-mini,gpt-4o,2,1
-study2_length,pair=gptmin_vs_grokmin_claim=the_2020_election_wa_turns=4,gptmin_vs_grokmin_the_2020_election_wa,The 2020 election was stolen,Political,gpt-4o-mini,grok-3-mini,gpt-4o,4,1
-study2_length,pair=gptmin_vs_grokmin_claim=the_2020_election_wa_turns=6,gptmin_vs_grokmin_the_2020_election_wa,The 2020 election was stolen,Political,gpt-4o-mini,grok-3-mini,gpt-4o,6,1
-study2_length,pair=gptmin_vs_grokmin_claim=the_2020_election_wa_turns=8,gptmin_vs_grokmin_the_2020_election_wa,The 2020 election was stolen,Political,gpt-4o-mini,grok-3-mini,gpt-4o,8,1
-study2_length,pair=gptmin_vs_grokmin_claim=the_2020_election_wa_turns=10,gptmin_vs_grokmin_the_2020_election_wa,The 2020 election was stolen,Political,gpt-4o-mini,grok-3-mini,gpt-4o,10,1
 study2_length,pair=gpt4o_vs_gptmin_claim=vaccines_cause_autis_turns=2,gpt4o_vs_gptmin_vaccines_cause_autis,Vaccines cause autism,Health,gpt-4o,gpt-4o-mini,gpt-4o,2,1
 study2_length,pair=gpt4o_vs_gptmin_claim=vaccines_cause_autis_turns=4,gpt4o_vs_gptmin_vaccines_cause_autis,Vaccines cause autism,Health,gpt-4o,gpt-4o-mini,gpt-4o,4,1
 study2_length,pair=gpt4o_vs_gptmin_claim=vaccines_cause_autis_turns=6,gpt4o_vs_gptmin_vaccines_cause_autis,Vaccines cause autism,Health,gpt-4o,gpt-4o-mini,gpt-4o,6,1
@@ -179,26 +159,6 @@ study2_length,pair=gpt4o_vs_geminifla_claim=the_2020_election_wa_turns=4,gpt4o_v
 study2_length,pair=gpt4o_vs_geminifla_claim=the_2020_election_wa_turns=6,gpt4o_vs_geminifla_the_2020_election_wa,The 2020 election was stolen,Political,gpt-4o,gemini-2.5-flash,gpt-4o,6,1
 study2_length,pair=gpt4o_vs_geminifla_claim=the_2020_election_wa_turns=8,gpt4o_vs_geminifla_the_2020_election_wa,The 2020 election was stolen,Political,gpt-4o,gemini-2.5-flash,gpt-4o,8,1
 study2_length,pair=gpt4o_vs_geminifla_claim=the_2020_election_wa_turns=10,gpt4o_vs_geminifla_the_2020_election_wa,The 2020 election was stolen,Political,gpt-4o,gemini-2.5-flash,gpt-4o,10,1
-study2_length,pair=gpt4o_vs_grokmin_claim=vaccines_cause_autis_turns=2,gpt4o_vs_grokmin_vaccines_cause_autis,Vaccines cause autism,Health,gpt-4o,grok-3-mini,gpt-4o,2,1
-study2_length,pair=gpt4o_vs_grokmin_claim=vaccines_cause_autis_turns=4,gpt4o_vs_grokmin_vaccines_cause_autis,Vaccines cause autism,Health,gpt-4o,grok-3-mini,gpt-4o,4,1
-study2_length,pair=gpt4o_vs_grokmin_claim=vaccines_cause_autis_turns=6,gpt4o_vs_grokmin_vaccines_cause_autis,Vaccines cause autism,Health,gpt-4o,grok-3-mini,gpt-4o,6,1
-study2_length,pair=gpt4o_vs_grokmin_claim=vaccines_cause_autis_turns=8,gpt4o_vs_grokmin_vaccines_cause_autis,Vaccines cause autism,Health,gpt-4o,grok-3-mini,gpt-4o,8,1
-study2_length,pair=gpt4o_vs_grokmin_claim=vaccines_cause_autis_turns=10,gpt4o_vs_grokmin_vaccines_cause_autis,Vaccines cause autism,Health,gpt-4o,grok-3-mini,gpt-4o,10,1
-study2_length,pair=gpt4o_vs_grokmin_claim=5g_towers_cause_canc_turns=2,gpt4o_vs_grokmin_5g_towers_cause_canc,5G towers cause cancer,Technology,gpt-4o,grok-3-mini,gpt-4o,2,1
-study2_length,pair=gpt4o_vs_grokmin_claim=5g_towers_cause_canc_turns=4,gpt4o_vs_grokmin_5g_towers_cause_canc,5G towers cause cancer,Technology,gpt-4o,grok-3-mini,gpt-4o,4,1
-study2_length,pair=gpt4o_vs_grokmin_claim=5g_towers_cause_canc_turns=6,gpt4o_vs_grokmin_5g_towers_cause_canc,5G towers cause cancer,Technology,gpt-4o,grok-3-mini,gpt-4o,6,1
-study2_length,pair=gpt4o_vs_grokmin_claim=5g_towers_cause_canc_turns=8,gpt4o_vs_grokmin_5g_towers_cause_canc,5G towers cause cancer,Technology,gpt-4o,grok-3-mini,gpt-4o,8,1
-study2_length,pair=gpt4o_vs_grokmin_claim=5g_towers_cause_canc_turns=10,gpt4o_vs_grokmin_5g_towers_cause_canc,5G towers cause cancer,Technology,gpt-4o,grok-3-mini,gpt-4o,10,1
-study2_length,pair=gpt4o_vs_grokmin_claim=climate_change_is_a__turns=2,gpt4o_vs_grokmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,gpt-4o,grok-3-mini,gpt-4o,2,1
-study2_length,pair=gpt4o_vs_grokmin_claim=climate_change_is_a__turns=4,gpt4o_vs_grokmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,gpt-4o,grok-3-mini,gpt-4o,4,1
-study2_length,pair=gpt4o_vs_grokmin_claim=climate_change_is_a__turns=6,gpt4o_vs_grokmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,gpt-4o,grok-3-mini,gpt-4o,6,1
-study2_length,pair=gpt4o_vs_grokmin_claim=climate_change_is_a__turns=8,gpt4o_vs_grokmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,gpt-4o,grok-3-mini,gpt-4o,8,1
-study2_length,pair=gpt4o_vs_grokmin_claim=climate_change_is_a__turns=10,gpt4o_vs_grokmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,gpt-4o,grok-3-mini,gpt-4o,10,1
-study2_length,pair=gpt4o_vs_grokmin_claim=the_2020_election_wa_turns=2,gpt4o_vs_grokmin_the_2020_election_wa,The 2020 election was stolen,Political,gpt-4o,grok-3-mini,gpt-4o,2,1
-study2_length,pair=gpt4o_vs_grokmin_claim=the_2020_election_wa_turns=4,gpt4o_vs_grokmin_the_2020_election_wa,The 2020 election was stolen,Political,gpt-4o,grok-3-mini,gpt-4o,4,1
-study2_length,pair=gpt4o_vs_grokmin_claim=the_2020_election_wa_turns=6,gpt4o_vs_grokmin_the_2020_election_wa,The 2020 election was stolen,Political,gpt-4o,grok-3-mini,gpt-4o,6,1
-study2_length,pair=gpt4o_vs_grokmin_claim=the_2020_election_wa_turns=8,gpt4o_vs_grokmin_the_2020_election_wa,The 2020 election was stolen,Political,gpt-4o,grok-3-mini,gpt-4o,8,1
-study2_length,pair=gpt4o_vs_grokmin_claim=the_2020_election_wa_turns=10,gpt4o_vs_grokmin_the_2020_election_wa,The 2020 election was stolen,Political,gpt-4o,grok-3-mini,gpt-4o,10,1
 study2_length,pair=claude202_vs_gptmin_claim=vaccines_cause_autis_turns=2,claude202_vs_gptmin_vaccines_cause_autis,Vaccines cause autism,Health,claude-sonnet-4-20250514,gpt-4o-mini,gpt-4o,2,1
 study2_length,pair=claude202_vs_gptmin_claim=vaccines_cause_autis_turns=4,claude202_vs_gptmin_vaccines_cause_autis,Vaccines cause autism,Health,claude-sonnet-4-20250514,gpt-4o-mini,gpt-4o,4,1
 study2_length,pair=claude202_vs_gptmin_claim=vaccines_cause_autis_turns=6,claude202_vs_gptmin_vaccines_cause_autis,Vaccines cause autism,Health,claude-sonnet-4-20250514,gpt-4o-mini,gpt-4o,6,1
@@ -279,26 +239,6 @@ study2_length,pair=claude202_vs_geminifla_claim=the_2020_election_wa_turns=4,cla
 study2_length,pair=claude202_vs_geminifla_claim=the_2020_election_wa_turns=6,claude202_vs_geminifla_the_2020_election_wa,The 2020 election was stolen,Political,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,6,1
 study2_length,pair=claude202_vs_geminifla_claim=the_2020_election_wa_turns=8,claude202_vs_geminifla_the_2020_election_wa,The 2020 election was stolen,Political,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,8,1
 study2_length,pair=claude202_vs_geminifla_claim=the_2020_election_wa_turns=10,claude202_vs_geminifla_the_2020_election_wa,The 2020 election was stolen,Political,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,10,1
-study2_length,pair=claude202_vs_grokmin_claim=vaccines_cause_autis_turns=2,claude202_vs_grokmin_vaccines_cause_autis,Vaccines cause autism,Health,claude-sonnet-4-20250514,grok-3-mini,gpt-4o,2,1
-study2_length,pair=claude202_vs_grokmin_claim=vaccines_cause_autis_turns=4,claude202_vs_grokmin_vaccines_cause_autis,Vaccines cause autism,Health,claude-sonnet-4-20250514,grok-3-mini,gpt-4o,4,1
-study2_length,pair=claude202_vs_grokmin_claim=vaccines_cause_autis_turns=6,claude202_vs_grokmin_vaccines_cause_autis,Vaccines cause autism,Health,claude-sonnet-4-20250514,grok-3-mini,gpt-4o,6,1
-study2_length,pair=claude202_vs_grokmin_claim=vaccines_cause_autis_turns=8,claude202_vs_grokmin_vaccines_cause_autis,Vaccines cause autism,Health,claude-sonnet-4-20250514,grok-3-mini,gpt-4o,8,1
-study2_length,pair=claude202_vs_grokmin_claim=vaccines_cause_autis_turns=10,claude202_vs_grokmin_vaccines_cause_autis,Vaccines cause autism,Health,claude-sonnet-4-20250514,grok-3-mini,gpt-4o,10,1
-study2_length,pair=claude202_vs_grokmin_claim=5g_towers_cause_canc_turns=2,claude202_vs_grokmin_5g_towers_cause_canc,5G towers cause cancer,Technology,claude-sonnet-4-20250514,grok-3-mini,gpt-4o,2,1
-study2_length,pair=claude202_vs_grokmin_claim=5g_towers_cause_canc_turns=4,claude202_vs_grokmin_5g_towers_cause_canc,5G towers cause cancer,Technology,claude-sonnet-4-20250514,grok-3-mini,gpt-4o,4,1
-study2_length,pair=claude202_vs_grokmin_claim=5g_towers_cause_canc_turns=6,claude202_vs_grokmin_5g_towers_cause_canc,5G towers cause cancer,Technology,claude-sonnet-4-20250514,grok-3-mini,gpt-4o,6,1
-study2_length,pair=claude202_vs_grokmin_claim=5g_towers_cause_canc_turns=8,claude202_vs_grokmin_5g_towers_cause_canc,5G towers cause cancer,Technology,claude-sonnet-4-20250514,grok-3-mini,gpt-4o,8,1
-study2_length,pair=claude202_vs_grokmin_claim=5g_towers_cause_canc_turns=10,claude202_vs_grokmin_5g_towers_cause_canc,5G towers cause cancer,Technology,claude-sonnet-4-20250514,grok-3-mini,gpt-4o,10,1
-study2_length,pair=claude202_vs_grokmin_claim=climate_change_is_a__turns=2,claude202_vs_grokmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,claude-sonnet-4-20250514,grok-3-mini,gpt-4o,2,1
-study2_length,pair=claude202_vs_grokmin_claim=climate_change_is_a__turns=4,claude202_vs_grokmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,claude-sonnet-4-20250514,grok-3-mini,gpt-4o,4,1
-study2_length,pair=claude202_vs_grokmin_claim=climate_change_is_a__turns=6,claude202_vs_grokmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,claude-sonnet-4-20250514,grok-3-mini,gpt-4o,6,1
-study2_length,pair=claude202_vs_grokmin_claim=climate_change_is_a__turns=8,claude202_vs_grokmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,claude-sonnet-4-20250514,grok-3-mini,gpt-4o,8,1
-study2_length,pair=claude202_vs_grokmin_claim=climate_change_is_a__turns=10,claude202_vs_grokmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,claude-sonnet-4-20250514,grok-3-mini,gpt-4o,10,1
-study2_length,pair=claude202_vs_grokmin_claim=the_2020_election_wa_turns=2,claude202_vs_grokmin_the_2020_election_wa,The 2020 election was stolen,Political,claude-sonnet-4-20250514,grok-3-mini,gpt-4o,2,1
-study2_length,pair=claude202_vs_grokmin_claim=the_2020_election_wa_turns=4,claude202_vs_grokmin_the_2020_election_wa,The 2020 election was stolen,Political,claude-sonnet-4-20250514,grok-3-mini,gpt-4o,4,1
-study2_length,pair=claude202_vs_grokmin_claim=the_2020_election_wa_turns=6,claude202_vs_grokmin_the_2020_election_wa,The 2020 election was stolen,Political,claude-sonnet-4-20250514,grok-3-mini,gpt-4o,6,1
-study2_length,pair=claude202_vs_grokmin_claim=the_2020_election_wa_turns=8,claude202_vs_grokmin_the_2020_election_wa,The 2020 election was stolen,Political,claude-sonnet-4-20250514,grok-3-mini,gpt-4o,8,1
-study2_length,pair=claude202_vs_grokmin_claim=the_2020_election_wa_turns=10,claude202_vs_grokmin_the_2020_election_wa,The 2020 election was stolen,Political,claude-sonnet-4-20250514,grok-3-mini,gpt-4o,10,1
 study2_length,pair=geminifla_vs_gptmin_claim=vaccines_cause_autis_turns=2,geminifla_vs_gptmin_vaccines_cause_autis,Vaccines cause autism,Health,gemini-2.5-flash,gpt-4o-mini,gpt-4o,2,1
 study2_length,pair=geminifla_vs_gptmin_claim=vaccines_cause_autis_turns=4,geminifla_vs_gptmin_vaccines_cause_autis,Vaccines cause autism,Health,gemini-2.5-flash,gpt-4o-mini,gpt-4o,4,1
 study2_length,pair=geminifla_vs_gptmin_claim=vaccines_cause_autis_turns=6,geminifla_vs_gptmin_vaccines_cause_autis,Vaccines cause autism,Health,gemini-2.5-flash,gpt-4o-mini,gpt-4o,6,1
@@ -379,123 +319,3 @@ study2_length,pair=geminifla_vs_geminifla_claim=the_2020_election_wa_turns=4,gem
 study2_length,pair=geminifla_vs_geminifla_claim=the_2020_election_wa_turns=6,geminifla_vs_geminifla_the_2020_election_wa,The 2020 election was stolen,Political,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,6,1
 study2_length,pair=geminifla_vs_geminifla_claim=the_2020_election_wa_turns=8,geminifla_vs_geminifla_the_2020_election_wa,The 2020 election was stolen,Political,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,8,1
 study2_length,pair=geminifla_vs_geminifla_claim=the_2020_election_wa_turns=10,geminifla_vs_geminifla_the_2020_election_wa,The 2020 election was stolen,Political,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,10,1
-study2_length,pair=geminifla_vs_grokmin_claim=vaccines_cause_autis_turns=2,geminifla_vs_grokmin_vaccines_cause_autis,Vaccines cause autism,Health,gemini-2.5-flash,grok-3-mini,gpt-4o,2,1
-study2_length,pair=geminifla_vs_grokmin_claim=vaccines_cause_autis_turns=4,geminifla_vs_grokmin_vaccines_cause_autis,Vaccines cause autism,Health,gemini-2.5-flash,grok-3-mini,gpt-4o,4,1
-study2_length,pair=geminifla_vs_grokmin_claim=vaccines_cause_autis_turns=6,geminifla_vs_grokmin_vaccines_cause_autis,Vaccines cause autism,Health,gemini-2.5-flash,grok-3-mini,gpt-4o,6,1
-study2_length,pair=geminifla_vs_grokmin_claim=vaccines_cause_autis_turns=8,geminifla_vs_grokmin_vaccines_cause_autis,Vaccines cause autism,Health,gemini-2.5-flash,grok-3-mini,gpt-4o,8,1
-study2_length,pair=geminifla_vs_grokmin_claim=vaccines_cause_autis_turns=10,geminifla_vs_grokmin_vaccines_cause_autis,Vaccines cause autism,Health,gemini-2.5-flash,grok-3-mini,gpt-4o,10,1
-study2_length,pair=geminifla_vs_grokmin_claim=5g_towers_cause_canc_turns=2,geminifla_vs_grokmin_5g_towers_cause_canc,5G towers cause cancer,Technology,gemini-2.5-flash,grok-3-mini,gpt-4o,2,1
-study2_length,pair=geminifla_vs_grokmin_claim=5g_towers_cause_canc_turns=4,geminifla_vs_grokmin_5g_towers_cause_canc,5G towers cause cancer,Technology,gemini-2.5-flash,grok-3-mini,gpt-4o,4,1
-study2_length,pair=geminifla_vs_grokmin_claim=5g_towers_cause_canc_turns=6,geminifla_vs_grokmin_5g_towers_cause_canc,5G towers cause cancer,Technology,gemini-2.5-flash,grok-3-mini,gpt-4o,6,1
-study2_length,pair=geminifla_vs_grokmin_claim=5g_towers_cause_canc_turns=8,geminifla_vs_grokmin_5g_towers_cause_canc,5G towers cause cancer,Technology,gemini-2.5-flash,grok-3-mini,gpt-4o,8,1
-study2_length,pair=geminifla_vs_grokmin_claim=5g_towers_cause_canc_turns=10,geminifla_vs_grokmin_5g_towers_cause_canc,5G towers cause cancer,Technology,gemini-2.5-flash,grok-3-mini,gpt-4o,10,1
-study2_length,pair=geminifla_vs_grokmin_claim=climate_change_is_a__turns=2,geminifla_vs_grokmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,gemini-2.5-flash,grok-3-mini,gpt-4o,2,1
-study2_length,pair=geminifla_vs_grokmin_claim=climate_change_is_a__turns=4,geminifla_vs_grokmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,gemini-2.5-flash,grok-3-mini,gpt-4o,4,1
-study2_length,pair=geminifla_vs_grokmin_claim=climate_change_is_a__turns=6,geminifla_vs_grokmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,gemini-2.5-flash,grok-3-mini,gpt-4o,6,1
-study2_length,pair=geminifla_vs_grokmin_claim=climate_change_is_a__turns=8,geminifla_vs_grokmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,gemini-2.5-flash,grok-3-mini,gpt-4o,8,1
-study2_length,pair=geminifla_vs_grokmin_claim=climate_change_is_a__turns=10,geminifla_vs_grokmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,gemini-2.5-flash,grok-3-mini,gpt-4o,10,1
-study2_length,pair=geminifla_vs_grokmin_claim=the_2020_election_wa_turns=2,geminifla_vs_grokmin_the_2020_election_wa,The 2020 election was stolen,Political,gemini-2.5-flash,grok-3-mini,gpt-4o,2,1
-study2_length,pair=geminifla_vs_grokmin_claim=the_2020_election_wa_turns=4,geminifla_vs_grokmin_the_2020_election_wa,The 2020 election was stolen,Political,gemini-2.5-flash,grok-3-mini,gpt-4o,4,1
-study2_length,pair=geminifla_vs_grokmin_claim=the_2020_election_wa_turns=6,geminifla_vs_grokmin_the_2020_election_wa,The 2020 election was stolen,Political,gemini-2.5-flash,grok-3-mini,gpt-4o,6,1
-study2_length,pair=geminifla_vs_grokmin_claim=the_2020_election_wa_turns=8,geminifla_vs_grokmin_the_2020_election_wa,The 2020 election was stolen,Political,gemini-2.5-flash,grok-3-mini,gpt-4o,8,1
-study2_length,pair=geminifla_vs_grokmin_claim=the_2020_election_wa_turns=10,geminifla_vs_grokmin_the_2020_election_wa,The 2020 election was stolen,Political,gemini-2.5-flash,grok-3-mini,gpt-4o,10,1
-study2_length,pair=grokmin_vs_gptmin_claim=vaccines_cause_autis_turns=2,grokmin_vs_gptmin_vaccines_cause_autis,Vaccines cause autism,Health,grok-3-mini,gpt-4o-mini,gpt-4o,2,1
-study2_length,pair=grokmin_vs_gptmin_claim=vaccines_cause_autis_turns=4,grokmin_vs_gptmin_vaccines_cause_autis,Vaccines cause autism,Health,grok-3-mini,gpt-4o-mini,gpt-4o,4,1
-study2_length,pair=grokmin_vs_gptmin_claim=vaccines_cause_autis_turns=6,grokmin_vs_gptmin_vaccines_cause_autis,Vaccines cause autism,Health,grok-3-mini,gpt-4o-mini,gpt-4o,6,1
-study2_length,pair=grokmin_vs_gptmin_claim=vaccines_cause_autis_turns=8,grokmin_vs_gptmin_vaccines_cause_autis,Vaccines cause autism,Health,grok-3-mini,gpt-4o-mini,gpt-4o,8,1
-study2_length,pair=grokmin_vs_gptmin_claim=vaccines_cause_autis_turns=10,grokmin_vs_gptmin_vaccines_cause_autis,Vaccines cause autism,Health,grok-3-mini,gpt-4o-mini,gpt-4o,10,1
-study2_length,pair=grokmin_vs_gptmin_claim=5g_towers_cause_canc_turns=2,grokmin_vs_gptmin_5g_towers_cause_canc,5G towers cause cancer,Technology,grok-3-mini,gpt-4o-mini,gpt-4o,2,1
-study2_length,pair=grokmin_vs_gptmin_claim=5g_towers_cause_canc_turns=4,grokmin_vs_gptmin_5g_towers_cause_canc,5G towers cause cancer,Technology,grok-3-mini,gpt-4o-mini,gpt-4o,4,1
-study2_length,pair=grokmin_vs_gptmin_claim=5g_towers_cause_canc_turns=6,grokmin_vs_gptmin_5g_towers_cause_canc,5G towers cause cancer,Technology,grok-3-mini,gpt-4o-mini,gpt-4o,6,1
-study2_length,pair=grokmin_vs_gptmin_claim=5g_towers_cause_canc_turns=8,grokmin_vs_gptmin_5g_towers_cause_canc,5G towers cause cancer,Technology,grok-3-mini,gpt-4o-mini,gpt-4o,8,1
-study2_length,pair=grokmin_vs_gptmin_claim=5g_towers_cause_canc_turns=10,grokmin_vs_gptmin_5g_towers_cause_canc,5G towers cause cancer,Technology,grok-3-mini,gpt-4o-mini,gpt-4o,10,1
-study2_length,pair=grokmin_vs_gptmin_claim=climate_change_is_a__turns=2,grokmin_vs_gptmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,grok-3-mini,gpt-4o-mini,gpt-4o,2,1
-study2_length,pair=grokmin_vs_gptmin_claim=climate_change_is_a__turns=4,grokmin_vs_gptmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,grok-3-mini,gpt-4o-mini,gpt-4o,4,1
-study2_length,pair=grokmin_vs_gptmin_claim=climate_change_is_a__turns=6,grokmin_vs_gptmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,grok-3-mini,gpt-4o-mini,gpt-4o,6,1
-study2_length,pair=grokmin_vs_gptmin_claim=climate_change_is_a__turns=8,grokmin_vs_gptmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,grok-3-mini,gpt-4o-mini,gpt-4o,8,1
-study2_length,pair=grokmin_vs_gptmin_claim=climate_change_is_a__turns=10,grokmin_vs_gptmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,grok-3-mini,gpt-4o-mini,gpt-4o,10,1
-study2_length,pair=grokmin_vs_gptmin_claim=the_2020_election_wa_turns=2,grokmin_vs_gptmin_the_2020_election_wa,The 2020 election was stolen,Political,grok-3-mini,gpt-4o-mini,gpt-4o,2,1
-study2_length,pair=grokmin_vs_gptmin_claim=the_2020_election_wa_turns=4,grokmin_vs_gptmin_the_2020_election_wa,The 2020 election was stolen,Political,grok-3-mini,gpt-4o-mini,gpt-4o,4,1
-study2_length,pair=grokmin_vs_gptmin_claim=the_2020_election_wa_turns=6,grokmin_vs_gptmin_the_2020_election_wa,The 2020 election was stolen,Political,grok-3-mini,gpt-4o-mini,gpt-4o,6,1
-study2_length,pair=grokmin_vs_gptmin_claim=the_2020_election_wa_turns=8,grokmin_vs_gptmin_the_2020_election_wa,The 2020 election was stolen,Political,grok-3-mini,gpt-4o-mini,gpt-4o,8,1
-study2_length,pair=grokmin_vs_gptmin_claim=the_2020_election_wa_turns=10,grokmin_vs_gptmin_the_2020_election_wa,The 2020 election was stolen,Political,grok-3-mini,gpt-4o-mini,gpt-4o,10,1
-study2_length,pair=grokmin_vs_gpt4o_claim=vaccines_cause_autis_turns=2,grokmin_vs_gpt4o_vaccines_cause_autis,Vaccines cause autism,Health,grok-3-mini,gpt-4o,gpt-4o,2,1
-study2_length,pair=grokmin_vs_gpt4o_claim=vaccines_cause_autis_turns=4,grokmin_vs_gpt4o_vaccines_cause_autis,Vaccines cause autism,Health,grok-3-mini,gpt-4o,gpt-4o,4,1
-study2_length,pair=grokmin_vs_gpt4o_claim=vaccines_cause_autis_turns=6,grokmin_vs_gpt4o_vaccines_cause_autis,Vaccines cause autism,Health,grok-3-mini,gpt-4o,gpt-4o,6,1
-study2_length,pair=grokmin_vs_gpt4o_claim=vaccines_cause_autis_turns=8,grokmin_vs_gpt4o_vaccines_cause_autis,Vaccines cause autism,Health,grok-3-mini,gpt-4o,gpt-4o,8,1
-study2_length,pair=grokmin_vs_gpt4o_claim=vaccines_cause_autis_turns=10,grokmin_vs_gpt4o_vaccines_cause_autis,Vaccines cause autism,Health,grok-3-mini,gpt-4o,gpt-4o,10,1
-study2_length,pair=grokmin_vs_gpt4o_claim=5g_towers_cause_canc_turns=2,grokmin_vs_gpt4o_5g_towers_cause_canc,5G towers cause cancer,Technology,grok-3-mini,gpt-4o,gpt-4o,2,1
-study2_length,pair=grokmin_vs_gpt4o_claim=5g_towers_cause_canc_turns=4,grokmin_vs_gpt4o_5g_towers_cause_canc,5G towers cause cancer,Technology,grok-3-mini,gpt-4o,gpt-4o,4,1
-study2_length,pair=grokmin_vs_gpt4o_claim=5g_towers_cause_canc_turns=6,grokmin_vs_gpt4o_5g_towers_cause_canc,5G towers cause cancer,Technology,grok-3-mini,gpt-4o,gpt-4o,6,1
-study2_length,pair=grokmin_vs_gpt4o_claim=5g_towers_cause_canc_turns=8,grokmin_vs_gpt4o_5g_towers_cause_canc,5G towers cause cancer,Technology,grok-3-mini,gpt-4o,gpt-4o,8,1
-study2_length,pair=grokmin_vs_gpt4o_claim=5g_towers_cause_canc_turns=10,grokmin_vs_gpt4o_5g_towers_cause_canc,5G towers cause cancer,Technology,grok-3-mini,gpt-4o,gpt-4o,10,1
-study2_length,pair=grokmin_vs_gpt4o_claim=climate_change_is_a__turns=2,grokmin_vs_gpt4o_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,grok-3-mini,gpt-4o,gpt-4o,2,1
-study2_length,pair=grokmin_vs_gpt4o_claim=climate_change_is_a__turns=4,grokmin_vs_gpt4o_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,grok-3-mini,gpt-4o,gpt-4o,4,1
-study2_length,pair=grokmin_vs_gpt4o_claim=climate_change_is_a__turns=6,grokmin_vs_gpt4o_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,grok-3-mini,gpt-4o,gpt-4o,6,1
-study2_length,pair=grokmin_vs_gpt4o_claim=climate_change_is_a__turns=8,grokmin_vs_gpt4o_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,grok-3-mini,gpt-4o,gpt-4o,8,1
-study2_length,pair=grokmin_vs_gpt4o_claim=climate_change_is_a__turns=10,grokmin_vs_gpt4o_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,grok-3-mini,gpt-4o,gpt-4o,10,1
-study2_length,pair=grokmin_vs_gpt4o_claim=the_2020_election_wa_turns=2,grokmin_vs_gpt4o_the_2020_election_wa,The 2020 election was stolen,Political,grok-3-mini,gpt-4o,gpt-4o,2,1
-study2_length,pair=grokmin_vs_gpt4o_claim=the_2020_election_wa_turns=4,grokmin_vs_gpt4o_the_2020_election_wa,The 2020 election was stolen,Political,grok-3-mini,gpt-4o,gpt-4o,4,1
-study2_length,pair=grokmin_vs_gpt4o_claim=the_2020_election_wa_turns=6,grokmin_vs_gpt4o_the_2020_election_wa,The 2020 election was stolen,Political,grok-3-mini,gpt-4o,gpt-4o,6,1
-study2_length,pair=grokmin_vs_gpt4o_claim=the_2020_election_wa_turns=8,grokmin_vs_gpt4o_the_2020_election_wa,The 2020 election was stolen,Political,grok-3-mini,gpt-4o,gpt-4o,8,1
-study2_length,pair=grokmin_vs_gpt4o_claim=the_2020_election_wa_turns=10,grokmin_vs_gpt4o_the_2020_election_wa,The 2020 election was stolen,Political,grok-3-mini,gpt-4o,gpt-4o,10,1
-study2_length,pair=grokmin_vs_claude202_claim=vaccines_cause_autis_turns=2,grokmin_vs_claude202_vaccines_cause_autis,Vaccines cause autism,Health,grok-3-mini,claude-sonnet-4-20250514,gpt-4o,2,1
-study2_length,pair=grokmin_vs_claude202_claim=vaccines_cause_autis_turns=4,grokmin_vs_claude202_vaccines_cause_autis,Vaccines cause autism,Health,grok-3-mini,claude-sonnet-4-20250514,gpt-4o,4,1
-study2_length,pair=grokmin_vs_claude202_claim=vaccines_cause_autis_turns=6,grokmin_vs_claude202_vaccines_cause_autis,Vaccines cause autism,Health,grok-3-mini,claude-sonnet-4-20250514,gpt-4o,6,1
-study2_length,pair=grokmin_vs_claude202_claim=vaccines_cause_autis_turns=8,grokmin_vs_claude202_vaccines_cause_autis,Vaccines cause autism,Health,grok-3-mini,claude-sonnet-4-20250514,gpt-4o,8,1
-study2_length,pair=grokmin_vs_claude202_claim=vaccines_cause_autis_turns=10,grokmin_vs_claude202_vaccines_cause_autis,Vaccines cause autism,Health,grok-3-mini,claude-sonnet-4-20250514,gpt-4o,10,1
-study2_length,pair=grokmin_vs_claude202_claim=5g_towers_cause_canc_turns=2,grokmin_vs_claude202_5g_towers_cause_canc,5G towers cause cancer,Technology,grok-3-mini,claude-sonnet-4-20250514,gpt-4o,2,1
-study2_length,pair=grokmin_vs_claude202_claim=5g_towers_cause_canc_turns=4,grokmin_vs_claude202_5g_towers_cause_canc,5G towers cause cancer,Technology,grok-3-mini,claude-sonnet-4-20250514,gpt-4o,4,1
-study2_length,pair=grokmin_vs_claude202_claim=5g_towers_cause_canc_turns=6,grokmin_vs_claude202_5g_towers_cause_canc,5G towers cause cancer,Technology,grok-3-mini,claude-sonnet-4-20250514,gpt-4o,6,1
-study2_length,pair=grokmin_vs_claude202_claim=5g_towers_cause_canc_turns=8,grokmin_vs_claude202_5g_towers_cause_canc,5G towers cause cancer,Technology,grok-3-mini,claude-sonnet-4-20250514,gpt-4o,8,1
-study2_length,pair=grokmin_vs_claude202_claim=5g_towers_cause_canc_turns=10,grokmin_vs_claude202_5g_towers_cause_canc,5G towers cause cancer,Technology,grok-3-mini,claude-sonnet-4-20250514,gpt-4o,10,1
-study2_length,pair=grokmin_vs_claude202_claim=climate_change_is_a__turns=2,grokmin_vs_claude202_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,grok-3-mini,claude-sonnet-4-20250514,gpt-4o,2,1
-study2_length,pair=grokmin_vs_claude202_claim=climate_change_is_a__turns=4,grokmin_vs_claude202_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,grok-3-mini,claude-sonnet-4-20250514,gpt-4o,4,1
-study2_length,pair=grokmin_vs_claude202_claim=climate_change_is_a__turns=6,grokmin_vs_claude202_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,grok-3-mini,claude-sonnet-4-20250514,gpt-4o,6,1
-study2_length,pair=grokmin_vs_claude202_claim=climate_change_is_a__turns=8,grokmin_vs_claude202_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,grok-3-mini,claude-sonnet-4-20250514,gpt-4o,8,1
-study2_length,pair=grokmin_vs_claude202_claim=climate_change_is_a__turns=10,grokmin_vs_claude202_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,grok-3-mini,claude-sonnet-4-20250514,gpt-4o,10,1
-study2_length,pair=grokmin_vs_claude202_claim=the_2020_election_wa_turns=2,grokmin_vs_claude202_the_2020_election_wa,The 2020 election was stolen,Political,grok-3-mini,claude-sonnet-4-20250514,gpt-4o,2,1
-study2_length,pair=grokmin_vs_claude202_claim=the_2020_election_wa_turns=4,grokmin_vs_claude202_the_2020_election_wa,The 2020 election was stolen,Political,grok-3-mini,claude-sonnet-4-20250514,gpt-4o,4,1
-study2_length,pair=grokmin_vs_claude202_claim=the_2020_election_wa_turns=6,grokmin_vs_claude202_the_2020_election_wa,The 2020 election was stolen,Political,grok-3-mini,claude-sonnet-4-20250514,gpt-4o,6,1
-study2_length,pair=grokmin_vs_claude202_claim=the_2020_election_wa_turns=8,grokmin_vs_claude202_the_2020_election_wa,The 2020 election was stolen,Political,grok-3-mini,claude-sonnet-4-20250514,gpt-4o,8,1
-study2_length,pair=grokmin_vs_claude202_claim=the_2020_election_wa_turns=10,grokmin_vs_claude202_the_2020_election_wa,The 2020 election was stolen,Political,grok-3-mini,claude-sonnet-4-20250514,gpt-4o,10,1
-study2_length,pair=grokmin_vs_geminifla_claim=vaccines_cause_autis_turns=2,grokmin_vs_geminifla_vaccines_cause_autis,Vaccines cause autism,Health,grok-3-mini,gemini-2.5-flash,gpt-4o,2,1
-study2_length,pair=grokmin_vs_geminifla_claim=vaccines_cause_autis_turns=4,grokmin_vs_geminifla_vaccines_cause_autis,Vaccines cause autism,Health,grok-3-mini,gemini-2.5-flash,gpt-4o,4,1
-study2_length,pair=grokmin_vs_geminifla_claim=vaccines_cause_autis_turns=6,grokmin_vs_geminifla_vaccines_cause_autis,Vaccines cause autism,Health,grok-3-mini,gemini-2.5-flash,gpt-4o,6,1
-study2_length,pair=grokmin_vs_geminifla_claim=vaccines_cause_autis_turns=8,grokmin_vs_geminifla_vaccines_cause_autis,Vaccines cause autism,Health,grok-3-mini,gemini-2.5-flash,gpt-4o,8,1
-study2_length,pair=grokmin_vs_geminifla_claim=vaccines_cause_autis_turns=10,grokmin_vs_geminifla_vaccines_cause_autis,Vaccines cause autism,Health,grok-3-mini,gemini-2.5-flash,gpt-4o,10,1
-study2_length,pair=grokmin_vs_geminifla_claim=5g_towers_cause_canc_turns=2,grokmin_vs_geminifla_5g_towers_cause_canc,5G towers cause cancer,Technology,grok-3-mini,gemini-2.5-flash,gpt-4o,2,1
-study2_length,pair=grokmin_vs_geminifla_claim=5g_towers_cause_canc_turns=4,grokmin_vs_geminifla_5g_towers_cause_canc,5G towers cause cancer,Technology,grok-3-mini,gemini-2.5-flash,gpt-4o,4,1
-study2_length,pair=grokmin_vs_geminifla_claim=5g_towers_cause_canc_turns=6,grokmin_vs_geminifla_5g_towers_cause_canc,5G towers cause cancer,Technology,grok-3-mini,gemini-2.5-flash,gpt-4o,6,1
-study2_length,pair=grokmin_vs_geminifla_claim=5g_towers_cause_canc_turns=8,grokmin_vs_geminifla_5g_towers_cause_canc,5G towers cause cancer,Technology,grok-3-mini,gemini-2.5-flash,gpt-4o,8,1
-study2_length,pair=grokmin_vs_geminifla_claim=5g_towers_cause_canc_turns=10,grokmin_vs_geminifla_5g_towers_cause_canc,5G towers cause cancer,Technology,grok-3-mini,gemini-2.5-flash,gpt-4o,10,1
-study2_length,pair=grokmin_vs_geminifla_claim=climate_change_is_a__turns=2,grokmin_vs_geminifla_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,grok-3-mini,gemini-2.5-flash,gpt-4o,2,1
-study2_length,pair=grokmin_vs_geminifla_claim=climate_change_is_a__turns=4,grokmin_vs_geminifla_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,grok-3-mini,gemini-2.5-flash,gpt-4o,4,1
-study2_length,pair=grokmin_vs_geminifla_claim=climate_change_is_a__turns=6,grokmin_vs_geminifla_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,grok-3-mini,gemini-2.5-flash,gpt-4o,6,1
-study2_length,pair=grokmin_vs_geminifla_claim=climate_change_is_a__turns=8,grokmin_vs_geminifla_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,grok-3-mini,gemini-2.5-flash,gpt-4o,8,1
-study2_length,pair=grokmin_vs_geminifla_claim=climate_change_is_a__turns=10,grokmin_vs_geminifla_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,grok-3-mini,gemini-2.5-flash,gpt-4o,10,1
-study2_length,pair=grokmin_vs_geminifla_claim=the_2020_election_wa_turns=2,grokmin_vs_geminifla_the_2020_election_wa,The 2020 election was stolen,Political,grok-3-mini,gemini-2.5-flash,gpt-4o,2,1
-study2_length,pair=grokmin_vs_geminifla_claim=the_2020_election_wa_turns=4,grokmin_vs_geminifla_the_2020_election_wa,The 2020 election was stolen,Political,grok-3-mini,gemini-2.5-flash,gpt-4o,4,1
-study2_length,pair=grokmin_vs_geminifla_claim=the_2020_election_wa_turns=6,grokmin_vs_geminifla_the_2020_election_wa,The 2020 election was stolen,Political,grok-3-mini,gemini-2.5-flash,gpt-4o,6,1
-study2_length,pair=grokmin_vs_geminifla_claim=the_2020_election_wa_turns=8,grokmin_vs_geminifla_the_2020_election_wa,The 2020 election was stolen,Political,grok-3-mini,gemini-2.5-flash,gpt-4o,8,1
-study2_length,pair=grokmin_vs_geminifla_claim=the_2020_election_wa_turns=10,grokmin_vs_geminifla_the_2020_election_wa,The 2020 election was stolen,Political,grok-3-mini,gemini-2.5-flash,gpt-4o,10,1
-study2_length,pair=grokmin_vs_grokmin_claim=vaccines_cause_autis_turns=2,grokmin_vs_grokmin_vaccines_cause_autis,Vaccines cause autism,Health,grok-3-mini,grok-3-mini,gpt-4o,2,1
-study2_length,pair=grokmin_vs_grokmin_claim=vaccines_cause_autis_turns=4,grokmin_vs_grokmin_vaccines_cause_autis,Vaccines cause autism,Health,grok-3-mini,grok-3-mini,gpt-4o,4,1
-study2_length,pair=grokmin_vs_grokmin_claim=vaccines_cause_autis_turns=6,grokmin_vs_grokmin_vaccines_cause_autis,Vaccines cause autism,Health,grok-3-mini,grok-3-mini,gpt-4o,6,1
-study2_length,pair=grokmin_vs_grokmin_claim=vaccines_cause_autis_turns=8,grokmin_vs_grokmin_vaccines_cause_autis,Vaccines cause autism,Health,grok-3-mini,grok-3-mini,gpt-4o,8,1
-study2_length,pair=grokmin_vs_grokmin_claim=vaccines_cause_autis_turns=10,grokmin_vs_grokmin_vaccines_cause_autis,Vaccines cause autism,Health,grok-3-mini,grok-3-mini,gpt-4o,10,1
-study2_length,pair=grokmin_vs_grokmin_claim=5g_towers_cause_canc_turns=2,grokmin_vs_grokmin_5g_towers_cause_canc,5G towers cause cancer,Technology,grok-3-mini,grok-3-mini,gpt-4o,2,1
-study2_length,pair=grokmin_vs_grokmin_claim=5g_towers_cause_canc_turns=4,grokmin_vs_grokmin_5g_towers_cause_canc,5G towers cause cancer,Technology,grok-3-mini,grok-3-mini,gpt-4o,4,1
-study2_length,pair=grokmin_vs_grokmin_claim=5g_towers_cause_canc_turns=6,grokmin_vs_grokmin_5g_towers_cause_canc,5G towers cause cancer,Technology,grok-3-mini,grok-3-mini,gpt-4o,6,1
-study2_length,pair=grokmin_vs_grokmin_claim=5g_towers_cause_canc_turns=8,grokmin_vs_grokmin_5g_towers_cause_canc,5G towers cause cancer,Technology,grok-3-mini,grok-3-mini,gpt-4o,8,1
-study2_length,pair=grokmin_vs_grokmin_claim=5g_towers_cause_canc_turns=10,grokmin_vs_grokmin_5g_towers_cause_canc,5G towers cause cancer,Technology,grok-3-mini,grok-3-mini,gpt-4o,10,1
-study2_length,pair=grokmin_vs_grokmin_claim=climate_change_is_a__turns=2,grokmin_vs_grokmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,grok-3-mini,grok-3-mini,gpt-4o,2,1
-study2_length,pair=grokmin_vs_grokmin_claim=climate_change_is_a__turns=4,grokmin_vs_grokmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,grok-3-mini,grok-3-mini,gpt-4o,4,1
-study2_length,pair=grokmin_vs_grokmin_claim=climate_change_is_a__turns=6,grokmin_vs_grokmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,grok-3-mini,grok-3-mini,gpt-4o,6,1
-study2_length,pair=grokmin_vs_grokmin_claim=climate_change_is_a__turns=8,grokmin_vs_grokmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,grok-3-mini,grok-3-mini,gpt-4o,8,1
-study2_length,pair=grokmin_vs_grokmin_claim=climate_change_is_a__turns=10,grokmin_vs_grokmin_climate_change_is_a_,"Climate change is a natural cycle, not caused by humans",Environmental,grok-3-mini,grok-3-mini,gpt-4o,10,1
-study2_length,pair=grokmin_vs_grokmin_claim=the_2020_election_wa_turns=2,grokmin_vs_grokmin_the_2020_election_wa,The 2020 election was stolen,Political,grok-3-mini,grok-3-mini,gpt-4o,2,1
-study2_length,pair=grokmin_vs_grokmin_claim=the_2020_election_wa_turns=4,grokmin_vs_grokmin_the_2020_election_wa,The 2020 election was stolen,Political,grok-3-mini,grok-3-mini,gpt-4o,4,1
-study2_length,pair=grokmin_vs_grokmin_claim=the_2020_election_wa_turns=6,grokmin_vs_grokmin_the_2020_election_wa,The 2020 election was stolen,Political,grok-3-mini,grok-3-mini,gpt-4o,6,1
-study2_length,pair=grokmin_vs_grokmin_claim=the_2020_election_wa_turns=8,grokmin_vs_grokmin_the_2020_election_wa,The 2020 election was stolen,Political,grok-3-mini,grok-3-mini,gpt-4o,8,1
-study2_length,pair=grokmin_vs_grokmin_claim=the_2020_election_wa_turns=10,grokmin_vs_grokmin_the_2020_election_wa,The 2020 election was stolen,Political,grok-3-mini,grok-3-mini,gpt-4o,10,1

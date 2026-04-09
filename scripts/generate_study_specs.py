@@ -22,7 +22,6 @@ MODELS = [
     "gpt-4o",
     "claude-sonnet-4-20250514",
     "gemini-2.5-flash",
-    "grok-3-mini",
 ]
 
 # Study 1 & 2: Core claims (intentionally stratified by difficulty)
