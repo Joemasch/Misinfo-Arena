@@ -8,12 +8,26 @@ from arena.presentation.streamlit.pages.annotation_page import render_annotation
 
 
 def _render_exports_tab():
-    """Render analysis-ready CSV exports for Minitab / SPSS / R."""
+    """Render analysis-ready CSV exports aligned to experimental design."""
     from arena.analysis.episode_dataset import build_episode_df
-    from arena.io.run_store_v2_read import list_runs
     from arena.presentation.streamlit.state.runs_refresh import get_auto_run_ids
 
     RUNS_DIR = "runs"
+
+    # Tier mapping for model grouping
+    _TIER_MAP = {
+        "gpt-4o-mini": "budget", "gpt-4o": "premium",
+        "claude-sonnet-4-20250514": "premium", "claude-sonnet-4": "premium",
+        "gemini-2.5-flash": "mid",
+        "grok-3-mini": "budget", "grok-3": "premium",
+        "gemini-2.0-flash": "budget", "gemini-2.5-pro": "premium",
+        "claude-haiku-4-5-20251001": "budget",
+    }
+
+    def _get_tier(model: str) -> str:
+        if not model:
+            return "unknown"
+        return _TIER_MAP.get(model, "unknown")
 
     st.markdown(
         '<p style="font-family:Playfair Display,Georgia,serif;font-size:2rem;font-weight:400;'
@@ -25,9 +39,7 @@ def _render_exports_tab():
     st.markdown(
         '<p style="font-size:0.95rem;color:var(--color-text-muted,#888);margin-bottom:1.5rem;line-height:1.5">'
         'Pre-formatted CSVs for statistical significance testing in Minitab, SPSS, or R. '
-        'Each export contains only the columns needed for that specific analysis. '
-        'See <code style="color:var(--color-accent-blue,#4A7FA5)">docs/statistical_analysis_guide.md</code> '
-        'for step-by-step Minitab instructions.'
+        'Each export is aligned to a specific study or analysis type.'
         '</p>',
         unsafe_allow_html=True,
     )
@@ -52,7 +64,30 @@ def _render_exports_tab():
         unsafe_allow_html=True,
     )
 
-    # ── Helper to build and offer download ────────────────────────────────
+    # ── Derive computed columns ──────────────────────────────────────────
+    df["fc_win"] = (df["winner"].fillna("").str.lower() == "debunker").astype(int)
+    df["model_matchup"] = df["model_spreader"].fillna("") + " vs " + df["model_debunker"].fillna("")
+    df["spreader_tier"] = df["model_spreader"].apply(_get_tier)
+    df["debunker_tier"] = df["model_debunker"].apply(_get_tier)
+    df["same_model"] = (df["model_spreader"] == df["model_debunker"]).astype(int)
+    if "cross_provider" not in df.columns:
+        df["cross_provider"] = (df.get("provider_spreader", "") != df.get("provider_debunker", "")).astype(int)
+    else:
+        df["cross_provider"] = df["cross_provider"].astype(int)
+
+    # Collect all metric columns
+    _METRICS = ["factuality", "source_credibility", "reasoning_quality",
+                "responsiveness", "persuasion", "manipulation_awareness"]
+    metric_cols = []
+    for m in _METRICS:
+        for side, abbr in [("spreader", "spr"), ("debunker", "deb")]:
+            src = f"metric_{m}_{side}"
+            dst = f"{m}_{abbr}"
+            if src in df.columns:
+                df[dst] = df[src]
+                metric_cols.append(dst)
+
+    # ── Helper ───────────────────────────────────────────────────────────
     def _export_button(label: str, export_df: pd.DataFrame, filename: str, description: str):
         st.markdown(f"**{label}**")
         st.caption(description)
@@ -67,141 +102,127 @@ def _render_exports_tab():
             st.dataframe(export_df.head(10), use_container_width=True, hide_index=True)
         st.markdown("---")
 
-    # ── 1. Turn Count Analysis ────────────────────────────────────────────
-    tc_cols = ["claim", "claim_type", "planned_max_turns", "winner", "margin", "abs_margin",
-               "judge_confidence", "model_spreader", "model_debunker", "judge_model"]
-    # Add metric columns if present
-    for m in ["persuasion", "manipulation_awareness"]:
-        for side in ["spreader", "debunker"]:
-            col = f"metric_{m}_{side}"
-            if col in df.columns:
-                tc_cols.append(col)
+    # ══════════════════════════════════════════════════════════════════════
+    # 1. FULL EPISODE EXPORT — everything in one CSV
+    # ══════════════════════════════════════════════════════════════════════
+    full_cols = [
+        "study_id", "condition", "run_id", "episode_id",
+        "claim", "claim_type",
+        "model_spreader", "model_debunker", "judge_model",
+        "model_matchup", "spreader_tier", "debunker_tier",
+        "same_model", "cross_provider",
+        "planned_max_turns", "completed_turn_pairs",
+        "winner", "fc_win", "margin", "abs_margin", "judge_confidence",
+    ] + metric_cols
 
-    tc_df = df[[c for c in tc_cols if c in df.columns]].copy()
+    full_df = df[[c for c in full_cols if c in df.columns]].copy()
+    full_df.rename(columns={
+        "planned_max_turns": "max_turns",
+        "judge_confidence": "confidence",
+        "completed_turn_pairs": "turns_completed",
+    }, inplace=True)
+
+    _export_button(
+        "1. Full Episode Export",
+        full_df,
+        "full_episodes.csv",
+        "Every episode with all columns — study tags, models, tiers, matchup flags, "
+        "outcomes, and all 12 dimension scores. Use this for custom analyses or when "
+        "other exports don't cover your specific test.",
+    )
+
+    # ══════════════════════════════════════════════════════════════════════
+    # 2. TURN COUNT ANALYSIS — Study 2
+    # ══════════════════════════════════════════════════════════════════════
+    tc_cols_list = [
+        "study_id", "claim", "claim_type",
+        "model_spreader", "model_debunker", "model_matchup",
+        "spreader_tier", "debunker_tier", "same_model",
+        "planned_max_turns", "winner", "fc_win",
+        "margin", "abs_margin", "judge_confidence",
+    ] + metric_cols
+
+    tc_df = df[[c for c in tc_cols_list if c in df.columns]].copy()
     tc_df.rename(columns={
         "planned_max_turns": "max_turns",
         "judge_confidence": "confidence",
-        "model_spreader": "spreader_model",
-        "model_debunker": "debunker_model",
     }, inplace=True)
-    # Add binary fc_win column for regression
-    tc_df["fc_win"] = (tc_df["winner"].str.lower() == "debunker").astype(int)
-    # Rename metric columns for clarity
-    for m in ["persuasion", "manipulation_awareness"]:
-        for side, abbr in [("spreader", "spr"), ("debunker", "deb")]:
-            old = f"metric_{m}_{side}"
-            new = f"{m}_{abbr}"
-            if old in tc_df.columns:
-                tc_df.rename(columns={old: new}, inplace=True)
 
     _export_button(
-        "1. Turn Count Analysis",
+        "2. Turn Count Analysis (Study 2)",
         tc_df,
         "turn_count_analysis.csv",
-        "ANOVA: does turn count affect margin? Chi-squared: does turn count affect win rate? Regression: does persuasion change with debate length?",
+        "ANOVA: does turn count affect margin? Chi-squared: does turn count affect win rate? "
+        "Interaction: model × turn count on margin. Tier comparison: budget vs premium slopes.",
     )
 
-    # ── 2. Domain Analysis ────────────────────────────────────────────────
-    dom_cols = ["claim", "claim_type", "winner", "margin", "abs_margin",
-                "judge_confidence", "model_spreader", "model_debunker", "judge_model"]
-    dom_df = df[[c for c in dom_cols if c in df.columns]].copy()
-    dom_df.rename(columns={
-        "judge_confidence": "confidence",
-        "model_spreader": "spreader_model",
-        "model_debunker": "debunker_model",
-    }, inplace=True)
-    dom_df["fc_win"] = (dom_df["winner"].str.lower() == "debunker").astype(int)
+    # ══════════════════════════════════════════════════════════════════════
+    # 3. CLAIM TYPE ANALYSIS — Study 3
+    # ══════════════════════════════════════════════════════════════════════
+    ct_cols_list = [
+        "study_id", "claim", "claim_type",
+        "model_spreader", "model_debunker", "model_matchup",
+        "spreader_tier", "debunker_tier",
+        "winner", "fc_win", "margin", "abs_margin", "judge_confidence",
+    ] + metric_cols
+
+    ct_df = df[[c for c in ct_cols_list if c in df.columns]].copy()
+    ct_df.rename(columns={"judge_confidence": "confidence"}, inplace=True)
 
     _export_button(
-        "2. Domain Analysis",
-        dom_df,
-        "domain_analysis.csv",
-        "Chi-squared: does domain affect win rate? ANOVA: does domain affect score margin?",
+        "3. Claim Type Analysis (Study 3)",
+        ct_df,
+        "claim_type_analysis.csv",
+        "ANOVA: does claim type affect margin? Chi-squared: does type affect win rate? "
+        "Two-way ANOVA: model × claim type interaction. Per-dimension scores by type.",
     )
 
-    # ── 3. Model Comparison ───────────────────────────────────────────────
-    mod_cols = ["model_spreader", "model_debunker", "judge_model", "winner",
-                "margin", "abs_margin", "judge_confidence", "claim_type"]
-    for m in ["persuasion"]:
-        col = f"metric_{m}_spreader"
-        if col in df.columns:
-            mod_cols.append(col)
+    # ══════════════════════════════════════════════════════════════════════
+    # 4. MODEL COMPARISON — Cross-study
+    # ══════════════════════════════════════════════════════════════════════
+    mod_cols_list = [
+        "study_id", "claim_type",
+        "model_spreader", "model_debunker", "model_matchup",
+        "spreader_tier", "debunker_tier",
+        "same_model", "cross_provider",
+        "planned_max_turns",
+        "winner", "fc_win", "margin", "abs_margin", "judge_confidence",
+    ] + metric_cols
 
-    mod_df = df[[c for c in mod_cols if c in df.columns]].copy()
+    mod_df = df[[c for c in mod_cols_list if c in df.columns]].copy()
     mod_df.rename(columns={
-        "model_spreader": "spreader_model",
-        "model_debunker": "debunker_model",
+        "planned_max_turns": "max_turns",
         "judge_confidence": "confidence",
     }, inplace=True)
-    if "metric_persuasion_spreader" in mod_df.columns:
-        mod_df.rename(columns={"metric_persuasion_spreader": "persuasion_spr"}, inplace=True)
-    mod_df["fc_win"] = (mod_df["winner"].str.lower() == "debunker").astype(int)
-    mod_df["model_matchup"] = mod_df["spreader_model"] + " vs " + mod_df["debunker_model"]
 
     _export_button(
-        "3. Model Comparison",
+        "4. Model Comparison",
         mod_df,
         "model_comparison.csv",
-        "Chi-squared: does model matchup affect win rate? Two-way ANOVA: model × domain interaction. One-way ANOVA: which model is the best spreader?",
+        "One-way ANOVA: best spreader / best debunker. Two-way ANOVA: spreader × debunker model. "
+        "T-test: same-model vs cross-model pairs. T-test: cross-provider vs within-provider. "
+        "Two-way ANOVA: spreader tier × debunker tier.",
     )
 
-    # ── 4. Judge Consistency ──────────────────────────────────────────────
-    jud_cols = ["run_id", "episode_id", "claim", "judge_model", "winner",
-                "judge_confidence", "margin"]
-    for m in ["factuality", "source_credibility", "reasoning_quality",
-              "responsiveness", "persuasion", "manipulation_awareness"]:
-        for side in ["spreader", "debunker"]:
-            col = f"metric_{m}_{side}"
-            if col in df.columns:
-                jud_cols.append(col)
+    # ══════════════════════════════════════════════════════════════════════
+    # 5. JUDGE VALIDATION — Study 1
+    # ══════════════════════════════════════════════════════════════════════
+    jud_cols_list = [
+        "study_id", "run_id", "episode_id", "claim", "claim_type",
+        "judge_model", "judge_consistency_n", "judge_consistency_std",
+        "winner", "fc_win", "judge_confidence", "margin",
+    ] + metric_cols
 
-    jud_df = df[[c for c in jud_cols if c in df.columns]].copy()
+    jud_df = df[[c for c in jud_cols_list if c in df.columns]].copy()
     jud_df.rename(columns={"judge_confidence": "confidence"}, inplace=True)
-    # Rename metric columns for clarity
-    for m in ["factuality", "source_credibility", "reasoning_quality",
-              "responsiveness", "persuasion", "manipulation_awareness"]:
-        for side, abbr in [("spreader", "spr"), ("debunker", "deb")]:
-            old = f"metric_{m}_{side}"
-            new = f"{m}_{abbr}"
-            if old in jud_df.columns:
-                jud_df.rename(columns={old: new}, inplace=True)
 
     _export_button(
-        "4. Judge Consistency",
+        "5. Judge Validation (Study 1)",
         jud_df,
-        "judge_consistency.csv",
-        "Chi-squared: do judge models produce different winners? ANOVA: do they produce different scores? Correlation: do they agree on individual metrics?",
-    )
-
-    # ── 5. Concession Analysis ────────────────────────────────────────────
-    conc_cols = ["claim", "claim_type", "early_stop", "conceded_by", "concession_turn",
-                 "planned_max_turns", "model_spreader", "model_debunker", "judge_model",
-                 "winner", "margin", "judge_confidence"]
-    for m in ["persuasion"]:
-        for side in ["spreader", "debunker"]:
-            col = f"metric_{m}_{side}"
-            if col in df.columns:
-                conc_cols.append(col)
-
-    conc_df = df[[c for c in conc_cols if c in df.columns]].copy()
-    conc_df.rename(columns={
-        "planned_max_turns": "max_turns",
-        "model_spreader": "spreader_model",
-        "model_debunker": "debunker_model",
-        "judge_confidence": "confidence",
-    }, inplace=True)
-    if "metric_persuasion_spreader" in conc_df.columns:
-        conc_df.rename(columns={"metric_persuasion_spreader": "persuasion_spr"}, inplace=True)
-    if "metric_persuasion_debunker" in conc_df.columns:
-        conc_df.rename(columns={"metric_persuasion_debunker": "persuasion_deb"}, inplace=True)
-    # Binary conceded column
-    conc_df["conceded"] = conc_df["early_stop"].fillna(False).astype(int)
-
-    _export_button(
-        "5. Concession Analysis",
-        conc_df,
-        "concession_analysis.csv",
-        "Logistic regression: what predicts concession? Chi-squared: does model choice affect concession rate?",
+        "judge_validation.csv",
+        "Cohen's kappa: judge vs human winner agreement. Spearman correlation: per-dimension "
+        "judge vs human scores. Consistency CV: score variance across repeated runs. "
+        "Confidence discrimination: variance of confidence scores per judge model.",
     )
 
 
