@@ -584,164 +584,49 @@ def render_arena_page():
     # ===================================================================
     st.markdown('<div class="ar-section">Claim & Run Plan</div>', unsafe_allow_html=True)
 
-    _sc_method = st.radio(
-        "Input method",
-        options=["manual", "csv"],
-        format_func=lambda x: "Manual entry" if x == "manual" else "Upload CSV",
-        horizontal=True,
-        key="sc_input_method",
+    claim = st.text_area(
+    "Claim",
+    value=st.session_state.claim_text,
+    placeholder="e.g. The COVID-19 vaccine causes infertility",
+    key="claim_text",
+    height=80,
+    help="The misinformation claim to debate.",
+    label_visibility="collapsed",
     )
+    _arena_dbg("CLAIM_INPUT", ui_claim=_get_ui_claim(),
+           ss_topic=st.session_state.get("topic", ""))
 
-    if _sc_method == "csv":
-        st.markdown(
-            '<div style="font-size:0.88rem;color:#555;margin-bottom:0.8rem;">'
-            'Upload a CSV with one row per episode. Required: <code>claim</code>. '
-            'Optional: <code>run</code>, <code>claim_type</code>, <code>max_turns</code>, '
-            '<code>spreader_model</code>, <code>debunker_model</code>, <code>judge_model</code>. '
-            'Model columns override the sidebar selection for that run.</div>',
-            unsafe_allow_html=True,
-        )
-
-        # Visual format example
-        st.markdown(
-            '<div style="background:#f8f9fa;border:1px solid #e5e7eb;border-radius:8px;'
-            'padding:0.7rem 1rem;margin-bottom:0.8rem;font-family:monospace;font-size:0.8rem;'
-            'line-height:1.6;color:#374151">'
-            '<span style="color:#9ca3af">CSV format:</span><br>'
-            'claim,run,claim_type,max_turns,spreader_model,debunker_model,judge_model<br>'
-            'Vaccines cause autism,1,Health / Vaccine,2,gpt-4o-mini,gpt-4o-mini,gpt-4o-mini<br>'
-            'Vaccines cause autism,1,Health / Vaccine,4,gpt-4o-mini,gpt-4o-mini,gpt-4o-mini<br>'
-            'Vaccines cause autism,1,Health / Vaccine,6,gpt-4o-mini,gpt-4o-mini,gpt-4o-mini<br>'
-            'Vaccines cause autism,2,Health / Vaccine,4,gemini-2.0-flash,gemini-2.0-flash,gpt-4o-mini<br>'
-            'Vaccines cause autism,2,Health / Vaccine,6,gemini-2.0-flash,gemini-2.0-flash,gpt-4o-mini<br>'
-            'Climate change is a hoax,3,Environmental,4,grok-3-mini,gpt-4o-mini,gpt-4o-mini<br>'
-            'Climate change is a hoax,3,Environmental,6,grok-3-mini,gpt-4o-mini,gpt-4o-mini'
-            '</div>',
-            unsafe_allow_html=True,
-        )
-
-        _sc_file = st.file_uploader("Upload single-claim CSV", type=["csv", "xlsx"], key="sc_csv_upload")
-        if _sc_file is not None:
-            try:
-                _sc_df = _pd.read_csv(_sc_file) if _sc_file.name.endswith(".csv") else _pd.read_excel(_sc_file)
-                _sc_df.columns = [c.strip().lower().replace(" ", "_") for c in _sc_df.columns]
-                # Auto-classify claims missing claim_type
-                _sc_df = _auto_classify_df(_sc_df)
-                if "claim" not in _sc_df.columns:
-                    st.error("CSV must have a `claim` column.")
-                else:
-                    # Group by run column if present
-                    has_run_col = "run" in _sc_df.columns
-                    if has_run_col:
-                        _run_groups = list(_sc_df.groupby("run", sort=True))
-                    else:
-                        _run_groups = [(1, _sc_df)]
-
-                    _run_queue = []
-                    for _run_num, _run_df in _run_groups:
-                        _claim = str(_run_df["claim"].iloc[0]).strip()
-                        if "max_turns" in _run_df.columns:
-                            _turns = [int(t) for t in _run_df["max_turns"].fillna(5)]
-                        else:
-                            _turns = [5] * len(_run_df)
-                        _ct = str(_run_df["claim_type"].iloc[0]).strip() if "claim_type" in _run_df.columns and _pd.notna(_run_df["claim_type"].iloc[0]) else ""
-                        # Extract model overrides if present
-                        _spr_model = str(_run_df["spreader_model"].iloc[0]).strip() if "spreader_model" in _run_df.columns and _pd.notna(_run_df["spreader_model"].iloc[0]) else ""
-                        _deb_model = str(_run_df["debunker_model"].iloc[0]).strip() if "debunker_model" in _run_df.columns and _pd.notna(_run_df["debunker_model"].iloc[0]) else ""
-                        _jud_model = str(_run_df["judge_model"].iloc[0]).strip() if "judge_model" in _run_df.columns and _pd.notna(_run_df["judge_model"].iloc[0]) else ""
-                        _run_queue.append({
-                            "run": _run_num,
-                            "claim": _claim,
-                            "claim_type": _ct,
-                            "turn_plan": _turns,
-                            "num_episodes": len(_run_df),
-                            "spreader_model": _spr_model,
-                            "debunker_model": _deb_model,
-                            "judge_model": _jud_model,
-                        })
-
-                    st.session_state["sc_run_queue"] = _run_queue
-
-                    # Set first run as active
-                    _first = _run_queue[0]
-                    st.session_state["claim_text"] = _first["claim"]
-                    st.session_state["num_episodes"] = _first["num_episodes"]
-                    st.session_state["turn_plan"] = _first["turn_plan"]
-                    st.session_state["turn_plan_csv"] = ",".join(str(t) for t in _first["turn_plan"])
-                    st.session_state["turn_plan_valid"] = True
-                    st.session_state["max_turns"] = _first["turn_plan"][0] if _first["turn_plan"] else 5
-                    if _first["claim_type"]:
-                        st.session_state["claim_type"] = _first["claim_type"]
-                    # Apply model overrides from CSV
-                    if _first.get("spreader_model"):
-                        st.session_state["spreader_model"] = _first["spreader_model"]
-                    if _first.get("debunker_model"):
-                        st.session_state["debunker_model"] = _first["debunker_model"]
-                    if _first.get("judge_model"):
-                        st.session_state["judge_model_select"] = _first["judge_model"]
-
-                    # Summary
-                    _total_eps = sum(r["num_episodes"] for r in _run_queue)
-                    st.success(f"Loaded {len(_run_queue)} run(s), {_total_eps} total episodes")
-                    with st.expander(f"Run queue ({len(_run_queue)} runs)", expanded=False):
-                        for r in _run_queue:
-                            _turns_str = ",".join(str(t) for t in r["turn_plan"])
-                            _models = ""
-                            if r.get("spreader_model") or r.get("debunker_model"):
-                                _models = f' · models: {r.get("spreader_model", "default")} vs {r.get("debunker_model", "default")}'
-                                if r.get("judge_model"):
-                                    _models += f' (judge: {r["judge_model"]})'
-                            st.caption(f"**Run {r['run']}:** \"{r['claim'][:50]}\" — {r['num_episodes']} eps ({_turns_str} turns) · {r['claim_type'] or '—'}{_models}")
-            except Exception as e:
-                st.error(f"Failed to parse CSV: {e}")
-                st.session_state["turn_plan_valid"] = False
-        else:
-            st.session_state.setdefault("turn_plan_valid", True)
+    st.markdown('<div class="ar-section">Run Plan</div>', unsafe_allow_html=True)
+    num_episodes = st.number_input(
+    "Episodes",
+    min_value=1,
+    max_value=20,
+    value=st.session_state["num_episodes"],
+    key="num_episodes",
+    help="Number of episodes in this run",
+    )
+    turn_plan_csv = st.text_input(
+    "Turn plan (comma-separated)",
+    value=st.session_state.get("turn_plan_csv", str(st.session_state.get("max_turns", 5))),
+    key="turn_plan_csv",
+    help="Turns per episode. Single value (e.g. 6) applies to all, or one per episode (e.g. 2,4,6,8,10)",
+    )
+    try:
+        from arena.ui.run_planner import parse_turn_plan_csv
+    except ImportError:
+        sys.path.insert(0, "src")
+        from arena.ui.run_planner import parse_turn_plan_csv
+    plan, plan_err = parse_turn_plan_csv(
+        st.session_state.get("turn_plan_csv", ""),
+        st.session_state["num_episodes"],
+        st.session_state.get("max_turns", 5),
+    )
+    if plan_err:
+        st.error(plan_err)
+        st.session_state["turn_plan_valid"] = False
     else:
-        # Manual entry
-        claim = st.text_area(
-            "Claim",
-            value=st.session_state.claim_text,
-            placeholder="e.g. The COVID-19 vaccine causes infertility",
-            key="claim_text",
-            height=80,
-            help="The misinformation claim to debate.",
-            label_visibility="collapsed",
-        )
-        _arena_dbg("CLAIM_INPUT", ui_claim=_get_ui_claim(),
-                   ss_topic=st.session_state.get("topic", ""))
-
-        st.markdown('<div class="ar-section">Run Plan</div>', unsafe_allow_html=True)
-        num_episodes = st.number_input(
-            "Episodes",
-            min_value=1,
-            max_value=20,
-            value=st.session_state["num_episodes"],
-            key="num_episodes",
-            help="Number of episodes in this run",
-        )
-        turn_plan_csv = st.text_input(
-            "Turn plan (comma-separated)",
-            value=st.session_state.get("turn_plan_csv", str(st.session_state.get("max_turns", 5))),
-            key="turn_plan_csv",
-            help="Turns per episode. Single value (e.g. 6) applies to all, or one per episode (e.g. 2,4,6,8,10)",
-        )
-        try:
-            from arena.ui.run_planner import parse_turn_plan_csv
-        except ImportError:
-            sys.path.insert(0, "src")
-            from arena.ui.run_planner import parse_turn_plan_csv
-        plan, plan_err = parse_turn_plan_csv(
-            st.session_state.get("turn_plan_csv", ""),
-            st.session_state["num_episodes"],
-            st.session_state.get("max_turns", 5),
-        )
-        if plan_err:
-            st.error(plan_err)
-            st.session_state["turn_plan_valid"] = False
-        else:
-            st.session_state["turn_plan"] = plan
-            st.session_state["turn_plan_valid"] = True
+        st.session_state["turn_plan"] = plan
+        st.session_state["turn_plan_valid"] = True
 
     # (Multi-claim mode removed — use Experiment mode for batch runs)
 
