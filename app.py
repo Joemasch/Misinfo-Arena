@@ -28,6 +28,19 @@ def get_ui_claim() -> str:
     """Get the current claim text from UI input."""
     return (st.session_state.get("claim_text") or "").strip()
 
+def exec_guard(tag: str, data: dict | None = None):
+    """Debug guard — logs when a code path is skipped."""
+    arena_dbg(f"GUARD:{tag}", **(data or {}))
+
+def exec_log(tag: str, data: dict | None = None):
+    """Debug execution log."""
+    arena_dbg(f"EXEC:{tag}", **(data or {}))
+
+def log_event(tag: str, data: dict | None = None):
+    """Debug event log."""
+    arena_dbg(f"EVENT:{tag}", **(data or {}))
+
+
 def arena_dbg(tag: str, **kv):
     """Debug logging for Arena system invariants."""
     if not DEBUG_ARENA:
@@ -75,8 +88,9 @@ from arena.factories import (
     create_agent, create_judge, create_debate_engine,
     create_match_storage, create_analytics, create_default_setup,
     fetch_openai_models,
-    DebateConfig, MatchState, AgentRole, Message, Turn, MatchResult
+    DebateConfig, MatchState, AgentRole, Message, Turn, MatchResult,
 )
+from arena.types import JudgeDecision
 from arena.concession import should_concede, check_keyword_concession, ConcessionRecommendation
 from arena.config import (
     AVAILABLE_MODELS, get_default_model_index, get_default_model,
@@ -1391,4 +1405,3 @@ def run_judge_evaluation():
 
 if __name__ == "__main__":
     main()
-1
