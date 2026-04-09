@@ -108,7 +108,6 @@ def _render_sidebar():
     st.sidebar.markdown("**Judge**")
     st.sidebar.caption("The judge evaluates each debate using a 6-dimension rubric.")
 
-    from arena.config import AVAILABLE_MODELS
     _judge_models = [m for m in AVAILABLE_MODELS if "turbo" not in m and "3.5" not in m and "2.0" not in m]
     st.sidebar.selectbox(
         "Judge model",
