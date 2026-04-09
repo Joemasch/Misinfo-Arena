@@ -1,4 +1,4 @@
-# Experimental Design — Misinformation Arena v2
+1# Experimental Design — Misinformation Arena v2
 
 > **Status:** Final
 > **Last updated:** 2026-04-08
@@ -281,6 +281,30 @@ Within each run:
 | 4 | 8 |
 | 5 | 10 |
 
+### Episode Table (sample — first 2 pairs, first claim)
+
+Full table: `data/study2_length_spec.csv` (320 rows)
+
+| # | Spreader | Debunker | Claim | Max Turns |
+|---|---|---|---|---|
+| 1 | gpt-4o-mini | gpt-4o-mini | C1: Vaccines cause autism | 2 |
+| 2 | gpt-4o-mini | gpt-4o-mini | C1 | 4 |
+| 3 | gpt-4o-mini | gpt-4o-mini | C1 | 6 |
+| 4 | gpt-4o-mini | gpt-4o-mini | C1 | 8 |
+| 5 | gpt-4o-mini | gpt-4o-mini | C1 | 10 |
+| 6 | gpt-4o-mini | gpt-4o-mini | C2: 5G causes cancer | 2 |
+| 7 | gpt-4o-mini | gpt-4o-mini | C2 | 4 |
+| 8 | gpt-4o-mini | gpt-4o-mini | C2 | 6 |
+| 9 | gpt-4o-mini | gpt-4o-mini | C2 | 8 |
+| 10 | gpt-4o-mini | gpt-4o-mini | C2 | 10 |
+| ... | ... | ... | ... | ... |
+| 21 | gpt-4o-mini | gpt-4o | C1: Vaccines cause autism | 2 |
+| 22 | gpt-4o-mini | gpt-4o | C1 | 4 |
+| 23 | gpt-4o-mini | gpt-4o | C1 | 6 |
+| 24 | gpt-4o-mini | gpt-4o | C1 | 8 |
+| 25 | gpt-4o-mini | gpt-4o | C1 | 10 |
+| ... | ... | ... | *pattern repeats for all 16 pairs × 4 claims* | ... |
+
 ### Research Questions
 
 | Question | Analysis |
@@ -352,7 +376,25 @@ One run per (model pair x claim type). Each run contains 5 episodes (one per cla
 | 5 | Pair 1 | Economic | F1, F2, F3, F4, F5 |
 | 6-10 | Pair 2 | All 5 types | 5 each |
 | ... | ... | ... | ... |
-| 121-125 | Pair 25 | All 5 types | 5 each |
+| 76-80 | Pair 16 | All 5 types | 5 each |
+
+### Episode Table (sample — first pair, Health type)
+
+Full table: `data/study3_claimtype_spec.csv` (400 rows)
+
+| # | Spreader | Debunker | Claim | Type | Max Turns |
+|---|---|---|---|---|---|
+| 1 | gpt-4o-mini | gpt-4o-mini | Vaccines cause autism | Health | (fixed from Study 2) |
+| 2 | gpt-4o-mini | gpt-4o-mini | Ivermectin cures COVID | Health | " |
+| 3 | gpt-4o-mini | gpt-4o-mini | Fluoride lowers IQ | Health | " |
+| 4 | gpt-4o-mini | gpt-4o-mini | GMOs cause cancer | Health | " |
+| 5 | gpt-4o-mini | gpt-4o-mini | Natural immunity is superior | Health | " |
+| 6 | gpt-4o-mini | gpt-4o-mini | 2020 election was stolen | Political | " |
+| 7 | gpt-4o-mini | gpt-4o-mini | Voter fraud is widespread | Political | " |
+| ... | ... | ... | ... | ... | ... |
+| 26 | gpt-4o-mini | gpt-4o | Vaccines cause autism | Health | " |
+| 27 | gpt-4o-mini | gpt-4o | Ivermectin cures COVID | Health | " |
+| ... | ... | ... | *pattern repeats for all 16 pairs × 5 types × 5 claims* | ... | ... |
 
 ### Research Questions
 
