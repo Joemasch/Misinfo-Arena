@@ -87,7 +87,7 @@ def _render_exports_tab():
                 df[dst] = df[src]
                 metric_cols.append(dst)
 
-    # ── Helper ───────────────────────────────────────────────────────────
+    # ── Helpers ────────────────────────────────────────────────────────────
     def _export_button(label: str, export_df: pd.DataFrame, filename: str, description: str):
         st.markdown(f"**{label}**")
         st.caption(description)
@@ -100,11 +100,28 @@ def _render_exports_tab():
         )
         with st.expander(f"Preview ({len(export_df)} rows × {len(export_df.columns)} columns)", expanded=False):
             st.dataframe(export_df.head(10), use_container_width=True, hide_index=True)
-        st.markdown("---")
+
+    def _pick(cols_list):
+        """Select columns that exist in df."""
+        return df[[c for c in cols_list if c in df.columns]].copy()
+
+    def _rename_common(d):
+        """Apply standard column renames."""
+        renames = {"planned_max_turns": "max_turns", "judge_confidence": "confidence",
+                   "completed_turn_pairs": "turns_completed"}
+        d.rename(columns={k: v for k, v in renames.items() if k in d.columns}, inplace=True)
+        return d
 
     # ══════════════════════════════════════════════════════════════════════
-    # 1. FULL EPISODE EXPORT — everything in one CSV
+    # FULL EXPORT
     # ══════════════════════════════════════════════════════════════════════
+    st.markdown(
+        '<p style="font-size:1.2rem;font-weight:700;color:var(--color-text-primary,#E8E4D9);'
+        'margin-top:1.5rem;margin-bottom:0.2rem;padding-bottom:0.3rem;'
+        'border-bottom:2px solid var(--color-border,#2A2A2A)">Full Export</p>',
+        unsafe_allow_html=True,
+    )
+
     full_cols = [
         "study_id", "condition", "run_id", "episode_id",
         "claim", "claim_type",
@@ -114,115 +131,191 @@ def _render_exports_tab():
         "planned_max_turns", "completed_turn_pairs",
         "winner", "fc_win", "margin", "abs_margin", "judge_confidence",
     ] + metric_cols
-
-    full_df = df[[c for c in full_cols if c in df.columns]].copy()
-    full_df.rename(columns={
-        "planned_max_turns": "max_turns",
-        "judge_confidence": "confidence",
-        "completed_turn_pairs": "turns_completed",
-    }, inplace=True)
-
     _export_button(
-        "1. Full Episode Export",
-        full_df,
+        "Full Episode Export",
+        _rename_common(_pick(full_cols)),
         "full_episodes.csv",
-        "Every episode with all columns — study tags, models, tiers, matchup flags, "
-        "outcomes, and all 12 dimension scores. Use this for custom analyses or when "
-        "other exports don't cover your specific test.",
+        "Every episode with all columns. Use for custom analyses or when per-test exports don't cover your need.",
     )
 
     # ══════════════════════════════════════════════════════════════════════
-    # 2. TURN COUNT ANALYSIS — Study 2
+    # STUDY 1 — JUDGE VALIDATION
     # ══════════════════════════════════════════════════════════════════════
-    tc_cols_list = [
-        "study_id", "claim", "claim_type",
-        "model_spreader", "model_debunker", "model_matchup",
-        "spreader_tier", "debunker_tier", "same_model",
-        "planned_max_turns", "winner", "fc_win",
-        "margin", "abs_margin", "judge_confidence",
-    ] + metric_cols
-
-    tc_df = df[[c for c in tc_cols_list if c in df.columns]].copy()
-    tc_df.rename(columns={
-        "planned_max_turns": "max_turns",
-        "judge_confidence": "confidence",
-    }, inplace=True)
-
-    _export_button(
-        "2. Turn Count Analysis (Study 2)",
-        tc_df,
-        "turn_count_analysis.csv",
-        "ANOVA: does turn count affect margin? Chi-squared: does turn count affect win rate? "
-        "Interaction: model × turn count on margin. Tier comparison: budget vs premium slopes.",
+    st.markdown("---")
+    st.markdown(
+        '<p style="font-size:1.2rem;font-weight:700;color:var(--color-text-primary,#E8E4D9);'
+        'margin-top:1rem;margin-bottom:0.5rem;padding-bottom:0.3rem;'
+        'border-bottom:2px solid var(--color-border,#2A2A2A)">Study 1: Judge Validation</p>',
+        unsafe_allow_html=True,
     )
 
-    # ══════════════════════════════════════════════════════════════════════
-    # 3. CLAIM TYPE ANALYSIS — Study 3
-    # ══════════════════════════════════════════════════════════════════════
-    ct_cols_list = [
-        "study_id", "claim", "claim_type",
-        "model_spreader", "model_debunker", "model_matchup",
-        "spreader_tier", "debunker_tier",
-        "winner", "fc_win", "margin", "abs_margin", "judge_confidence",
-    ] + metric_cols
-
-    ct_df = df[[c for c in ct_cols_list if c in df.columns]].copy()
-    ct_df.rename(columns={"judge_confidence": "confidence"}, inplace=True)
-
     _export_button(
-        "3. Claim Type Analysis (Study 3)",
-        ct_df,
-        "claim_type_analysis.csv",
-        "ANOVA: does claim type affect margin? Chi-squared: does type affect win rate? "
-        "Two-way ANOVA: model × claim type interaction. Per-dimension scores by type.",
-    )
-
-    # ══════════════════════════════════════════════════════════════════════
-    # 4. MODEL COMPARISON — Cross-study
-    # ══════════════════════════════════════════════════════════════════════
-    mod_cols_list = [
-        "study_id", "claim_type",
-        "model_spreader", "model_debunker", "model_matchup",
-        "spreader_tier", "debunker_tier",
-        "same_model", "cross_provider",
-        "planned_max_turns",
-        "winner", "fc_win", "margin", "abs_margin", "judge_confidence",
-    ] + metric_cols
-
-    mod_df = df[[c for c in mod_cols_list if c in df.columns]].copy()
-    mod_df.rename(columns={
-        "planned_max_turns": "max_turns",
-        "judge_confidence": "confidence",
-    }, inplace=True)
-
-    _export_button(
-        "4. Model Comparison",
-        mod_df,
-        "model_comparison.csv",
-        "One-way ANOVA: best spreader / best debunker. Two-way ANOVA: spreader × debunker model. "
-        "T-test: same-model vs cross-model pairs. T-test: cross-provider vs within-provider. "
-        "Two-way ANOVA: spreader tier × debunker tier.",
-    )
-
-    # ══════════════════════════════════════════════════════════════════════
-    # 5. JUDGE VALIDATION — Study 1
-    # ══════════════════════════════════════════════════════════════════════
-    jud_cols_list = [
-        "study_id", "run_id", "episode_id", "claim", "claim_type",
-        "judge_model", "judge_consistency_n", "judge_consistency_std",
-        "winner", "fc_win", "judge_confidence", "margin",
-    ] + metric_cols
-
-    jud_df = df[[c for c in jud_cols_list if c in df.columns]].copy()
-    jud_df.rename(columns={"judge_confidence": "confidence"}, inplace=True)
-
-    _export_button(
-        "5. Judge Validation (Study 1)",
-        jud_df,
+        "Judge Validation",
+        _rename_common(_pick([
+            "study_id", "run_id", "episode_id", "claim", "claim_type",
+            "judge_model", "judge_consistency_n", "judge_consistency_std",
+            "winner", "fc_win", "judge_confidence", "margin",
+        ] + metric_cols)),
         "judge_validation.csv",
-        "Cohen's kappa: judge vs human winner agreement. Spearman correlation: per-dimension "
-        "judge vs human scores. Consistency CV: score variance across repeated runs. "
-        "Confidence discrimination: variance of confidence scores per judge model.",
+        "Spearman correlation (judge vs human per dimension), consistency CV, confidence discrimination. "
+        "Cohen's kappa is computed in the Annotate tab.",
+    )
+
+    # ══════════════════════════════════════════════════════════════════════
+    # STUDY 2 — CONVERSATION LENGTH
+    # ══════════════════════════════════════════════════════════════════════
+    st.markdown("---")
+    st.markdown(
+        '<p style="font-size:1.2rem;font-weight:700;color:var(--color-text-primary,#E8E4D9);'
+        'margin-top:1rem;margin-bottom:0.5rem;padding-bottom:0.3rem;'
+        'border-bottom:2px solid var(--color-border,#2A2A2A)">Study 2: Conversation Length</p>',
+        unsafe_allow_html=True,
+    )
+
+    # 2.1 ANOVA: turns → margin
+    _export_button(
+        "2.1 — One-Way ANOVA: Turn Count → Margin",
+        _rename_common(_pick(["planned_max_turns", "margin", "claim", "claim_type"])),
+        "study2_anova_turns_margin.csv",
+        "Minitab: Stat > ANOVA > One-Way. Response: margin, Factor: max_turns. "
+        "Tests whether debate length affects score gap.",
+    )
+
+    # 2.2 Chi-squared: turns → winner
+    _export_button(
+        "2.2 — Chi-Squared: Turn Count → Winner",
+        _rename_common(_pick(["planned_max_turns", "winner", "fc_win"])),
+        "study2_chi2_turns_winner.csv",
+        "Minitab: Stat > Tables > Cross Tabulation. Rows: max_turns, Columns: winner. "
+        "Tests whether debate length affects who wins.",
+    )
+
+    # 2.3 Two-way ANOVA: model × turns
+    _export_button(
+        "2.3 — Two-Way ANOVA: Model × Turn Count",
+        _rename_common(_pick(["model_matchup", "planned_max_turns", "margin"])),
+        "study2_anova_model_turns.csv",
+        "Minitab: Stat > ANOVA > General Linear Model. Response: margin, "
+        "Factors: model_matchup + max_turns + interaction. "
+        "Tests whether some models improve more with debate length.",
+    )
+
+    # 2.4 T-test: same-model vs cross-model
+    _export_button(
+        "2.4 — T-Test: Same-Model vs Cross-Model Pairs",
+        _rename_common(_pick(["same_model", "margin", "abs_margin", "model_matchup"])),
+        "study2_ttest_same_model.csv",
+        "Minitab: Stat > Basic Statistics > 2-Sample t. "
+        "Samples: margin grouped by same_model. "
+        "Tests whether mirror matchups produce different outcomes.",
+    )
+
+    # 2.5 Two-way ANOVA: tier × turns
+    _export_button(
+        "2.5 — Two-Way ANOVA: Tier × Turn Count",
+        _rename_common(_pick(["debunker_tier", "planned_max_turns", "margin"])),
+        "study2_anova_tier_turns.csv",
+        "Minitab: Stat > ANOVA > General Linear Model. Response: margin, "
+        "Factors: debunker_tier + max_turns + interaction. "
+        "Tests whether budget models respond differently to length than premium.",
+    )
+
+    # ══════════════════════════════════════════════════════════════════════
+    # STUDY 3 — CLAIM TYPE
+    # ══════════════════════════════════════════════════════════════════════
+    st.markdown("---")
+    st.markdown(
+        '<p style="font-size:1.2rem;font-weight:700;color:var(--color-text-primary,#E8E4D9);'
+        'margin-top:1rem;margin-bottom:0.5rem;padding-bottom:0.3rem;'
+        'border-bottom:2px solid var(--color-border,#2A2A2A)">Study 3: Claim Type</p>',
+        unsafe_allow_html=True,
+    )
+
+    # 3.1 ANOVA: type → margin
+    _export_button(
+        "3.1 — One-Way ANOVA: Claim Type → Margin",
+        _rename_common(_pick(["claim_type", "margin", "claim"])),
+        "study3_anova_type_margin.csv",
+        "Minitab: Stat > ANOVA > One-Way. Response: margin, Factor: claim_type. "
+        "Tests whether some claim domains are harder to debunk.",
+    )
+
+    # 3.2 Chi-squared: type → winner
+    _export_button(
+        "3.2 — Chi-Squared: Claim Type → Winner",
+        _rename_common(_pick(["claim_type", "winner", "fc_win"])),
+        "study3_chi2_type_winner.csv",
+        "Minitab: Stat > Tables > Cross Tabulation. Rows: claim_type, Columns: winner. "
+        "Tests whether claim type affects who wins.",
+    )
+
+    # 3.3 Two-way ANOVA: model × type
+    _export_button(
+        "3.3 — Two-Way ANOVA: Model × Claim Type",
+        _rename_common(_pick(["model_matchup", "claim_type", "margin"] + metric_cols)),
+        "study3_anova_model_type.csv",
+        "Minitab: Stat > ANOVA > General Linear Model. Response: margin, "
+        "Factors: model_matchup + claim_type + interaction. "
+        "Tests whether the best model depends on claim domain.",
+    )
+
+    # 3.4 Two-way ANOVA: tier × type
+    _export_button(
+        "3.4 — Two-Way ANOVA: Tier × Claim Type",
+        _rename_common(_pick(["debunker_tier", "claim_type", "margin"])),
+        "study3_anova_tier_type.csv",
+        "Minitab: Stat > ANOVA > General Linear Model. Response: margin, "
+        "Factors: debunker_tier + claim_type + interaction. "
+        "Tests whether budget models struggle more on certain claim types.",
+    )
+
+    # ══════════════════════════════════════════════════════════════════════
+    # MODEL COMPARISON (cross-study)
+    # ══════════════════════════════════════════════════════════════════════
+    st.markdown("---")
+    st.markdown(
+        '<p style="font-size:1.2rem;font-weight:700;color:var(--color-text-primary,#E8E4D9);'
+        'margin-top:1rem;margin-bottom:0.5rem;padding-bottom:0.3rem;'
+        'border-bottom:2px solid var(--color-border,#2A2A2A)">Model Comparison (Cross-Study)</p>',
+        unsafe_allow_html=True,
+    )
+
+    # 4.1 Best spreader
+    _export_button(
+        "4.1 — One-Way ANOVA: Best Spreader Model",
+        _rename_common(_pick(["model_spreader", "margin", "abs_margin"])),
+        "model_best_spreader.csv",
+        "Minitab: Stat > ANOVA > One-Way. Response: margin, Factor: model_spreader. "
+        "Lower margin = better spreader. Post-hoc Tukey's for pairwise comparison.",
+    )
+
+    # 4.2 Best debunker
+    _export_button(
+        "4.2 — One-Way ANOVA: Best Debunker Model",
+        _rename_common(_pick(["model_debunker", "margin", "abs_margin"])),
+        "model_best_debunker.csv",
+        "Minitab: Stat > ANOVA > One-Way. Response: margin, Factor: model_debunker. "
+        "Higher margin = better debunker. Post-hoc Tukey's for pairwise comparison.",
+    )
+
+    # 4.3 Spreader × debunker interaction
+    _export_button(
+        "4.3 — Two-Way ANOVA: Spreader × Debunker",
+        _rename_common(_pick(["model_spreader", "model_debunker", "model_matchup", "margin"] + metric_cols)),
+        "model_interaction.csv",
+        "Minitab: Stat > ANOVA > General Linear Model. Response: margin, "
+        "Factors: model_spreader + model_debunker + interaction. "
+        "Tests whether certain pairings produce unexpected results.",
+    )
+
+    # 4.4 Cross-provider vs within
+    _export_button(
+        "4.4 — T-Test: Cross-Provider vs Within-Provider",
+        _rename_common(_pick(["cross_provider", "margin", "abs_margin", "model_matchup"])),
+        "model_cross_provider.csv",
+        "Minitab: Stat > Basic Statistics > 2-Sample t. "
+        "Samples: margin grouped by cross_provider. "
+        "Tests whether debates across providers differ from same-provider debates.",
     )
 
 
