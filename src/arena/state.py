@@ -120,7 +120,15 @@ def initialize_session_state():
     debunker_text, _, _ = resolve_active_prompt("debunker", debunker_default, data)
     judge_text, _, _ = resolve_active_prompt("judge", get_judge_static_prompt(), data)
     # Always enforce research prompts — prompts are fixed for experimental control.
-    # ss_init would preserve stale custom prompts from prior sessions.
+    # Guard against stale custom prompts in prompts.json or session state.
+    # IME507 prompts are 500+ chars; anything shorter is not a research prompt.
+    _MIN_RESEARCH_PROMPT_LEN = 200
+    if len(spreader_text or "") < _MIN_RESEARCH_PROMPT_LEN:
+        spreader_text = spreader_default
+    if len(debunker_text or "") < _MIN_RESEARCH_PROMPT_LEN:
+        debunker_text = debunker_default
+    if len(judge_text or "") < _MIN_RESEARCH_PROMPT_LEN:
+        judge_text = get_judge_static_prompt()
     st.session_state["spreader_prompt"] = spreader_text
     st.session_state["debunker_prompt"] = debunker_text
     st.session_state["judge_static_prompt"] = judge_text
