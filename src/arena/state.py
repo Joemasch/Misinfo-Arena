@@ -119,9 +119,11 @@ def initialize_session_state():
     spreader_text, _, _ = resolve_active_prompt("spreader", spreader_default, data)
     debunker_text, _, _ = resolve_active_prompt("debunker", debunker_default, data)
     judge_text, _, _ = resolve_active_prompt("judge", get_judge_static_prompt(), data)
-    ss_init("spreader_prompt", spreader_text)
-    ss_init("debunker_prompt", debunker_text)
-    ss_init("judge_static_prompt", judge_text)
+    # Always enforce research prompts — prompts are fixed for experimental control.
+    # ss_init would preserve stale custom prompts from prior sessions.
+    st.session_state["spreader_prompt"] = spreader_text
+    st.session_state["debunker_prompt"] = debunker_text
+    st.session_state["judge_static_prompt"] = judge_text
 
     # ===================================================================
     # PHASE 2: AGENTS (depend on config above)
