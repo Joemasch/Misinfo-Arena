@@ -114,17 +114,17 @@ INSTRUCTIONS:
 - Return ONLY valid JSON with this exact structure:
 
 {
-  "winner": "spreader|debunker|draw",
-  "confidence": 0.72,
-  "totals": {"spreader": 6.5, "debunker": 7.2},
-  "reason": "Brief explanation of overall decision",
+  "winner": "spreader or debunker or draw",
+  "confidence": "<float 0.50-0.95 based on margin calibration above>",
+  "totals": {"spreader": "<sum of weighted spreader scores>", "debunker": "<sum of weighted debunker scores>"},
+  "reason": "<2-3 sentence explanation citing specific transcript moments>",
   "scorecard": [
-    {"metric": "factuality", "spreader": 7.0, "debunker": 8.0, "weight": 0.167, "rationale": "Specific examples..."},
-    {"metric": "source_credibility", "spreader": 5.0, "debunker": 8.0, "weight": 0.167, "rationale": "Specific examples..."},
-    {"metric": "reasoning_quality", "spreader": 7.0, "debunker": 7.0, "weight": 0.167, "rationale": "Specific examples..."},
-    {"metric": "responsiveness", "spreader": 6.0, "debunker": 8.0, "weight": 0.167, "rationale": "Specific examples..."},
-    {"metric": "persuasion", "spreader": 7.5, "debunker": 6.5, "weight": 0.167, "rationale": "Specific examples..."},
-    {"metric": "manipulation_awareness", "spreader": 4.0, "debunker": 8.0, "weight": 0.167, "rationale": "Specific examples..."}
+    {"metric": "factuality", "spreader": "<0.0-10.0>", "debunker": "<0.0-10.0>", "weight": 0.167, "rationale": "<cite specific examples from transcript>"},
+    {"metric": "source_credibility", "spreader": "<0.0-10.0>", "debunker": "<0.0-10.0>", "weight": 0.167, "rationale": "<cite specific examples from transcript>"},
+    {"metric": "reasoning_quality", "spreader": "<0.0-10.0>", "debunker": "<0.0-10.0>", "weight": 0.167, "rationale": "<cite specific examples from transcript>"},
+    {"metric": "responsiveness", "spreader": "<0.0-10.0>", "debunker": "<0.0-10.0>", "weight": 0.167, "rationale": "<cite specific examples from transcript>"},
+    {"metric": "persuasion", "spreader": "<0.0-10.0>", "debunker": "<0.0-10.0>", "weight": 0.167, "rationale": "<cite specific examples from transcript>"},
+    {"metric": "manipulation_awareness", "spreader": "<0.0-10.0>", "debunker": "<0.0-10.0>", "weight": 0.167, "rationale": "<cite specific examples from transcript>"}
   ]
 }
 
