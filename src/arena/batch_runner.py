@@ -557,6 +557,28 @@ def run_experiment_from_spec(
                 if row.claim_type:
                     episode_obj["claim_type"] = row.claim_type
 
+                # Run strategy analysis (optional — never blocks persistence)
+                try:
+                    from arena.application.use_cases.episode_builder import _run_strategy_analysis
+                    judge_verdict = {
+                        "winner": _get(decision, "winner", "draw"),
+                        "confidence": float(_get(decision, "confidence", 0.5)),
+                        "totals": totals if isinstance(totals, dict) else {"spreader": 0, "debunker": 0},
+                        "scorecard": scorecard_list,
+                    }
+                    claim_meta = {"claim_type": row.claim_type} if row.claim_type else None
+                    strategy_result = _run_strategy_analysis(
+                        claim=row.claim,
+                        claim_metadata=claim_meta,
+                        turns=turns,
+                        judge_verdict=judge_verdict,
+                        arena_mode="experiment",
+                    )
+                    if strategy_result:
+                        episode_obj["strategy_analysis"] = strategy_result
+                except Exception as strat_err:
+                    print(f"[STRATEGY] failed for episode {ep_idx}: {strat_err}")
+
             except Exception as e:
                 error_msg = str(e)[:300]
                 episode_obj = {
