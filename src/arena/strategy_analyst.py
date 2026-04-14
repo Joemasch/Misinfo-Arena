@@ -42,20 +42,35 @@ def _extract_json_from_response(text: str) -> dict[str, Any]:
 
 
 def _format_transcript_for_analyst(turns: list[dict]) -> str:
-    """Format transcript turns for the strategy analyst prompt."""
+    """Format transcript turns for the strategy analyst prompt.
+
+    Handles both formats:
+    - Flat: [{"name": "spreader", "content": "...", "turn_index": 0}, ...]
+    - Paired: [{"spreader_message": {"content": "..."}, "debunker_message": {"content": "..."}}, ...]
+    """
     if not turns:
         return "(No transcript)"
     lines = []
-    by_turn: dict[int, list[dict]] = {}
-    for m in turns:
-        tidx = m.get("turn_index", 0)
-        by_turn.setdefault(tidx, []).append(m)
-    for tidx in sorted(by_turn.keys()):
-        for m in by_turn[tidx]:
-            name = (m.get("name") or "Unknown").title()
-            content = (m.get("content") or "").strip()
+
+    for i, t in enumerate(turns):
+        # Paired format (from experiment engine)
+        if "spreader_message" in t or "debunker_message" in t:
+            s_msg = t.get("spreader_message") or {}
+            d_msg = t.get("debunker_message") or {}
+            s_text = (s_msg.get("content", "") if isinstance(s_msg, dict) else str(s_msg)).strip()
+            d_text = (d_msg.get("content", "") if isinstance(d_msg, dict) else str(d_msg)).strip()
+            if s_text:
+                lines.append(f"Turn {i + 1} (Spreader): {s_text}")
+            if d_text:
+                lines.append(f"Turn {i + 1} (Debunker): {d_text}")
+        # Flat format (from arena live debate)
+        elif "name" in t and "content" in t:
+            name = (t.get("name") or "Unknown").title()
+            content = (t.get("content") or "").strip()
+            tidx = t.get("turn_index", i)
             if content:
                 lines.append(f"Turn {tidx + 1} ({name}): {content}")
+
     return "\n".join(lines) if lines else "(Empty transcript)"
 
 
