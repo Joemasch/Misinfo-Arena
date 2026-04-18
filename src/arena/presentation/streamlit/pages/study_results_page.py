@@ -271,44 +271,79 @@ def _render_overview(episodes):
                          height=280, margin=dict(t=15,b=40,l=50,r=10), **_pb())
         st.plotly_chart(fig, use_container_width=True)
 
-    # ── Claim difficulty ─────────────────────────────────────────────
-    st.markdown('<p class="sr-finding">Claim Difficulty Ranking</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sr-question">Which claims are hardest to debunk? Ranked by spreader win rate.</p>', unsafe_allow_html=True)
-    _how_to_read("Higher bars = the spreader wins more often on that claim, meaning it's harder for the debunker to counter. "
+    # ── Claim difficulty by type ────────────────────────────────────
+    st.markdown('<p class="sr-finding">Claim Difficulty by Type</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sr-question">Which claim domains are hardest to debunk?</p>', unsafe_allow_html=True)
+    _how_to_read("Higher bars = the spreader wins more often for that claim type. "
+                 "Click a bar to see individual claims below. "
                  "Note: spreader wins only occur when Gemini Flash is the debunker.")
 
-    claim_data = defaultdict(lambda: {"spr_wins": 0, "total": 0, "margins": []})
+    # Aggregate by type
+    type_data = defaultdict(lambda: {"spr_wins": 0, "total": 0, "margins": []})
+    claim_data = defaultdict(lambda: {"spr_wins": 0, "total": 0, "margins": [], "type": ""})
     for ep in episodes:
+        ct = ep.get("claim_type", "?")
         claim = ep.get("claim", "?")
+        type_data[ct]["total"] += 1
         claim_data[claim]["total"] += 1
+        claim_data[claim]["type"] = ct
         t = ep["results"].get("totals", {})
         if t.get("debunker") is not None and t.get("spreader") is not None:
-            claim_data[claim]["margins"].append(t["debunker"] - t["spreader"])
+            margin = t["debunker"] - t["spreader"]
+            type_data[ct]["margins"].append(margin)
+            claim_data[claim]["margins"].append(margin)
         if ep["results"]["winner"] == "spreader":
+            type_data[ct]["spr_wins"] += 1
             claim_data[claim]["spr_wins"] += 1
 
-    claims_sorted = sorted(claim_data.keys(),
-                          key=lambda c: claim_data[c]["spr_wins"]/max(claim_data[c]["total"],1),
-                          reverse=True)
-    claim_labels = [c[:30] + ("…" if len(c) > 30 else "") for c in claims_sorted]
-    spr_rates = [claim_data[c]["spr_wins"]/max(claim_data[c]["total"],1)*100 for c in claims_sorted]
-    avg_margins = [sum(claim_data[c]["margins"])/max(len(claim_data[c]["margins"]),1) for c in claims_sorted]
+    ct_sorted = sorted(type_data.keys(),
+                       key=lambda ct: type_data[ct]["spr_wins"] / max(type_data[ct]["total"], 1),
+                       reverse=True)
+    ct_rates = [type_data[ct]["spr_wins"] / max(type_data[ct]["total"], 1) * 100 for ct in ct_sorted]
+    ct_margins = [sum(type_data[ct]["margins"]) / max(len(type_data[ct]["margins"]), 1) for ct in ct_sorted]
 
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        name="Spreader win %",
-        x=claim_labels, y=spr_rates,
+    fig = go.Figure(go.Bar(
+        x=ct_sorted, y=ct_rates,
         marker_color=SPREADER_COLOR, opacity=0.85,
-        text=[f"{r:.0f}% (n={claim_data[c]['total']})" for r,c in zip(spr_rates, claims_sorted)],
-        textposition="outside", textfont=dict(size=9),
+        text=[f"{r:.0f}%<br>n={type_data[ct]['total']}<br>margin={m:+.1f}"
+              for r, ct, m in zip(ct_rates, ct_sorted, ct_margins)],
+        textposition="outside", textfont=dict(size=10),
+        hovertemplate="%{x}<br>Spreader win rate: %{y:.1f}%<extra></extra>",
     ))
     fig.update_layout(
-        yaxis=dict(title="Spreader win rate %", range=[0, 40], gridcolor="#2A2A2A"),
-        xaxis=dict(tickangle=-30, tickfont=dict(size=10)),
-        height=350, margin=dict(t=20, b=120, l=50, r=20),
+        yaxis=dict(title="Spreader win rate %", range=[0, 35], gridcolor="#2A2A2A"),
+        xaxis=dict(tickfont=dict(size=12)),
+        height=320, margin=dict(t=20, b=40, l=50, r=20),
         **_pb(),
     )
     st.plotly_chart(fig, use_container_width=True)
+
+    # Drill-down: select type to see individual claims
+    selected_type = st.selectbox(
+        "Select a claim type to see individual claims",
+        options=[""] + ct_sorted,
+        format_func=lambda x: "Choose a claim type..." if x == "" else x,
+        key="sr_claim_type_drill",
+    )
+
+    if selected_type:
+        type_claims = {c: d for c, d in claim_data.items() if d["type"] == selected_type}
+        if type_claims:
+            claims_sorted = sorted(type_claims.keys(),
+                                   key=lambda c: type_claims[c]["spr_wins"] / max(type_claims[c]["total"], 1),
+                                   reverse=True)
+            rows = []
+            for c in claims_sorted:
+                d = type_claims[c]
+                avg_m = sum(d["margins"]) / max(len(d["margins"]), 1)
+                rows.append({
+                    "Claim": c,
+                    "Episodes": d["total"],
+                    "Spreader wins": d["spr_wins"],
+                    "Spreader win %": f"{d['spr_wins'] / max(d['total'], 1) * 100:.0f}%",
+                    "Avg margin": f"{avg_m:+.1f}",
+                })
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
 
 def _render_strategies(episodes):
