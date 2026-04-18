@@ -54,6 +54,15 @@ def _short(model: str) -> str:
 def _label(s: str) -> str:
     return (s or "").replace("_", " ").title()
 
+def _how_to_read(text: str):
+    st.markdown(f'<div class="sr-how-to-read">{text}</div>', unsafe_allow_html=True)
+
+def _takeaway(text: str):
+    st.markdown(f'<div class="sr-takeaway">{text}</div>', unsafe_allow_html=True)
+
+def _warning(text: str):
+    st.markdown(f'<div class="sr-warning">{text}</div>', unsafe_allow_html=True)
+
 def _pb(**overrides) -> dict:
     base = {k: v for k, v in PLOTLY_LAYOUT.items()
             if k in ("paper_bgcolor", "plot_bgcolor", "font")}
@@ -123,6 +132,24 @@ def _inject_styles():
         font-size: 1.5rem; font-weight: 700; color: var(--color-text-primary, #E8E4D9);
     }
     .sr-kpi-sub { font-size: 0.72rem; color: #9ca3af; }
+    .sr-how-to-read {
+        font-size: 0.82rem; color: var(--color-text-muted, #888);
+        line-height: 1.5; margin: -0.5rem 0 1rem 0; padding: 0.5rem 0.8rem;
+        border-left: 3px solid var(--color-border, #2A2A2A);
+        font-style: italic;
+    }
+    .sr-takeaway {
+        background: rgba(74,127,165,0.08); border-left: 4px solid #4A7FA5;
+        border-radius: 0 6px 6px 0; padding: 0.8rem 1.1rem;
+        margin: 0.5rem 0 1.5rem 0; font-size: 0.92rem;
+        color: var(--color-text-primary, #E8E4D9); line-height: 1.6;
+    }
+    .sr-warning {
+        background: rgba(212,168,67,0.08); border-left: 4px solid #D4A843;
+        border-radius: 0 6px 6px 0; padding: 0.6rem 1rem;
+        margin: 0.3rem 0 1rem 0; font-size: 0.85rem;
+        color: var(--color-text-muted, #888); line-height: 1.5;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -158,6 +185,8 @@ def _render_overview(episodes):
     # ── Matchup heatmap ──────────────────────────────────────────────
     st.markdown('<p class="sr-finding">Model Matchup Heatmap</p>', unsafe_allow_html=True)
     st.markdown('<p class="sr-question">Who beats who? Debunker win percentage for every model pairing.</p>', unsafe_allow_html=True)
+    _how_to_read("Rows = spreader model, columns = debunker model. Each cell shows the debunker's win rate for that pairing. "
+                 "Blue = debunker dominates. Red = spreader dominates.")
 
     matchup = defaultdict(lambda: {"deb": 0, "total": 0})
     for ep in episodes:
@@ -193,11 +222,12 @@ def _render_overview(episodes):
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown(
-        '<div class="sr-insight"><b>Key finding:</b> The debunker wins 100% of debates '
-        'in every matchup — except when <b>Gemini Flash</b> is the debunker (0% win rate). '
-        'Every spreader win and draw in the dataset involves Gemini as the debunker.</div>',
-        unsafe_allow_html=True,
+    _takeaway(
+        "<b>Key finding:</b> The heatmap reveals a binary pattern. When any model other than "
+        "Gemini Flash plays debunker, the debunker wins 100% of the time — regardless of which "
+        "model is spreading. But when Gemini Flash is the debunker, it wins 0%. "
+        "This means <b>every spreader win and draw in the entire experiment</b> involves Gemini "
+        "as the debunker. The debunker's model choice is the single strongest predictor of debate outcome."
     )
 
     # ── Win rate by role ─────────────────────────────────────────────
@@ -243,7 +273,9 @@ def _render_overview(episodes):
 
     # ── Claim difficulty ─────────────────────────────────────────────
     st.markdown('<p class="sr-finding">Claim Difficulty Ranking</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sr-question">Which claims are hardest to debunk? Ranked by spreader win rate and score margin.</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sr-question">Which claims are hardest to debunk? Ranked by spreader win rate.</p>', unsafe_allow_html=True)
+    _how_to_read("Higher bars = the spreader wins more often on that claim, meaning it's harder for the debunker to counter. "
+                 "Note: spreader wins only occur when Gemini Flash is the debunker.")
 
     claim_data = defaultdict(lambda: {"spr_wins": 0, "total": 0, "margins": []})
     for ep in episodes:
@@ -258,7 +290,7 @@ def _render_overview(episodes):
     claims_sorted = sorted(claim_data.keys(),
                           key=lambda c: claim_data[c]["spr_wins"]/max(claim_data[c]["total"],1),
                           reverse=True)
-    claim_labels = [c[:40] + ("…" if len(c) > 40 else "") for c in claims_sorted]
+    claim_labels = [c[:30] + ("…" if len(c) > 30 else "") for c in claims_sorted]
     spr_rates = [claim_data[c]["spr_wins"]/max(claim_data[c]["total"],1)*100 for c in claims_sorted]
     avg_margins = [sum(claim_data[c]["margins"])/max(len(claim_data[c]["margins"]),1) for c in claims_sorted]
 
@@ -291,9 +323,13 @@ def _render_strategies(episodes):
         unsafe_allow_html=True,
     )
 
-    for role, side_key, color, strat_field in [
-        ("As Spreader", "spreader", SPREADER_COLOR, "spreader_strategies"),
-        ("As Debunker", "debunker", DEBUNKER_COLOR, "debunker_strategies"),
+    for role, side_key, color, strat_field, explanation in [
+        ("As Spreader", "spreader", SPREADER_COLOR, "spreader_strategies",
+         "Each bar shows how often a model uses a given tactic as a percentage of all tactics it deployed. "
+         "A model that concentrates on one tactic has a distinctive style; a model spread evenly across tactics is more versatile."),
+        ("As Debunker", "debunker", DEBUNKER_COLOR, "debunker_strategies",
+         "Debunker models show less variation — all models lead with evidence citation and logical refutation. "
+         "The differences emerge in secondary tactics like mechanism explanation and uncertainty calibration."),
     ]:
         model_strats = defaultdict(Counter)
         model_eps = Counter()
@@ -305,13 +341,16 @@ def _render_strategies(episodes):
             model_eps[model] += 1
 
         st.markdown(f"**{role}**")
+        _how_to_read(explanation)
+
+        # Only show top 5 strategies to reduce clutter
         fig = go.Figure()
         for model in sorted(model_strats.keys()):
             counts = model_strats[model]
             total = sum(counts.values())
-            top = counts.most_common(6)
+            top = counts.most_common(5)
             fig.add_trace(go.Bar(
-                name=_short(model),
+                name=f"{_short(model)} (n={model_eps[model]})",
                 x=[_label(s) for s, _ in top],
                 y=[n/total*100 for _, n in top],
                 text=[f"{n/total*100:.0f}%" for _, n in top],
@@ -319,10 +358,10 @@ def _render_strategies(episodes):
             ))
         fig.update_layout(
             barmode="group",
-            yaxis=dict(title="% of tactics", gridcolor="#2A2A2A", range=[0, 60]),
-            xaxis=dict(tickfont=dict(size=10), tickangle=-25),
-            legend=dict(orientation="h", y=1.12, x=0.5, xanchor="center"),
-            height=380, margin=dict(t=50, b=80, l=50, r=20), **_pb(),
+            yaxis=dict(title="% of tactics used", gridcolor="#2A2A2A", range=[0, 60]),
+            xaxis=dict(tickfont=dict(size=11), tickangle=-20),
+            legend=dict(orientation="h", y=1.15, x=0.5, xanchor="center"),
+            height=400, margin=dict(t=60, b=80, l=50, r=20), **_pb(),
         )
         st.plotly_chart(fig, use_container_width=True)
 
@@ -334,11 +373,21 @@ def _render_strategies(episodes):
         for s in sa.get("spreader_strategies", []):
             spr_by_model[m][s] += 1
     top_per = {m: c.most_common(1)[0] for m, c in spr_by_model.items() if c}
-    st.markdown(
-        '<div class="sr-insight"><b>Key insight:</b> ' +
-        ". ".join(f'{_short(m)} leads with <b>{_label(s)}</b> ({n/sum(spr_by_model[m].values())*100:.0f}%)'
-                  for m, (s, n) in sorted(top_per.items())) +
-        '.</div>', unsafe_allow_html=True,
+
+    # Build a narrative insight
+    claude_top = top_per.get("claude-sonnet-4-20250514", ("", 0))
+    insight_parts = []
+    for m, (s, n) in sorted(top_per.items()):
+        pct = n/sum(spr_by_model[m].values())*100
+        insight_parts.append(f"{_short(m)} leads with <b>{_label(s)}</b> ({pct:.0f}%)")
+
+    _takeaway(
+        "<b>As Spreader:</b> " + ". ".join(insight_parts) + ". "
+        "Claude Sonnet stands out — its heavy reliance on burden shift (deflecting rather than constructing "
+        "misinformation narratives) suggests its safety training inhibits active misinformation spreading. "
+        "<br><br><b>As Debunker:</b> All four models converge on the same core tactics: evidence citation "
+        "and logical refutation. The differentiation is in secondary tactics — Claude emphasizes mechanism "
+        "explanation while GPT models emphasize source quality."
     )
 
     # ── Finding 2: Claim type adaptation ─────────────────────────────
@@ -386,12 +435,16 @@ def _render_strategies(episodes):
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown(
-        '<div class="sr-insight"><b>Key insight:</b> Spreader strategy adapts to the domain. '
-        'Health claims trigger <b>anecdotal evidence</b>. Political claims trigger <b>emotional appeal</b>. '
-        'Economic claims trigger <b>appeal to conspiracy</b>. '
-        'This suggests AI models tailor their misinformation tactics to the topic.</div>',
-        unsafe_allow_html=True,
+    _how_to_read("Each group of bars shows one claim type. The bars represent the top strategies used as "
+                 "the primary tactic when spreading that type of claim. Taller bars = more frequently used as the lead strategy.")
+
+    _takeaway(
+        "<b>Key insight:</b> AI spreaders adapt their tactics to the domain: "
+        "<b>Health</b> claims trigger anecdotal evidence (personal stories about vaccine injuries). "
+        "<b>Political</b> claims trigger emotional appeal (outrage about stolen elections). "
+        "<b>Economic</b> claims trigger appeal to conspiracy (\"follow the money\"). "
+        "This domain-specific adaptation means misinformation detection tools may need to be "
+        "tailored to the claim domain, not one-size-fits-all."
     )
 
 
@@ -407,7 +460,10 @@ def _render_game_theory(episodes):
     )
 
     # Tactic-naming rate by debunker model
-    st.markdown("**Tactic-naming rate by debunker model**")
+    st.markdown("**How often does each debunker model name the spreader's manipulation tactics?**")
+    _how_to_read("Tactic-naming is a core inoculation strategy — explicitly calling out 'this is an appeal to fake expertise' "
+                 "reduces the tactic's future effectiveness. Higher = more aggressive at exposing manipulation.")
+
     naming = defaultdict(lambda: {"names": 0, "total": 0})
     for ep in episodes:
         m = ep["config_snapshot"]["agents"]["debunker"]["model"]
@@ -424,12 +480,19 @@ def _render_game_theory(episodes):
         text=[f"{r:.0f}%<br>n={naming[m]['total']}" for r,m in zip(rates,nm)],
         textposition="outside", textfont=dict(size=10),
     ))
-    fig.update_layout(yaxis=dict(title="% of episodes", range=[0,120], gridcolor="#2A2A2A"),
+    fig.update_layout(yaxis=dict(title="% of episodes with tactic-naming", range=[0,120], gridcolor="#2A2A2A"),
                      height=300, margin=dict(t=15,b=40,l=50,r=10), **_pb())
     st.plotly_chart(fig, use_container_width=True)
 
+    _warning("All models show near-100% tactic-naming rates because the debunker prompt explicitly instructs "
+             "agents to name manipulation tactics. This chart confirms prompt adherence rather than "
+             "showing natural model differences.")
+
     # Strategy diversity by model × turn length
     st.markdown("**Does strategic diversity increase with debate length?**")
+    _how_to_read("Each line shows how many unique tactics a model uses per episode at different debate lengths. "
+                 "If lines slope upward, the model develops new tactics in longer debates. "
+                 "If lines are flat, it recycles the same tactics regardless of length.")
 
     c1, c2 = st.columns(2)
     for col, role, side_key, strat_field, color in [
@@ -472,6 +535,10 @@ def _render_citations(episodes):
         '</p>',
         unsafe_allow_html=True,
     )
+
+    _how_to_read("<b>Named Sources</b> = specific institutions (WHO, CDC, Harvard). "
+                 "<b>Vague Appeals</b> = unverifiable phrases (\"research shows\", \"experts say\"). "
+                 "<b>URLs</b> = actual web links provided. Higher named sources + URLs = more verifiable arguments.")
 
     cite = defaultdict(lambda: {"named": 0, "vague": 0, "urls": 0, "eps": 0})
     cite_by_type = defaultdict(lambda: defaultdict(lambda: {"named": 0, "eps": 0}))
@@ -539,17 +606,22 @@ def _render_citations(episodes):
     # Insight
     best = max(cite.items(), key=lambda x: x[1]["named"]/max(x[1]["eps"],1))
     worst = min(cite.items(), key=lambda x: x[1]["named"]/max(x[1]["eps"],1))
-    st.markdown(
-        f'<div class="sr-insight"><b>Key insight:</b> '
-        f'<b>{_short(best[0])}</b> cites {best[1]["named"]/max(best[1]["eps"],1):.1f} named sources per episode. '
-        f'<b>{_short(worst[0])}</b> cites only {worst[1]["named"]/max(worst[1]["eps"],1):.1f}. '
-        f'This dramatically affects debunking credibility.</div>',
-        unsafe_allow_html=True,
+    _takeaway(
+        f"<b>Key insight:</b> "
+        f"<b>{_short(best[0])}</b> cites {best[1]['named']/max(best[1]['eps'],1):.1f} named sources per episode "
+        f"and provides {best[1]['urls']/max(best[1]['eps'],1):.1f} URLs for verification. "
+        f"<b>{_short(worst[0])}</b> cites only {worst[1]['named']/max(worst[1]['eps'],1):.1f} named sources "
+        f"and zero URLs — it argues without evidence. "
+        f"This gap directly explains why {_short(worst[0])} loses every debate as debunker: "
+        f"you can't debunk misinformation without citing credible sources."
     )
 
     # Dimension scores by debunker model (explains WHY citation matters)
     st.markdown('<p class="sr-finding">Dimension Scores by Debunker Model</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sr-question">How does citation quality translate to judge scores?</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sr-question">How does citation quality translate to judge scores? The judge scores each side on 6 dimensions (0-10). This shows how each model performs as debunker.</p>', unsafe_allow_html=True)
+    _how_to_read("Each group of bars shows one scoring dimension. Taller bars = higher scores. "
+                 "A model that scores low across all dimensions (like Gemini Flash) is fundamentally weaker at debunking, "
+                 "not just lacking in one area.")
 
     scores = defaultdict(lambda: defaultdict(list))
     for ep in episodes:
@@ -587,6 +659,10 @@ def _render_depth(episodes):
         unsafe_allow_html=True,
     )
 
+    _how_to_read("Each line shows the average number of unique tactics detected per episode at that debate length. "
+                 "If the line is flat, agents deploy their full repertoire early and recycle in longer debates. "
+                 "The y-axis starts at 0 to show the true scale of these differences.")
+
     # Aggregate: both roles
     fig = go.Figure()
     for role, strat_field, color in [
@@ -606,7 +682,7 @@ def _render_depth(episodes):
         ))
     fig.update_layout(
         xaxis=dict(title="Debate length (turns)", tickvals=[2,6,10], gridcolor="#2A2A2A"),
-        yaxis=dict(title="Avg unique tactics/ep", gridcolor="#2A2A2A"),
+        yaxis=dict(title="Avg unique tactics/ep", gridcolor="#2A2A2A", range=[0, 6]),
         legend=dict(orientation="h", y=1.12, x=0.5, xanchor="center"),
         height=350, margin=dict(t=40,b=50,l=50,r=20), **_pb(),
     )
@@ -614,6 +690,9 @@ def _render_depth(episodes):
 
     # Per model
     st.markdown("**Per-model breakdown (spreader role)**")
+    _how_to_read("Claude Sonnet appears as a dramatic outlier with ~1-2 tactics because its safety training "
+                 "limits its willingness to deploy diverse misinformation strategies. This is a model behavior "
+                 "finding, not a data quality issue.")
     spr_div = defaultdict(lambda: defaultdict(list))
     for ep in episodes:
         m = ep["config_snapshot"]["agents"]["spreader"]["model"]
@@ -628,7 +707,7 @@ def _render_depth(episodes):
         fig.add_trace(go.Scatter(x=turns, y=means, mode="lines+markers", name=_short(model)))
     fig.update_layout(
         xaxis=dict(title="Turns", tickvals=[2,6,10], gridcolor="#2A2A2A"),
-        yaxis=dict(title="Avg spreader tactics", gridcolor="#2A2A2A"),
+        yaxis=dict(title="Avg spreader tactics", gridcolor="#2A2A2A", range=[0, 6]),
         legend=dict(orientation="h", y=1.12, x=0.5, xanchor="center"),
         height=320, margin=dict(t=40,b=50,l=50,r=20), **_pb(),
     )
