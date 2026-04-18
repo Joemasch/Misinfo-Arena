@@ -484,80 +484,165 @@ def _render_strategies(episodes):
 
 
 def _render_game_theory(episodes):
-    """Game Theory tab: adaptation signals."""
-    st.markdown('<p class="sr-finding">Finding 3: Strategic Adaptation</p>', unsafe_allow_html=True)
+    """Game Theory tab: how do agents influence each other?"""
+    st.markdown('<p class="sr-finding">Finding 3: Strategic Interaction</p>', unsafe_allow_html=True)
     st.markdown(
         '<p class="sr-question">'
-        'How do the agents influence each other? Does the debunker\'s tactic-naming '
-        'cause the spreader to shift, and which model is best at disrupting the opponent?'
+        'Does a spreader change its tactics based on who it\'s debating? '
+        'Does the debunker adapt to different spreader styles? '
+        'How does one player\'s behavior influence the other?'
         '</p>',
         unsafe_allow_html=True,
     )
 
-    # Tactic-naming rate by debunker model
-    st.markdown("**How often does each debunker model name the spreader's manipulation tactics?**")
-    _how_to_read("Tactic-naming is a core inoculation strategy — explicitly calling out 'this is an appeal to fake expertise' "
-                 "reduces the tactic's future effectiveness. Higher = more aggressive at exposing manipulation.")
+    # ── Chart 1: Spreader primary strategy by opponent ───────────────
+    st.markdown("**Does the spreader change tactics based on the debunker?**")
+    _how_to_read("Each group shows one spreader model. The bars show how often it uses its "
+                 "primary strategy against each debunker opponent. If bars are the same height "
+                 "across opponents, the spreader doesn't adapt.")
 
-    naming = defaultdict(lambda: {"names": 0, "total": 0})
+    spr_vs_deb = defaultdict(lambda: defaultdict(Counter))
     for ep in episodes:
-        m = ep["config_snapshot"]["agents"]["debunker"]["model"]
+        spr_m = ep["config_snapshot"]["agents"]["spreader"]["model"]
+        deb_m = ep["config_snapshot"]["agents"]["debunker"]["model"]
         sa = ep.get("strategy_analysis") or {}
-        naming[m]["total"] += 1
-        if any(s in sa.get("debunker_strategies", []) for s in ["logical_refutation", "contradiction_exposure"]):
-            naming[m]["names"] += 1
+        primary = sa.get("spreader_primary", "")
+        if primary:
+            spr_vs_deb[spr_m][deb_m][primary] += 1
 
-    nm = sorted(naming.keys())
-    rates = [naming[m]["names"]/max(naming[m]["total"],1)*100 for m in nm]
-    fig = go.Figure(go.Bar(
-        x=[_short(m) for m in nm], y=rates,
-        marker_color=DEBUNKER_COLOR,
-        text=[f"{r:.0f}%<br>n={naming[m]['total']}" for r,m in zip(rates,nm)],
-        textposition="outside", textfont=dict(size=10),
-    ))
-    fig.update_layout(yaxis=dict(title="% of episodes with tactic-naming", range=[0,120], gridcolor="#2A2A2A"),
-                     height=300, margin=dict(t=15,b=40,l=50,r=10), **_pb())
+    spr_models = sorted(spr_vs_deb.keys())
+    deb_models = sorted(set(d for s in spr_vs_deb.values() for d in s.keys()))
+
+    fig = go.Figure()
+    colors = [DEBUNKER_COLOR, ACCENT_GREEN, ACCENT_RED, SPREADER_COLOR]
+    for i, deb in enumerate(deb_models):
+        vals = []
+        texts = []
+        for spr in spr_models:
+            counts = spr_vs_deb[spr].get(deb, Counter())
+            total = sum(counts.values())
+            if total > 0:
+                top_strat, top_n = counts.most_common(1)[0]
+                pct = top_n / total * 100
+                vals.append(pct)
+                texts.append(f"{_label(top_strat)}<br>{pct:.0f}% (n={total})")
+            else:
+                vals.append(0)
+                texts.append("—")
+        fig.add_trace(go.Bar(
+            name=f"vs {_short(deb)}",
+            x=[_short(m) for m in spr_models], y=vals,
+            marker_color=colors[i % len(colors)],
+            text=texts, textposition="outside", textfont=dict(size=8),
+        ))
+    fig.update_layout(
+        barmode="group",
+        yaxis=dict(title="Primary strategy consistency %", range=[0, 110], gridcolor="#2A2A2A"),
+        xaxis=dict(title="Spreader Model", tickfont=dict(size=11)),
+        legend=dict(orientation="h", y=1.15, x=0.5, xanchor="center"),
+        height=400, margin=dict(t=60, b=50, l=50, r=20), **_pb(),
+    )
     st.plotly_chart(fig, use_container_width=True)
 
-    _warning("All models show near-100% tactic-naming rates because the debunker prompt explicitly instructs "
-             "agents to name manipulation tactics. This chart confirms prompt adherence rather than "
-             "showing natural model differences.")
+    _takeaway(
+        "<b>Key finding:</b> Spreaders do NOT change their primary tactic based on the opponent. "
+        "Claude uses burden shift ~77% regardless of debunker. GPT-4o-mini uses anecdotal evidence "
+        "~60% regardless. The spreader's playbook is fixed by its training, not adapted to the opponent."
+    )
 
-    # Strategy diversity by model × turn length
-    st.markdown("**Does strategic diversity increase with debate length?**")
-    _how_to_read("Each line shows how many unique tactics a model uses per episode at different debate lengths. "
-                 "If lines slope upward, the model develops new tactics in longer debates. "
-                 "If lines are flat, it recycles the same tactics regardless of length.")
+    # ── Chart 2: Strategy intensity by opponent ──────────────────────
+    st.markdown("**Does the spreader deploy MORE tactics against weaker opponents?**")
+    _how_to_read("Each group shows one spreader model. Bars show the average number of unique "
+                 "tactics used per episode when facing each debunker. Taller bars = broader arsenal deployed.")
 
-    c1, c2 = st.columns(2)
-    for col, role, side_key, strat_field, color in [
-        (c1, "Spreader", "spreader", "spreader_strategies", SPREADER_COLOR),
-        (c2, "Debunker", "debunker", "debunker_strategies", DEBUNKER_COLOR),
-    ]:
-        with col:
-            st.markdown(f"**{role} tactics**")
-            div = defaultdict(lambda: defaultdict(list))
-            for ep in episodes:
-                m = ep["config_snapshot"]["agents"][side_key]["model"]
-                t = ep["results"]["completed_turn_pairs"]
-                sa = ep.get("strategy_analysis") or {}
-                div[m][t].append(len(sa.get(strat_field, [])))
+    spr_div = defaultdict(lambda: defaultdict(list))
+    for ep in episodes:
+        spr_m = ep["config_snapshot"]["agents"]["spreader"]["model"]
+        deb_m = ep["config_snapshot"]["agents"]["debunker"]["model"]
+        sa = ep.get("strategy_analysis") or {}
+        n = len(sa.get("spreader_strategies", []))
+        spr_div[spr_m][deb_m].append(n)
 
-            fig = go.Figure()
-            for model in sorted(div.keys()):
-                turns = sorted(div[model].keys())
-                means = [sum(div[model][t])/len(div[model][t]) for t in turns]
-                fig.add_trace(go.Scatter(
-                    x=turns, y=means, mode="lines+markers", name=_short(model),
-                    hovertemplate=f"{_short(model)}<br>%{{x}}t: %{{y:.1f}}<extra></extra>",
-                ))
-            fig.update_layout(
-                xaxis=dict(title="Turns", tickvals=[2,6,10], gridcolor="#2A2A2A"),
-                yaxis=dict(title="Avg tactics/ep", gridcolor="#2A2A2A"),
-                legend=dict(orientation="h", y=1.15, x=0.5, xanchor="center", font=dict(size=10)),
-                height=320, margin=dict(t=40,b=50,l=50,r=10), **_pb(),
-            )
-            st.plotly_chart(fig, use_container_width=True)
+    fig = go.Figure()
+    for i, deb in enumerate(deb_models):
+        vals = []
+        texts = []
+        for spr in spr_models:
+            v_list = spr_div[spr].get(deb, [])
+            if v_list:
+                avg = sum(v_list) / len(v_list)
+                vals.append(avg)
+                texts.append(f"{avg:.1f}<br>n={len(v_list)}")
+            else:
+                vals.append(0)
+                texts.append("—")
+        fig.add_trace(go.Bar(
+            name=f"vs {_short(deb)}",
+            x=[_short(m) for m in spr_models], y=vals,
+            marker_color=colors[i % len(colors)],
+            text=texts, textposition="outside", textfont=dict(size=9),
+        ))
+    fig.update_layout(
+        barmode="group",
+        yaxis=dict(title="Avg tactics per episode", range=[0, 7], gridcolor="#2A2A2A"),
+        xaxis=dict(title="Spreader Model", tickfont=dict(size=11)),
+        legend=dict(orientation="h", y=1.15, x=0.5, xanchor="center"),
+        height=400, margin=dict(t=60, b=50, l=50, r=20), **_pb(),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    _takeaway(
+        "<b>Key finding:</b> Spreaders deploy a <b>broader arsenal against Gemini Flash</b> — "
+        "approximately 4.7-4.9 tactics per episode compared to ~3.9-4.0 against other debunkers. "
+        "When the debunker doesn't effectively counter tactics, the spreader has no pressure to narrow "
+        "its approach. Against stronger debunkers, the spreader focuses on fewer, more concentrated tactics. "
+        "This is <b>strategic intensity</b> rather than strategic switching — agents don't change WHAT they do, "
+        "but they change HOW MUCH they do based on the opposition's strength."
+    )
+
+    # ── Chart 3: Debunker consistency ────────────────────────────────
+    st.markdown("**Does the debunker adapt to different spreader styles?**")
+    _how_to_read("Each group shows one debunker model. Bars show how often it uses evidence citation "
+                 "as its primary strategy against each spreader. High consistency = rigid approach.")
+
+    deb_vs_spr = defaultdict(lambda: defaultdict(Counter))
+    for ep in episodes:
+        spr_m = ep["config_snapshot"]["agents"]["spreader"]["model"]
+        deb_m = ep["config_snapshot"]["agents"]["debunker"]["model"]
+        sa = ep.get("strategy_analysis") or {}
+        primary = sa.get("debunker_primary", "")
+        if primary:
+            deb_vs_spr[deb_m][spr_m][primary] += 1
+
+    fig = go.Figure()
+    for i, spr in enumerate(spr_models):
+        vals = []
+        for deb in deb_models:
+            counts = deb_vs_spr[deb].get(spr, Counter())
+            total = sum(counts.values())
+            ec_count = counts.get("evidence_citation", 0)
+            vals.append(ec_count / max(total, 1) * 100)
+        fig.add_trace(go.Bar(
+            name=f"vs {_short(spr)}",
+            x=[_short(m) for m in deb_models], y=vals,
+            marker_color=colors[i % len(colors)],
+            text=[f"{v:.0f}%" for v in vals], textposition="outside", textfont=dict(size=9),
+        ))
+    fig.update_layout(
+        barmode="group",
+        yaxis=dict(title="Evidence citation as primary %", range=[0, 120], gridcolor="#2A2A2A"),
+        xaxis=dict(title="Debunker Model", tickfont=dict(size=11)),
+        legend=dict(orientation="h", y=1.15, x=0.5, xanchor="center"),
+        height=380, margin=dict(t=60, b=50, l=50, r=20), **_pb(),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    _takeaway(
+        "<b>Key finding:</b> Debunkers are even more rigid than spreaders. GPT-4o and GPT-4o-mini "
+        "use evidence citation 94-100% of the time regardless of opponent. "
+        "Gemini Flash shows the most variation (64-82%) — ironically the weakest debunker is "
+        "the most adaptive one, but its adaptation doesn't help it win."
+    )
 
 
 def _render_citations(episodes):
