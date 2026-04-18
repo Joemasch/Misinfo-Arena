@@ -208,6 +208,108 @@ def render_study_results_page():
     )
 
     # ==================================================================
+    # MODEL EFFECTIVENESS OVERVIEW
+    # ==================================================================
+    st.markdown('<p class="sr-finding">Model Effectiveness Overview</p>', unsafe_allow_html=True)
+    st.markdown(
+        '<p class="sr-question">'
+        'Before examining strategies, how does each model perform in each role? '
+        'This context is essential for interpreting the strategy findings that follow.'
+        '</p>',
+        unsafe_allow_html=True,
+    )
+
+    # Win rate by debunker model
+    deb_wr = defaultdict(lambda: {"wins": 0, "total": 0})
+    spr_wr = defaultdict(lambda: {"wins": 0, "total": 0})
+    for ep in episodes:
+        deb_m = ep["config_snapshot"]["agents"]["debunker"]["model"]
+        spr_m = ep["config_snapshot"]["agents"]["spreader"]["model"]
+        deb_wr[deb_m]["total"] += 1
+        spr_wr[spr_m]["total"] += 1
+        if ep["results"]["winner"] == "debunker":
+            deb_wr[deb_m]["wins"] += 1
+        elif ep["results"]["winner"] == "spreader":
+            spr_wr[spr_m]["wins"] += 1
+
+    col_deb, col_spr = st.columns(2)
+
+    with col_deb:
+        st.markdown("**Debunker win rate by model**")
+        deb_models = sorted(deb_wr.keys())
+        deb_rates = [deb_wr[m]["wins"] / max(deb_wr[m]["total"], 1) * 100 for m in deb_models]
+        fig = go.Figure(go.Bar(
+            x=[_short(m) for m in deb_models],
+            y=deb_rates,
+            marker_color=[ACCENT_GREEN if r == 100 else DEBUNKER_COLOR if r > 50 else ACCENT_RED for r in deb_rates],
+            text=[f"{r:.0f}%<br>(n={deb_wr[m]['total']})" for r, m in zip(deb_rates, deb_models)],
+            textposition="outside",
+            textfont=dict(size=10),
+        ))
+        fig.update_layout(
+            yaxis=dict(title="Win rate %", range=[0, 120], gridcolor="#2A2A2A"),
+            height=300, margin=dict(t=20, b=40, l=50, r=10),
+            **_plotly_base(),
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col_spr:
+        st.markdown("**Spreader win rate by model**")
+        spr_models = sorted(spr_wr.keys())
+        spr_rates = [spr_wr[m]["wins"] / max(spr_wr[m]["total"], 1) * 100 for m in spr_models]
+        fig = go.Figure(go.Bar(
+            x=[_short(m) for m in spr_models],
+            y=spr_rates,
+            marker_color=SPREADER_COLOR,
+            text=[f"{r:.0f}%<br>(n={spr_wr[m]['total']})" for r, m in zip(spr_rates, spr_models)],
+            textposition="outside",
+            textfont=dict(size=10),
+        ))
+        fig.update_layout(
+            yaxis=dict(title="Win rate %", range=[0, 40], gridcolor="#2A2A2A"),
+            height=300, margin=dict(t=20, b=40, l=50, r=10),
+            **_plotly_base(),
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    # Spreader win rate by claim type
+    st.markdown("**Spreader win rate by claim type**")
+    spr_by_type = defaultdict(lambda: {"wins": 0, "total": 0})
+    for ep in episodes:
+        ct = ep.get("claim_type", "?")
+        spr_by_type[ct]["total"] += 1
+        if ep["results"]["winner"] == "spreader":
+            spr_by_type[ct]["wins"] += 1
+
+    ct_names = sorted(spr_by_type.keys())
+    ct_rates = [spr_by_type[ct]["wins"] / max(spr_by_type[ct]["total"], 1) * 100 for ct in ct_names]
+    fig = go.Figure(go.Bar(
+        x=ct_names,
+        y=ct_rates,
+        marker_color=SPREADER_COLOR,
+        text=[f"{r:.0f}%<br>(n={spr_by_type[ct]['total']})" for r, ct in zip(ct_rates, ct_names)],
+        textposition="outside",
+        textfont=dict(size=10),
+    ))
+    fig.update_layout(
+        yaxis=dict(title="Spreader win rate %", range=[0, 35], gridcolor="#2A2A2A"),
+        height=300, margin=dict(t=20, b=40, l=50, r=10),
+        **_plotly_base(),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Key insight
+    zero_wr_models = [_short(m) for m in deb_models if deb_wr[m]["wins"] / max(deb_wr[m]["total"], 1) == 0]
+    perfect_wr_models = [_short(m) for m in deb_models if deb_wr[m]["wins"] / max(deb_wr[m]["total"], 1) == 1]
+    insight_parts = []
+    if perfect_wr_models:
+        insight_parts.append(f'<b>{", ".join(perfect_wr_models)}</b> won 100% of debates as debunker')
+    if zero_wr_models:
+        insight_parts.append(f'<b>{", ".join(zero_wr_models)}</b> won 0% — every spreader win involves this model as debunker')
+    if insight_parts:
+        st.markdown(f'<div class="sr-insight"><b>Key insight:</b> {". ".join(insight_parts)}.</div>', unsafe_allow_html=True)
+
+    # ==================================================================
     # FINDING 1: MODEL STRATEGY FINGERPRINTS
     # ==================================================================
     st.markdown('<p class="sr-finding">Finding 1: Model Strategy Fingerprints</p>', unsafe_allow_html=True)
