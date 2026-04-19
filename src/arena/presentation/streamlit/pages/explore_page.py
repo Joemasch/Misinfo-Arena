@@ -182,14 +182,14 @@ def _render_verdict(ep):
     planned = config.get("planned_max_turns")
     turns_str = f"{turns_completed}/{planned}" if turns_completed and planned else "—"
 
-    # Top drivers
+    # Top drivers — verdict_card_html expects list of (metric, direction) tuples
     top_drivers = []
     if scorecard:
         sorted_sc = sorted(scorecard, key=lambda s: abs(s.get("debunker", 0) - s.get("spreader", 0)), reverse=True)
         for s in sorted_sc[:3]:
             delta = s.get("debunker", 0) - s.get("spreader", 0)
             direction = "benefits fact-checker" if delta > 0 else "benefits spreader"
-            top_drivers.append(f"{_label(s.get('metric', ''))} ({direction})")
+            top_drivers.append((_label(s.get("metric", "")), direction))
 
     card_html = verdict_card_html(
         winner=winner.title(),
