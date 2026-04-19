@@ -345,6 +345,64 @@ def _render_overview(episodes):
                 })
             st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
+    # ── Episode Explorer ─────────────────────────────────────────────
+    st.markdown('<p class="sr-finding">Episode Explorer</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sr-question">Drill into the episodes behind any finding. Filter by winner, model, claim type, or turn length to understand what drove the results.</p>', unsafe_allow_html=True)
+
+    # Filters
+    fc1, fc2, fc3, fc4 = st.columns(4)
+    with fc1:
+        winner_filter = st.selectbox("Winner", ["All", "Spreader", "Debunker", "Draw"], key="sr_exp_winner")
+    with fc2:
+        spr_models = sorted(set(ep["config_snapshot"]["agents"]["spreader"]["model"] for ep in episodes))
+        spr_filter = st.selectbox("Spreader model", ["All"] + [_short(m) for m in spr_models], key="sr_exp_spr")
+    with fc3:
+        deb_models_list = sorted(set(ep["config_snapshot"]["agents"]["debunker"]["model"] for ep in episodes))
+        deb_filter = st.selectbox("Debunker model", ["All"] + [_short(m) for m in deb_models_list], key="sr_exp_deb")
+    with fc4:
+        turn_filter = st.selectbox("Turn length", ["All", "2", "6", "10"], key="sr_exp_turns")
+
+    # Apply filters
+    filtered = episodes
+    if winner_filter != "All":
+        filtered = [e for e in filtered if e["results"]["winner"] == winner_filter.lower()]
+    if spr_filter != "All":
+        filtered = [e for e in filtered
+                    if _short(e["config_snapshot"]["agents"]["spreader"]["model"]) == spr_filter]
+    if deb_filter != "All":
+        filtered = [e for e in filtered
+                    if _short(e["config_snapshot"]["agents"]["debunker"]["model"]) == deb_filter]
+    if turn_filter != "All":
+        filtered = [e for e in filtered
+                    if e["results"]["completed_turn_pairs"] == int(turn_filter)]
+
+    st.markdown(f"**{len(filtered)}** episodes match your filters.")
+
+    if filtered:
+        explorer_rows = []
+        for ep in filtered:
+            sa = ep.get("strategy_analysis") or {}
+            t = ep["results"].get("totals", {})
+            margin = (t.get("debunker", 0) or 0) - (t.get("spreader", 0) or 0)
+            explorer_rows.append({
+                "Claim": (ep.get("claim", "")[:35] + "…") if len(ep.get("claim", "")) > 35 else ep.get("claim", ""),
+                "Type": ep.get("claim_type", ""),
+                "Spreader": _short(ep["config_snapshot"]["agents"]["spreader"]["model"]),
+                "Debunker": _short(ep["config_snapshot"]["agents"]["debunker"]["model"]),
+                "Turns": ep["results"]["completed_turn_pairs"],
+                "Winner": ep["results"]["winner"].title(),
+                "Margin": f"{margin:+.1f}",
+                "Spr primary": _label(sa.get("spreader_primary", "")),
+                "Deb primary": _label(sa.get("debunker_primary", "")),
+                "Spr tactics": len(sa.get("spreader_strategies", [])),
+                "Deb tactics": len(sa.get("debunker_strategies", [])),
+                "Run ID": ep.get("run_id", ""),
+            })
+
+        explorer_df = pd.DataFrame(explorer_rows)
+        st.dataframe(explorer_df, use_container_width=True, hide_index=True, height=400)
+        st.caption("Find a specific episode's Run ID above, then go to Replay to view the full transcript.")
+
 
 def _render_strategies(episodes):
     """Strategies tab: fingerprints + claim type adaptation."""
