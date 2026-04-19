@@ -103,7 +103,7 @@ from arena.state import initialize_session_state, is_concession
 # Page module imports
 from arena.presentation.streamlit.pages.explore_page import render_explore_page
 from arena.presentation.streamlit.pages.study_results_page import render_study_results_page
-from arena.presentation.streamlit.pages.replay_page import render_episode_replay_page
+# replay_page import removed — merged into explore_page
 from arena.presentation.streamlit.pages.guide_page import render_guide_page
 from arena.presentation.streamlit.pages.tools_page import render_tools_page
 from arena.presentation.streamlit.pages.arena_page import render_arena_page
@@ -961,10 +961,9 @@ def main():
             "Debates cannot run without a valid API key."
         )
 
-    # Navigation tabs (6 tabs — organized by research workflow)
-    tab_home, tab_arena, tab_studies, tab_explore, tab_replay, tab_tools = st.tabs([
-        "Home", "Arena", "Study Results", "Explore",
-        "Replay", "Tools",
+    # Navigation tabs (5 tabs — organized by research workflow)
+    tab_home, tab_arena, tab_studies, tab_explore, tab_tools = st.tabs([
+        "Home", "Arena", "Study Results", "Explore", "Tools",
     ])
 
     with tab_home:
@@ -978,9 +977,6 @@ def main():
 
     with tab_explore:
         render_explore_page()
-
-    with tab_replay:
-        render_episode_replay_page()
 
     with tab_tools:
         render_tools_page()
@@ -1358,7 +1354,7 @@ def run_judge_evaluation():
     Run judge evaluation after debate completion.
     """
     # Debug instrumentation
-    log_event("run_judge_evaluation:enter", {
+    ("run_judge_evaluation:enter", {
         "episode_idx": st.session_state.get("episode_idx", 1),
         "turns_count": len(st.session_state.get("turns", [])),
         "transcript_len": len(st.session_state.get("episode_transcript", [])),
