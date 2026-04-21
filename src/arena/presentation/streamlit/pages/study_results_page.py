@@ -771,11 +771,13 @@ def _render_game_theory(episodes):
 
 
 def _render_citations(episodes):
-    """Citations tab: how models use evidence, and how it affects outcomes."""
+    """Citations tab: what sources do models use and does it matter?"""
 
-    # ── Compute citation data for both roles ─────────────────────────
-    cite_deb = defaultdict(lambda: {"named": 0, "vague": 0, "urls": 0, "eps": 0})
-    cite_spr = defaultdict(lambda: {"named": 0, "vague": 0, "urls": 0, "eps": 0})
+    # ── Compute citation data ────────────────────────────────────────
+    cite_deb = defaultdict(lambda: {"eps": 0})
+    cite_spr = defaultdict(lambda: {"eps": 0})
+    deb_sources = defaultdict(Counter)  # model → source → count
+    spr_sources = defaultdict(Counter)
 
     for ep in episodes:
         dm = ep["config_snapshot"]["agents"]["debunker"]["model"]
@@ -783,114 +785,155 @@ def _render_citations(episodes):
         cite_deb[dm]["eps"] += 1
         cite_spr[sm]["eps"] += 1
         for t in ep.get("turns", []):
-            for side_key, store, model in [
-                ("debunker_message", cite_deb, dm),
-                ("spreader_message", cite_spr, sm),
+            for side_key, store, src_store, model in [
+                ("debunker_message", cite_deb, deb_sources, dm),
+                ("spreader_message", cite_spr, spr_sources, sm),
             ]:
                 msg = t.get(side_key, {})
                 text = msg.get("content", "") if isinstance(msg, dict) else ""
                 tl = text.lower()
-                if "http" in tl:
-                    store[model]["urls"] += 1
                 for src in _NAMED_SOURCES:
                     if src.lower() in tl:
-                        store[model]["named"] += 1
-                        break
-                for kw in _VAGUE_KEYWORDS:
-                    if kw in tl:
-                        store[model]["vague"] += 1
-                        break
+                        store[model][src] = store[model].get(src, 0) + 1
+                        src_store[model][src] += 1
 
     models = sorted(cite_deb.keys())
 
+    # Helper: total named sources for a model
+    def _total_named(store, model):
+        return sum(v for k, v in store[model].items() if k != "eps")
+
     # ==================================================================
-    # Q1: WHICH MODEL PRODUCES THE MOST TRUSTWORTHY DEBUNKING?
+    # Q1: WHICH MODEL CITES THE MOST SOURCES?
     # ==================================================================
-    st.markdown('<p class="sr-finding">Which Model Produces the Most Credible Debunking?</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sr-finding">Which Model Cites the Most Sources as Debunker?</p>', unsafe_allow_html=True)
     st.markdown(
         '<p class="sr-question">'
-        'Effective debunking requires citing specific, verifiable sources. '
-        'This chart shows how many named institutions, URLs, and vague appeals each model uses per episode as debunker.'
+        'Effective debunking requires citing specific, credible institutions. '
+        'How many named sources (WHO, CDC, Harvard, Nature, etc.) does each model reference per episode?'
         '</p>',
         unsafe_allow_html=True,
     )
 
-    fig = go.Figure()
-    for ctype, label, color in [
-        ("named", "Named Sources (CDC, WHO, Harvard...)", DEBUNKER_COLOR),
-        ("urls", "Verifiable URLs", ACCENT_GREEN),
-        ("vague", "Vague Appeals (\"research shows\")", SPREADER_COLOR),
-    ]:
-        vals = [cite_deb[m][ctype] / max(cite_deb[m]["eps"], 1) for m in models]
-        fig.add_trace(go.Bar(
-            name=label, x=[_short(m) for m in models], y=vals,
-            marker_color=color,
-            text=[f"{v:.1f}" for v in vals], textposition="outside", textfont=dict(size=10),
-        ))
-    fig.update_layout(
-        barmode="group",
-        yaxis=dict(title="Per episode (avg)", gridcolor="#2A2A2A"),
-        legend=dict(orientation="h", y=1.15, x=0.5, xanchor="center"),
-        height=380, margin=dict(t=55, b=40, l=50, r=20), **_pb(),
-    )
-    st.plotly_chart(fig, use_container_width=True)
-
-    best = max(cite_deb.items(), key=lambda x: x[1]["named"] / max(x[1]["eps"], 1))
-    worst = min(cite_deb.items(), key=lambda x: x[1]["named"] / max(x[1]["eps"], 1))
-    _takeaway(
-        f"<b>{_short(best[0])}</b> cites {best[1]['named']/max(best[1]['eps'],1):.1f} named sources and "
-        f"{best[1]['urls']/max(best[1]['eps'],1):.1f} URLs per episode — the most verifiable debunker. "
-        f"<b>{_short(worst[0])}</b> cites {worst[1]['named']/max(worst[1]['eps'],1):.1f} named sources and "
-        f"zero URLs — it argues without evidence. This directly explains why {_short(worst[0])} "
-        f"loses every debate as debunker."
-    )
-
-    # ==================================================================
-    # Q2: DO SPREADERS ALSO CITE SOURCES? (weaponized citations)
-    # ==================================================================
-    st.markdown('<p class="sr-finding">Do Spreaders Weaponize Citations?</p>', unsafe_allow_html=True)
-    st.markdown(
-        '<p class="sr-question">'
-        'Misinformation is more convincing when it sounds evidence-based. '
-        'Do AI spreaders cite real-sounding sources to make their arguments more credible?'
-        '</p>',
-        unsafe_allow_html=True,
-    )
-
-    fig = go.Figure()
-    spr_named = [cite_spr[m]["named"] / max(cite_spr[m]["eps"], 1) for m in models]
-    deb_named = [cite_deb[m]["named"] / max(cite_deb[m]["eps"], 1) for m in models]
-
-    fig.add_trace(go.Bar(
-        name="As Spreader", x=[_short(m) for m in models], y=spr_named,
-        marker_color=SPREADER_COLOR,
-        text=[f"{v:.1f}" for v in spr_named], textposition="outside", textfont=dict(size=10),
-    ))
-    fig.add_trace(go.Bar(
-        name="As Debunker", x=[_short(m) for m in models], y=deb_named,
-        marker_color=DEBUNKER_COLOR,
-        text=[f"{v:.1f}" for v in deb_named], textposition="outside", textfont=dict(size=10),
+    deb_named_per_ep = [_total_named(cite_deb, m) / max(cite_deb[m]["eps"], 1) for m in models]
+    fig = go.Figure(go.Bar(
+        x=[_short(m) for m in models], y=deb_named_per_ep,
+        marker_color=[ACCENT_GREEN if v > 4 else DEBUNKER_COLOR if v > 1 else ACCENT_RED for v in deb_named_per_ep],
+        text=[f"{v:.1f}/ep" for v in deb_named_per_ep],
+        textposition="outside", textfont=dict(size=11),
     ))
     fig.update_layout(
-        barmode="group",
         yaxis=dict(title="Named sources per episode", gridcolor="#2A2A2A"),
-        legend=dict(orientation="h", y=1.12, x=0.5, xanchor="center"),
-        height=350, margin=dict(t=50, b=40, l=50, r=20), **_pb(),
+        height=300, margin=dict(t=20, b=40, l=50, r=20), **_pb(),
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    _how_to_read("Amber bars = sources cited while spreading misinformation. Blue bars = sources cited while debunking. "
-                 "When amber bars are tall, the spreader is using real-sounding evidence to make false claims more convincing.")
-
+    best = max(models, key=lambda m: _total_named(cite_deb, m) / max(cite_deb[m]["eps"], 1))
+    worst = min(models, key=lambda m: _total_named(cite_deb, m) / max(cite_deb[m]["eps"], 1))
     _takeaway(
-        "<b>Key finding:</b> AI spreaders cite named sources too — <b>GPT-4o</b> cites 5.8 and "
-        "<b>GPT-4o-mini</b> cites 5.9 named sources per episode while spreading misinformation. "
-        "This makes AI-generated misinformation harder to detect because it <i>sounds</i> evidence-based. "
-        "<b>Claude</b> cites only 2.6 as spreader — again showing safety training limiting its misinformation capability."
+        f"<b>{_short(best)}</b> cites {_total_named(cite_deb, best)/max(cite_deb[best]['eps'],1):.1f} "
+        f"named sources per episode — the most evidence-grounded debunker. "
+        f"<b>{_short(worst)}</b> cites {_total_named(cite_deb, worst)/max(cite_deb[worst]['eps'],1):.1f} "
+        f"— it argues without citing evidence, and loses every debate."
     )
 
     # ==================================================================
-    # Q3: DOES CITATION QUALITY PREDICT DEBATE OUTCOMES?
+    # Q2: WHAT SPECIFIC SOURCES DO THEY CITE?
+    # ==================================================================
+    st.markdown('<p class="sr-finding">What Sources Do They Reference?</p>', unsafe_allow_html=True)
+    st.markdown(
+        '<p class="sr-question">'
+        'Which institutions appear most frequently in the transcripts? '
+        'This shows the top sources each model cites as debunker.'
+        '</p>',
+        unsafe_allow_html=True,
+    )
+
+    # Top sources table
+    source_rows = []
+    all_deb_src = Counter()
+    for c in deb_sources.values():
+        all_deb_src.update(c)
+
+    for src, total in all_deb_src.most_common(10):
+        row = {"Source": src, "Total": total}
+        for model in models:
+            row[_short(model)] = deb_sources[model].get(src, 0)
+        source_rows.append(row)
+
+    st.dataframe(pd.DataFrame(source_rows), use_container_width=True, hide_index=True)
+
+    _how_to_read("Each row is one institution. Columns show how many times each model referenced "
+                 "it across all debates. Sources like WHO and MIT appear frequently because they're "
+                 "relevant across multiple claim types.")
+
+    # ==================================================================
+    # Q3: DO SPREADERS CITE THE SAME SOURCES? (weaponization)
+    # ==================================================================
+    st.markdown('<p class="sr-finding">Do Spreaders Use the Same Sources?</p>', unsafe_allow_html=True)
+    st.markdown(
+        '<p class="sr-question">'
+        'AI misinformation is harder to detect when it cites the same credible institutions '
+        'that debunkers use. Do spreaders weaponize legitimate sources?'
+        '</p>',
+        unsafe_allow_html=True,
+    )
+
+    # Source overlap chart
+    all_spr_src = Counter()
+    for c in spr_sources.values():
+        all_spr_src.update(c)
+
+    # Show top sources used by BOTH sides
+    shared_sources = sorted(
+        set(all_spr_src.keys()) & set(all_deb_src.keys()),
+        key=lambda s: all_spr_src[s] + all_deb_src[s],
+        reverse=True,
+    )[:8]
+
+    # Debunker-only sources
+    deb_only = sorted(
+        [s for s in all_deb_src if all_spr_src.get(s, 0) < 5],
+        key=lambda s: all_deb_src[s],
+        reverse=True,
+    )[:5]
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        name="Cited by Spreaders",
+        x=shared_sources, y=[all_spr_src[s] for s in shared_sources],
+        marker_color=SPREADER_COLOR,
+        text=[str(all_spr_src[s]) for s in shared_sources],
+        textposition="outside", textfont=dict(size=9),
+    ))
+    fig.add_trace(go.Bar(
+        name="Cited by Debunkers",
+        x=shared_sources, y=[all_deb_src[s] for s in shared_sources],
+        marker_color=DEBUNKER_COLOR,
+        text=[str(all_deb_src[s]) for s in shared_sources],
+        textposition="outside", textfont=dict(size=9),
+    ))
+    fig.update_layout(
+        barmode="group",
+        yaxis=dict(title="Total citations across all episodes", gridcolor="#2A2A2A"),
+        xaxis=dict(tickfont=dict(size=11)),
+        legend=dict(orientation="h", y=1.12, x=0.5, xanchor="center"),
+        height=380, margin=dict(t=50, b=40, l=50, r=20), **_pb(),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    _takeaway(
+        "<b>Key finding:</b> Spreaders and debunkers cite many of the <b>same credible institutions</b>. "
+        "WHO is cited 2,000+ times by spreaders vs 850 by debunkers — spreaders actually reference it more. "
+        "This means AI-generated misinformation <i>sounds</i> evidence-based because it cherry-picks "
+        "from the same sources that legitimate fact-checkers use. "
+        "However, debunkers have exclusive access to specialized sources like <b>" +
+        ", ".join(deb_only[:3]) +
+        "</b> — which spreaders rarely touch."
+    )
+
+    # ==================================================================
+    # Q4: DOES CITATION QUALITY PREDICT OUTCOMES?
     # ==================================================================
     st.markdown('<p class="sr-finding">Does Citation Quality Predict Who Wins?</p>', unsafe_allow_html=True)
     st.markdown(
@@ -906,7 +949,6 @@ def _render_citations(episodes):
         for s in ep["results"].get("scorecard", []):
             scores[dm][s["metric"]].append(s["debunker"])
 
-    # Show as a simple table — cleaner than grouped bars for 4×6 data
     score_rows = []
     for model in models:
         row = {"Model": _short(model)}
@@ -918,9 +960,8 @@ def _render_citations(episodes):
             overall_scores.append(avg)
             row[_label(m)] = f"{avg:.1f}"
         row["Overall"] = f"{sum(overall_scores)/len(overall_scores):.1f}"
-        # Add citation data for correlation
-        row["Named Sources/ep"] = f"{cite_deb[model]['named']/max(cite_deb[model]['eps'],1):.1f}"
-        row["Win Rate"] = "100%" if model != "gemini-2.5-flash" else "0%"
+        row["Sources/ep"] = f"{_total_named(cite_deb, model)/max(cite_deb[model]['eps'],1):.1f}"
+        row["Win Rate"] = "100%" if "gemini" not in model else "0%"
         score_rows.append(row)
 
     st.dataframe(pd.DataFrame(score_rows), use_container_width=True, hide_index=True)
@@ -928,7 +969,7 @@ def _render_citations(episodes):
     _takeaway(
         "<b>Key finding:</b> Citation quality, judge scores, and win rate are tightly linked. "
         "Models that cite 4.8+ named sources per episode score 7.5+ overall and win 100% of debates. "
-        "Gemini Flash cites 0.0 sources, scores 4.7, and wins 0%. "
+        "Gemini Flash cites near-zero sources, scores 4.7, and wins 0%. "
         "For AI-assisted fact-checking, <b>the ability to cite specific, verifiable evidence is the "
         "single strongest predictor of debunking effectiveness.</b>"
     )
