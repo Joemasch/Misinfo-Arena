@@ -354,19 +354,17 @@ def _render_overview(episodes):
 
 
 def _render_strategies(episodes):
-    """Strategies tab: model playbooks, comparison table, claim type adaptation."""
+    """Strategies tab: how models argue, where they converge/diverge, domain adaptation."""
 
     # ── Methodology note ─────────────────────────────────────────────
-    st.markdown('<p class="sr-finding">How Strategies Were Identified</p>', unsafe_allow_html=True)
     _warning(
-        "After each debate, an AI analyst (GPT-4o-mini) reads the full transcript and assigns "
-        "labels from a fixed 20-label taxonomy: 10 spreader tactics (from the FLICC framework + "
-        "SemEval-2023) and 10 debunker tactics (from Cook et al. 2017 + inoculation theory). "
-        "Each episode is labeled once at the episode level — per-turn evolution is not captured. "
-        "Limitations: single-annotator bias, forced-choice taxonomy, and episode-level granularity."
+        "<b>How strategies were identified:</b> After each debate, an AI analyst (GPT-4o-mini) "
+        "labels the transcript using a fixed 20-label taxonomy: 10 spreader tactics "
+        "(FLICC framework + SemEval-2023) and 10 debunker tactics (Cook et al. 2017 + "
+        "inoculation theory). Labels are episode-level, not per-turn."
     )
 
-    # ── Pre-compute strategy data ────────────────────────────────────
+    # ── Pre-compute ──────────────────────────────────────────────────
     spr_by_model = defaultdict(Counter)
     deb_by_model = defaultdict(Counter)
     spr_eps = Counter()
@@ -386,21 +384,16 @@ def _render_strategies(episodes):
     models = sorted(spr_by_model.keys())
 
     # ==================================================================
-    # SECTION 1: MODEL PLAYBOOKS
+    # FINDING 1: HOW DOES EACH MODEL SPREAD MISINFORMATION?
     # ==================================================================
-    st.markdown('<p class="sr-finding">Finding 1: Model Playbooks</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sr-finding">Finding 1: How Does Each Model Spread Misinformation?</p>', unsafe_allow_html=True)
     st.markdown(
         '<p class="sr-question">'
-        'Each model has a distinct rhetorical approach. Below are the primary, secondary, '
-        'and tertiary tactics each model defaults to as spreader and debunker.'
+        'Each model develops a distinct rhetorical identity when assigned the spreader role. '
+        'The cards below show each model\'s top 3 tactics — their "playbook."'
         '</p>',
         unsafe_allow_html=True,
     )
-
-    # ── Spreader playbooks ───────────────────────────────────────────
-    st.markdown("**As Spreader**")
-    _how_to_read("Primary = most frequently used tactic. Secondary and tertiary show the next most common. "
-                 "Percentage = share of all tactics deployed by that model.")
 
     playbook_cols = st.columns(len(models))
     for col, model in zip(playbook_cols, models):
@@ -410,11 +403,10 @@ def _render_strategies(episodes):
             top3 = counts.most_common(3)
             n_unique = len([k for k, v in counts.items() if v > 0])
 
-            color = SPREADER_COLOR
             st.markdown(
                 f'<div style="background:var(--color-surface,#111);border:1px solid var(--color-border,#2A2A2A);'
-                f'border-radius:8px;padding:0.8rem;border-top:3px solid {color}">'
-                f'<div style="font-size:0.95rem;font-weight:700;color:#E8E4D9;margin-bottom:0.5rem">'
+                f'border-radius:8px;padding:0.8rem;border-top:3px solid {SPREADER_COLOR}">'
+                f'<div style="font-size:0.95rem;font-weight:700;color:#E8E4D9;margin-bottom:0.3rem">'
                 f'{_short(model)}</div>'
                 f'<div style="font-size:0.7rem;color:#9ca3af;margin-bottom:0.6rem">'
                 f'{spr_eps[model]} episodes · {n_unique}/10 tactics used</div>',
@@ -422,18 +414,18 @@ def _render_strategies(episodes):
             )
             for rank, (strat, n) in enumerate(top3):
                 pct = n / total * 100
-                rank_label = ["Primary", "Secondary", "Tertiary"][rank]
-                bar_width = pct / 60 * 100  # scale to max ~60%
+                rank_label = ["PRIMARY", "SECONDARY", "TERTIARY"][rank]
+                bar_width = min(pct / 55 * 100, 100)
                 st.markdown(
                     f'<div style="margin-bottom:0.5rem">'
-                    f'<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.06em;'
-                    f'color:#9ca3af;font-weight:700">{rank_label}</div>'
-                    f'<div style="font-size:0.88rem;color:#E8E4D9;font-weight:600">{_label(strat)}</div>'
+                    f'<div style="font-size:0.6rem;letter-spacing:0.08em;color:#9ca3af;font-weight:700">'
+                    f'{rank_label}</div>'
+                    f'<div style="font-size:0.85rem;color:#E8E4D9;font-weight:600">{_label(strat)}</div>'
                     f'<div style="display:flex;align-items:center;gap:0.4rem;margin-top:0.15rem">'
-                    f'<div style="flex:1;background:rgba(200,200,200,0.15);border-radius:3px;height:8px">'
-                    f'<div style="width:{bar_width:.0f}%;background:{color};height:8px;border-radius:3px"></div>'
-                    f'</div>'
-                    f'<span style="font-size:0.8rem;color:#9ca3af;min-width:2.5rem;text-align:right">{pct:.0f}%</span>'
+                    f'<div style="flex:1;background:rgba(200,200,200,0.12);border-radius:3px;height:8px">'
+                    f'<div style="width:{bar_width:.0f}%;background:{SPREADER_COLOR};height:8px;'
+                    f'border-radius:3px"></div></div>'
+                    f'<span style="font-size:0.78rem;color:#9ca3af">{pct:.0f}%</span>'
                     f'</div></div>',
                     unsafe_allow_html=True,
                 )
@@ -441,127 +433,89 @@ def _render_strategies(episodes):
 
     _takeaway(
         "<b>Key finding:</b> Each model has a distinct spreader identity. "
-        "<b>Claude Sonnet</b> overwhelmingly defaults to burden shift (49%) — deflecting rather than "
-        "actively constructing misinformation, likely due to safety training. "
-        "<b>GPT-4o-mini</b> leads with anecdotal evidence (24%) — personal stories and vivid examples. "
-        "<b>GPT-4o</b> and <b>Gemini Flash</b> both lead with emotional appeal (24%) but differ in "
-        "secondary tactics."
-    )
-
-    # ── Debunker playbooks ───────────────────────────────────────────
-    st.markdown("**As Debunker**")
-    _how_to_read("Debunker models converge more than spreaders — all lead with evidence citation. "
-                 "The differentiation is in secondary and tertiary tactics.")
-
-    deb_cols = st.columns(len(models))
-    for col, model in zip(deb_cols, models):
-        with col:
-            counts = deb_by_model[model]
-            total = sum(counts.values())
-            top3 = counts.most_common(3)
-            n_unique = len([k for k, v in counts.items() if v > 0])
-
-            color = DEBUNKER_COLOR
-            st.markdown(
-                f'<div style="background:var(--color-surface,#111);border:1px solid var(--color-border,#2A2A2A);'
-                f'border-radius:8px;padding:0.8rem;border-top:3px solid {color}">'
-                f'<div style="font-size:0.95rem;font-weight:700;color:#E8E4D9;margin-bottom:0.5rem">'
-                f'{_short(model)}</div>'
-                f'<div style="font-size:0.7rem;color:#9ca3af;margin-bottom:0.6rem">'
-                f'{deb_eps[model]} episodes · {n_unique}/10 tactics used</div>',
-                unsafe_allow_html=True,
-            )
-            for rank, (strat, n) in enumerate(top3):
-                pct = n / total * 100
-                rank_label = ["Primary", "Secondary", "Tertiary"][rank]
-                bar_width = pct / 35 * 100  # scale for debunker (max ~30%)
-                st.markdown(
-                    f'<div style="margin-bottom:0.5rem">'
-                    f'<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.06em;'
-                    f'color:#9ca3af;font-weight:700">{rank_label}</div>'
-                    f'<div style="font-size:0.88rem;color:#E8E4D9;font-weight:600">{_label(strat)}</div>'
-                    f'<div style="display:flex;align-items:center;gap:0.4rem;margin-top:0.15rem">'
-                    f'<div style="flex:1;background:rgba(200,200,200,0.15);border-radius:3px;height:8px">'
-                    f'<div style="width:{bar_width:.0f}%;background:{color};height:8px;border-radius:3px"></div>'
-                    f'</div>'
-                    f'<span style="font-size:0.8rem;color:#9ca3af;min-width:2.5rem;text-align:right">{pct:.0f}%</span>'
-                    f'</div></div>',
-                    unsafe_allow_html=True,
-                )
-            st.markdown('</div>', unsafe_allow_html=True)
-
-    _takeaway(
-        "<b>Key finding:</b> All debunker models converge on the same primary tactic: evidence citation. "
-        "The differentiation is in secondary approaches — <b>Claude</b> emphasizes mechanism explanation "
-        "(explaining the causal logic behind why claims are false), while <b>GPT models</b> emphasize "
-        "source quality (naming specific credible institutions)."
+        "<b>Claude</b> defaults to burden shift (49%) — deflecting rather than constructing "
+        "misinformation, likely due to safety training. "
+        "<b>GPT-4o-mini</b> leads with anecdotal evidence — vivid personal stories. "
+        "<b>GPT-4o</b> and <b>Gemini</b> lead with emotional appeal but differ in secondary tactics. "
+        "If AI-generated misinformation appears on social media, its rhetorical signature "
+        "could indicate which model produced it."
     )
 
     # ==================================================================
-    # SECTION 2: STRATEGY COMPARISON TABLE
+    # FINDING 2: HOW DOES EACH MODEL DEBUNK? (WHERE THEY CONVERGE)
     # ==================================================================
-    st.markdown('<p class="sr-finding">Strategy Usage Comparison</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sr-finding">Finding 2: How Does Each Model Debunk?</p>', unsafe_allow_html=True)
     st.markdown(
         '<p class="sr-question">'
-        'How does each tactic\'s usage compare across models? Rows sorted by total usage.'
+        'Unlike spreader tactics, debunker models converge on the same approach. '
+        'The chart below shows all 4 models on the same axis — the similarity is the finding.'
         '</p>',
         unsafe_allow_html=True,
     )
 
-    # Spreader comparison
-    st.markdown("**Spreader tactics**")
-    all_spr_strats = Counter()
-    for c in spr_by_model.values():
-        all_spr_strats.update(c)
-
-    spr_table_rows = []
-    for strat, _ in all_spr_strats.most_common():
-        row = {"Tactic": _label(strat)}
-        for model in models:
-            total = sum(spr_by_model[model].values())
-            n = spr_by_model[model].get(strat, 0)
-            row[_short(model)] = f"{n/total*100:.0f}% ({n})" if total > 0 else "—"
-        row["Total"] = all_spr_strats[strat]
-        spr_table_rows.append(row)
-    st.dataframe(pd.DataFrame(spr_table_rows), use_container_width=True, hide_index=True)
-
-    # Debunker comparison
-    st.markdown("**Debunker tactics**")
+    # Horizontal bar chart: all models side by side per tactic
+    # Only show tactics with > 30 total appearances
     all_deb_strats = Counter()
     for c in deb_by_model.values():
         all_deb_strats.update(c)
+    significant_deb = [s for s, n in all_deb_strats.most_common() if n >= 30]
 
-    deb_table_rows = []
-    for strat, _ in all_deb_strats.most_common():
-        row = {"Tactic": _label(strat)}
-        for model in models:
-            total = sum(deb_by_model[model].values())
-            n = deb_by_model[model].get(strat, 0)
-            row[_short(model)] = f"{n/total*100:.0f}% ({n})" if total > 0 else "—"
-        row["Total"] = all_deb_strats[strat]
-        deb_table_rows.append(row)
-    st.dataframe(pd.DataFrame(deb_table_rows), use_container_width=True, hide_index=True)
+    model_colors = [DEBUNKER_COLOR, ACCENT_GREEN, ACCENT_RED, SPREADER_COLOR]
 
-    _how_to_read("Each cell shows the percentage of that model's tactics that used this strategy, "
-                 "with the raw count in parentheses. Sorted by total usage across all models. "
-                 "Tactics with very low counts (< 20 total) are at the bottom — these were rarely "
-                 "detected by the AI analyst and may not be reliable signals.")
+    fig = go.Figure()
+    for i, model in enumerate(models):
+        total = sum(deb_by_model[model].values())
+        vals = [deb_by_model[model].get(s, 0) / max(total, 1) * 100 for s in significant_deb]
+        fig.add_trace(go.Bar(
+            name=_short(model),
+            y=[_label(s) for s in significant_deb],
+            x=vals,
+            orientation="h",
+            marker_color=model_colors[i % len(model_colors)],
+            text=[f"{v:.0f}%" for v in vals],
+            textposition="outside",
+            textfont=dict(size=9),
+        ))
+
+    fig.update_layout(
+        barmode="group",
+        xaxis=dict(title="% of tactics used", gridcolor="#2A2A2A", range=[0, 35]),
+        yaxis=dict(tickfont=dict(size=11), autorange="reversed"),
+        legend=dict(orientation="h", y=1.12, x=0.5, xanchor="center"),
+        height=max(300, len(significant_deb) * 55 + 80),
+        margin=dict(t=50, b=40, l=10, r=60),
+        **_pb(),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    _how_to_read("Each group of bars shows one debunking tactic. All 4 models appear side by side. "
+                 "When bars are the same length, models use that tactic equally. "
+                 "Differences in bar length reveal where models diverge.")
+
+    _takeaway(
+        "<b>Key finding:</b> All models converge on evidence citation and logical refutation "
+        "as their top debunking tactics. The difference is in secondary approaches: "
+        "<b>Claude</b> emphasizes mechanism explanation (explaining why claims are false), "
+        "while <b>GPT models</b> emphasize source quality (naming specific institutions). "
+        "<b>Gemini</b> shows similar priorities but executes them poorly — it uses the right "
+        "tactics but without the evidence to back them up (see Citations tab)."
+    )
 
     # ==================================================================
-    # SECTION 3: CLAIM TYPE ADAPTATION
+    # FINDING 3: DO MODELS ADAPT TO THE CLAIM DOMAIN?
     # ==================================================================
-    st.markdown('<p class="sr-finding">Finding 2: Strategy Adaptation by Claim Type</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sr-finding">Finding 3: Do Models Adapt to the Claim Domain?</p>', unsafe_allow_html=True)
     st.markdown(
         '<p class="sr-question">'
-        'Do spreaders use different tactics depending on the claim domain? '
-        'This shows how primary strategy choice shifts across Health, Political, Economic, '
-        'Environmental, and Technology claims.'
+        'When the topic changes from health to politics to economics, does the spreader\'s '
+        'approach change? Each bar below shows the dominant tactic for that domain.'
         '</p>',
         unsafe_allow_html=True,
     )
 
     claim_types = sorted(set(ep.get("claim_type", "?") for ep in episodes))
 
+    # Stacked bar: one bar per claim type, segments = strategy share
     type_strats = defaultdict(Counter)
     for ep in episodes:
         ct = ep.get("claim_type", "?")
@@ -570,40 +524,88 @@ def _render_strategies(episodes):
         if primary:
             type_strats[ct][primary] += 1
 
-    fig = go.Figure()
+    # Get top strategies and assign consistent colors
     all_strats = Counter()
     for c in type_strats.values():
         all_strats.update(c)
-    top_strats = [s for s, _ in all_strats.most_common(6)]
+    top_strats = [s for s, _ in all_strats.most_common(5)]
+    strat_colors = {
+        top_strats[i]: ["#4A7FA5", "#C9363E", "#4CAF7D", "#D4A843", "#9333EA"][i]
+        for i in range(len(top_strats))
+    }
 
+    fig = go.Figure()
     for strat in top_strats:
         vals = []
         for ct in claim_types:
             total = sum(type_strats[ct].values())
             vals.append(type_strats[ct].get(strat, 0) / max(total, 1) * 100)
-        fig.add_trace(go.Bar(name=_label(strat), x=claim_types, y=vals,
-                            text=[f"{v:.0f}%" for v in vals], textposition="outside",
-                            textfont=dict(size=9)))
+        fig.add_trace(go.Bar(
+            name=_label(strat),
+            x=claim_types, y=vals,
+            marker_color=strat_colors[strat],
+            hovertemplate=f"{_label(strat)}<br>%{{x}}: %{{y:.0f}}%<extra></extra>",
+        ))
 
     fig.update_layout(
-        barmode="group",
-        yaxis=dict(title="% as primary strategy", gridcolor="#2A2A2A", range=[0, 60]),
+        barmode="stack",
+        yaxis=dict(title="% of primary strategy choices", gridcolor="#2A2A2A", range=[0, 110]),
+        xaxis=dict(tickfont=dict(size=12)),
         legend=dict(orientation="h", y=1.15, x=0.5, xanchor="center", font=dict(size=10)),
-        height=400, margin=dict(t=60, b=40, l=50, r=20), **_pb(),
+        height=400, margin=dict(t=60, b=40, l=50, r=20),
+        **_pb(),
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    _how_to_read("Each group of bars shows one claim type. Bars represent the top 6 primary strategies "
-                 "used when spreading that type of claim. The dominant strategy shifts by domain.")
+    _how_to_read("Each bar shows one claim type. The colored segments show the share of each "
+                 "primary strategy. The dominant color tells you the go-to tactic for that domain. "
+                 "If colors shift across bars, models are adapting to the topic.")
+
+    # Build per-type dominant strategy text
+    type_insights = []
+    for ct in claim_types:
+        if type_strats[ct]:
+            top_s, top_n = type_strats[ct].most_common(1)[0]
+            total = sum(type_strats[ct].values())
+            type_insights.append(f"<b>{ct}</b> → {_label(top_s)} ({top_n/total*100:.0f}%)")
 
     _takeaway(
-        "<b>Key insight:</b> AI spreaders adapt their tactics to the domain: "
-        "<b>Health</b> claims trigger anecdotal evidence (personal stories about vaccine injuries). "
-        "<b>Political</b> claims trigger emotional appeal (outrage about stolen elections). "
-        "<b>Economic</b> claims trigger appeal to conspiracy (\"follow the money\"). "
-        "This domain-specific adaptation means misinformation detection tools may need to be "
-        "tailored to the claim domain, not one-size-fits-all."
+        "<b>Key finding:</b> AI spreaders automatically adapt to the domain: " +
+        " · ".join(type_insights) + ". "
+        "This means misinformation from different domains has different rhetorical signatures — "
+        "a health misinformation detector won't catch political misinformation, and vice versa."
     )
+
+    # ==================================================================
+    # REFERENCE: FULL STRATEGY USAGE
+    # ==================================================================
+    with st.expander("Full strategy usage table (reference)", expanded=False):
+        st.markdown("**Spreader tactics**")
+        all_spr = Counter()
+        for c in spr_by_model.values():
+            all_spr.update(c)
+        spr_rows = []
+        for strat, _ in all_spr.most_common():
+            row = {"Tactic": _label(strat)}
+            for model in models:
+                total = sum(spr_by_model[model].values())
+                n = spr_by_model[model].get(strat, 0)
+                row[_short(model)] = f"{n/total*100:.0f}% ({n})" if total > 0 else "—"
+            row["Total"] = all_spr[strat]
+            spr_rows.append(row)
+        st.dataframe(pd.DataFrame(spr_rows), use_container_width=True, hide_index=True)
+
+        st.markdown("**Debunker tactics**")
+        deb_rows = []
+        for strat, _ in all_deb_strats.most_common():
+            row = {"Tactic": _label(strat)}
+            for model in models:
+                total = sum(deb_by_model[model].values())
+                n = deb_by_model[model].get(strat, 0)
+                row[_short(model)] = f"{n/total*100:.0f}% ({n})" if total > 0 else "—"
+            row["Total"] = all_deb_strats[strat]
+            deb_rows.append(row)
+        st.dataframe(pd.DataFrame(deb_rows), use_container_width=True, hide_index=True)
 
 
 def _render_game_theory(episodes):
