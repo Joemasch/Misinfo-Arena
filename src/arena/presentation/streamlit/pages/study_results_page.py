@@ -354,97 +354,214 @@ def _render_overview(episodes):
 
 
 def _render_strategies(episodes):
-    """Strategies tab: fingerprints + claim type adaptation."""
-    # ── Finding 1: Fingerprints ──────────────────────────────────────
-    st.markdown('<p class="sr-finding">Finding 1: Model Strategy Fingerprints</p>', unsafe_allow_html=True)
+    """Strategies tab: model playbooks, comparison table, claim type adaptation."""
+
+    # ── Methodology note ─────────────────────────────────────────────
+    st.markdown('<p class="sr-finding">How Strategies Were Identified</p>', unsafe_allow_html=True)
+    _warning(
+        "After each debate, an AI analyst (GPT-4o-mini) reads the full transcript and assigns "
+        "labels from a fixed 20-label taxonomy: 10 spreader tactics (from the FLICC framework + "
+        "SemEval-2023) and 10 debunker tactics (from Cook et al. 2017 + inoculation theory). "
+        "Each episode is labeled once at the episode level — per-turn evolution is not captured. "
+        "Limitations: single-annotator bias, forced-choice taxonomy, and episode-level granularity."
+    )
+
+    # ── Pre-compute strategy data ────────────────────────────────────
+    spr_by_model = defaultdict(Counter)
+    deb_by_model = defaultdict(Counter)
+    spr_eps = Counter()
+    deb_eps = Counter()
+
+    for ep in episodes:
+        spr_m = ep["config_snapshot"]["agents"]["spreader"]["model"]
+        deb_m = ep["config_snapshot"]["agents"]["debunker"]["model"]
+        sa = ep.get("strategy_analysis") or {}
+        spr_eps[spr_m] += 1
+        deb_eps[deb_m] += 1
+        for s in sa.get("spreader_strategies", []):
+            spr_by_model[spr_m][s] += 1
+        for s in sa.get("debunker_strategies", []):
+            deb_by_model[deb_m][s] += 1
+
+    models = sorted(spr_by_model.keys())
+
+    # ==================================================================
+    # SECTION 1: MODEL PLAYBOOKS
+    # ==================================================================
+    st.markdown('<p class="sr-finding">Finding 1: Model Playbooks</p>', unsafe_allow_html=True)
     st.markdown(
         '<p class="sr-question">'
-        'Each model has a distinct rhetorical playbook. What tactics does each model '
-        'default to as spreader and as debunker?'
+        'Each model has a distinct rhetorical approach. Below are the primary, secondary, '
+        'and tertiary tactics each model defaults to as spreader and debunker.'
         '</p>',
         unsafe_allow_html=True,
     )
 
-    for role, side_key, color, strat_field, explanation in [
-        ("As Spreader", "spreader", SPREADER_COLOR, "spreader_strategies",
-         "Each bar shows how often a model uses a given tactic as a percentage of all tactics it deployed. "
-         "A model that concentrates on one tactic has a distinctive style; a model spread evenly across tactics is more versatile."),
-        ("As Debunker", "debunker", DEBUNKER_COLOR, "debunker_strategies",
-         "Debunker models show less variation — all models lead with evidence citation and logical refutation. "
-         "The differences emerge in secondary tactics like mechanism explanation and uncertainty calibration."),
-    ]:
-        model_strats = defaultdict(Counter)
-        model_eps = Counter()
-        for ep in episodes:
-            model = ep["config_snapshot"]["agents"][side_key]["model"]
-            sa = ep.get("strategy_analysis") or {}
-            for s in sa.get(strat_field, []):
-                model_strats[model][s] += 1
-            model_eps[model] += 1
+    # ── Spreader playbooks ───────────────────────────────────────────
+    st.markdown("**As Spreader**")
+    _how_to_read("Primary = most frequently used tactic. Secondary and tertiary show the next most common. "
+                 "Percentage = share of all tactics deployed by that model.")
 
-        st.markdown(f"**{role}**")
-        _how_to_read(explanation)
-
-        # Only show top 5 strategies to reduce clutter
-        fig = go.Figure()
-        for model in sorted(model_strats.keys()):
-            counts = model_strats[model]
+    playbook_cols = st.columns(len(models))
+    for col, model in zip(playbook_cols, models):
+        with col:
+            counts = spr_by_model[model]
             total = sum(counts.values())
-            top = counts.most_common(5)
-            fig.add_trace(go.Bar(
-                name=f"{_short(model)} (n={model_eps[model]})",
-                x=[_label(s) for s, _ in top],
-                y=[n/total*100 for _, n in top],
-                text=[f"{n/total*100:.0f}%" for _, n in top],
-                textposition="outside", textfont=dict(size=9),
-            ))
-        fig.update_layout(
-            barmode="group",
-            yaxis=dict(title="% of tactics used", gridcolor="#2A2A2A", range=[0, 60]),
-            xaxis=dict(tickfont=dict(size=11), tickangle=-20),
-            legend=dict(orientation="h", y=1.15, x=0.5, xanchor="center"),
-            height=400, margin=dict(t=60, b=80, l=50, r=20), **_pb(),
-        )
-        st.plotly_chart(fig, use_container_width=True)
+            top3 = counts.most_common(3)
+            n_unique = len([k for k, v in counts.items() if v > 0])
 
-    # Insight
-    spr_by_model = defaultdict(Counter)
-    for ep in episodes:
-        m = ep["config_snapshot"]["agents"]["spreader"]["model"]
-        sa = ep.get("strategy_analysis") or {}
-        for s in sa.get("spreader_strategies", []):
-            spr_by_model[m][s] += 1
-    top_per = {m: c.most_common(1)[0] for m, c in spr_by_model.items() if c}
-
-    # Build a narrative insight
-    claude_top = top_per.get("claude-sonnet-4-20250514", ("", 0))
-    insight_parts = []
-    for m, (s, n) in sorted(top_per.items()):
-        pct = n/sum(spr_by_model[m].values())*100
-        insight_parts.append(f"{_short(m)} leads with <b>{_label(s)}</b> ({pct:.0f}%)")
+            color = SPREADER_COLOR
+            st.markdown(
+                f'<div style="background:var(--color-surface,#111);border:1px solid var(--color-border,#2A2A2A);'
+                f'border-radius:8px;padding:0.8rem;border-top:3px solid {color}">'
+                f'<div style="font-size:0.95rem;font-weight:700;color:#E8E4D9;margin-bottom:0.5rem">'
+                f'{_short(model)}</div>'
+                f'<div style="font-size:0.7rem;color:#9ca3af;margin-bottom:0.6rem">'
+                f'{spr_eps[model]} episodes · {n_unique}/10 tactics used</div>',
+                unsafe_allow_html=True,
+            )
+            for rank, (strat, n) in enumerate(top3):
+                pct = n / total * 100
+                rank_label = ["Primary", "Secondary", "Tertiary"][rank]
+                bar_width = pct / 60 * 100  # scale to max ~60%
+                st.markdown(
+                    f'<div style="margin-bottom:0.5rem">'
+                    f'<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.06em;'
+                    f'color:#9ca3af;font-weight:700">{rank_label}</div>'
+                    f'<div style="font-size:0.88rem;color:#E8E4D9;font-weight:600">{_label(strat)}</div>'
+                    f'<div style="display:flex;align-items:center;gap:0.4rem;margin-top:0.15rem">'
+                    f'<div style="flex:1;background:rgba(200,200,200,0.15);border-radius:3px;height:8px">'
+                    f'<div style="width:{bar_width:.0f}%;background:{color};height:8px;border-radius:3px"></div>'
+                    f'</div>'
+                    f'<span style="font-size:0.8rem;color:#9ca3af;min-width:2.5rem;text-align:right">{pct:.0f}%</span>'
+                    f'</div></div>',
+                    unsafe_allow_html=True,
+                )
+            st.markdown('</div>', unsafe_allow_html=True)
 
     _takeaway(
-        "<b>As Spreader:</b> " + ". ".join(insight_parts) + ". "
-        "Claude Sonnet stands out — its heavy reliance on burden shift (deflecting rather than constructing "
-        "misinformation narratives) suggests its safety training inhibits active misinformation spreading. "
-        "<br><br><b>As Debunker:</b> All four models converge on the same core tactics: evidence citation "
-        "and logical refutation. The differentiation is in secondary tactics — Claude emphasizes mechanism "
-        "explanation while GPT models emphasize source quality."
+        "<b>Key finding:</b> Each model has a distinct spreader identity. "
+        "<b>Claude Sonnet</b> overwhelmingly defaults to burden shift (49%) — deflecting rather than "
+        "actively constructing misinformation, likely due to safety training. "
+        "<b>GPT-4o-mini</b> leads with anecdotal evidence (24%) — personal stories and vivid examples. "
+        "<b>GPT-4o</b> and <b>Gemini Flash</b> both lead with emotional appeal (24%) but differ in "
+        "secondary tactics."
     )
 
-    # ── Finding 2: Claim type adaptation ─────────────────────────────
+    # ── Debunker playbooks ───────────────────────────────────────────
+    st.markdown("**As Debunker**")
+    _how_to_read("Debunker models converge more than spreaders — all lead with evidence citation. "
+                 "The differentiation is in secondary and tertiary tactics.")
+
+    deb_cols = st.columns(len(models))
+    for col, model in zip(deb_cols, models):
+        with col:
+            counts = deb_by_model[model]
+            total = sum(counts.values())
+            top3 = counts.most_common(3)
+            n_unique = len([k for k, v in counts.items() if v > 0])
+
+            color = DEBUNKER_COLOR
+            st.markdown(
+                f'<div style="background:var(--color-surface,#111);border:1px solid var(--color-border,#2A2A2A);'
+                f'border-radius:8px;padding:0.8rem;border-top:3px solid {color}">'
+                f'<div style="font-size:0.95rem;font-weight:700;color:#E8E4D9;margin-bottom:0.5rem">'
+                f'{_short(model)}</div>'
+                f'<div style="font-size:0.7rem;color:#9ca3af;margin-bottom:0.6rem">'
+                f'{deb_eps[model]} episodes · {n_unique}/10 tactics used</div>',
+                unsafe_allow_html=True,
+            )
+            for rank, (strat, n) in enumerate(top3):
+                pct = n / total * 100
+                rank_label = ["Primary", "Secondary", "Tertiary"][rank]
+                bar_width = pct / 35 * 100  # scale for debunker (max ~30%)
+                st.markdown(
+                    f'<div style="margin-bottom:0.5rem">'
+                    f'<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.06em;'
+                    f'color:#9ca3af;font-weight:700">{rank_label}</div>'
+                    f'<div style="font-size:0.88rem;color:#E8E4D9;font-weight:600">{_label(strat)}</div>'
+                    f'<div style="display:flex;align-items:center;gap:0.4rem;margin-top:0.15rem">'
+                    f'<div style="flex:1;background:rgba(200,200,200,0.15);border-radius:3px;height:8px">'
+                    f'<div style="width:{bar_width:.0f}%;background:{color};height:8px;border-radius:3px"></div>'
+                    f'</div>'
+                    f'<span style="font-size:0.8rem;color:#9ca3af;min-width:2.5rem;text-align:right">{pct:.0f}%</span>'
+                    f'</div></div>',
+                    unsafe_allow_html=True,
+                )
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    _takeaway(
+        "<b>Key finding:</b> All debunker models converge on the same primary tactic: evidence citation. "
+        "The differentiation is in secondary approaches — <b>Claude</b> emphasizes mechanism explanation "
+        "(explaining the causal logic behind why claims are false), while <b>GPT models</b> emphasize "
+        "source quality (naming specific credible institutions)."
+    )
+
+    # ==================================================================
+    # SECTION 2: STRATEGY COMPARISON TABLE
+    # ==================================================================
+    st.markdown('<p class="sr-finding">Strategy Usage Comparison</p>', unsafe_allow_html=True)
+    st.markdown(
+        '<p class="sr-question">'
+        'How does each tactic\'s usage compare across models? Rows sorted by total usage.'
+        '</p>',
+        unsafe_allow_html=True,
+    )
+
+    # Spreader comparison
+    st.markdown("**Spreader tactics**")
+    all_spr_strats = Counter()
+    for c in spr_by_model.values():
+        all_spr_strats.update(c)
+
+    spr_table_rows = []
+    for strat, _ in all_spr_strats.most_common():
+        row = {"Tactic": _label(strat)}
+        for model in models:
+            total = sum(spr_by_model[model].values())
+            n = spr_by_model[model].get(strat, 0)
+            row[_short(model)] = f"{n/total*100:.0f}% ({n})" if total > 0 else "—"
+        row["Total"] = all_spr_strats[strat]
+        spr_table_rows.append(row)
+    st.dataframe(pd.DataFrame(spr_table_rows), use_container_width=True, hide_index=True)
+
+    # Debunker comparison
+    st.markdown("**Debunker tactics**")
+    all_deb_strats = Counter()
+    for c in deb_by_model.values():
+        all_deb_strats.update(c)
+
+    deb_table_rows = []
+    for strat, _ in all_deb_strats.most_common():
+        row = {"Tactic": _label(strat)}
+        for model in models:
+            total = sum(deb_by_model[model].values())
+            n = deb_by_model[model].get(strat, 0)
+            row[_short(model)] = f"{n/total*100:.0f}% ({n})" if total > 0 else "—"
+        row["Total"] = all_deb_strats[strat]
+        deb_table_rows.append(row)
+    st.dataframe(pd.DataFrame(deb_table_rows), use_container_width=True, hide_index=True)
+
+    _how_to_read("Each cell shows the percentage of that model's tactics that used this strategy, "
+                 "with the raw count in parentheses. Sorted by total usage across all models. "
+                 "Tactics with very low counts (< 20 total) are at the bottom — these were rarely "
+                 "detected by the AI analyst and may not be reliable signals.")
+
+    # ==================================================================
+    # SECTION 3: CLAIM TYPE ADAPTATION
+    # ==================================================================
     st.markdown('<p class="sr-finding">Finding 2: Strategy Adaptation by Claim Type</p>', unsafe_allow_html=True)
     st.markdown(
         '<p class="sr-question">'
-        'Do spreaders use different tactics for political claims vs health claims? '
-        'This shows the primary strategy per claim type — aggregated across all models.'
+        'Do spreaders use different tactics depending on the claim domain? '
+        'This shows how primary strategy choice shifts across Health, Political, Economic, '
+        'Environmental, and Technology claims.'
         '</p>',
         unsafe_allow_html=True,
     )
 
     claim_types = sorted(set(ep.get("claim_type", "?") for ep in episodes))
 
-    # Primary strategy distribution by claim type (spreader)
     type_strats = defaultdict(Counter)
     for ep in episodes:
         ct = ep.get("claim_type", "?")
@@ -454,7 +571,6 @@ def _render_strategies(episodes):
             type_strats[ct][primary] += 1
 
     fig = go.Figure()
-    # Get top strategies across all types
     all_strats = Counter()
     for c in type_strats.values():
         all_strats.update(c)
@@ -477,8 +593,8 @@ def _render_strategies(episodes):
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    _how_to_read("Each group of bars shows one claim type. The bars represent the top strategies used as "
-                 "the primary tactic when spreading that type of claim. Taller bars = more frequently used as the lead strategy.")
+    _how_to_read("Each group of bars shows one claim type. Bars represent the top 6 primary strategies "
+                 "used when spreading that type of claim. The dominant strategy shifts by domain.")
 
     _takeaway(
         "<b>Key insight:</b> AI spreaders adapt their tactics to the domain: "
