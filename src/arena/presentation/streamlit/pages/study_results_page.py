@@ -278,12 +278,14 @@ def _render_overview(episodes):
                  "Click a bar to see individual claims below. "
                  "Note: spreader wins only occur when Gemini Flash is the debunker.")
 
-    # Aggregate by type
+    # Aggregate by type + spreader model
     type_data = defaultdict(lambda: {"spr_wins": 0, "total": 0, "margins": []})
+    type_model_wins = defaultdict(lambda: defaultdict(int))  # type → model → count
     claim_data = defaultdict(lambda: {"spr_wins": 0, "total": 0, "margins": [], "type": ""})
     for ep in episodes:
         ct = ep.get("claim_type", "?")
         claim = ep.get("claim", "?")
+        spr_model = ep["config_snapshot"]["agents"]["spreader"]["model"]
         type_data[ct]["total"] += 1
         claim_data[claim]["total"] += 1
         claim_data[claim]["type"] = ct
@@ -295,25 +297,55 @@ def _render_overview(episodes):
         if ep["results"]["winner"] == "spreader":
             type_data[ct]["spr_wins"] += 1
             claim_data[claim]["spr_wins"] += 1
+            type_model_wins[ct][spr_model] += 1
 
     ct_sorted = sorted(type_data.keys(),
                        key=lambda ct: type_data[ct]["spr_wins"] / max(type_data[ct]["total"], 1),
                        reverse=True)
-    ct_rates = [type_data[ct]["spr_wins"] / max(type_data[ct]["total"], 1) * 100 for ct in ct_sorted]
-    ct_margins = [sum(type_data[ct]["margins"]) / max(len(type_data[ct]["margins"]), 1) for ct in ct_sorted]
 
-    fig = go.Figure(go.Bar(
-        x=ct_sorted, y=ct_rates,
-        marker_color=SPREADER_COLOR, opacity=0.85,
-        text=[f"{r:.0f}%<br>n={type_data[ct]['total']}<br>margin={m:+.1f}"
-              for r, ct, m in zip(ct_rates, ct_sorted, ct_margins)],
-        textposition="outside", textfont=dict(size=10),
-        hovertemplate="%{x}<br>Spreader win rate: %{y:.1f}%<extra></extra>",
+    # Stacked bar: each segment = one spreader model's contribution
+    all_spr_models = sorted(set(
+        ep["config_snapshot"]["agents"]["spreader"]["model"] for ep in episodes
     ))
+    model_colors = {
+        all_spr_models[i]: ["#4A7FA5", "#4CAF7D", "#C9363E", "#D4A843"][i % 4]
+        for i in range(len(all_spr_models))
+    }
+
+    fig = go.Figure()
+    for model in all_spr_models:
+        vals = []
+        hover_texts = []
+        for ct in ct_sorted:
+            total = max(type_data[ct]["total"], 1)
+            model_wins = type_model_wins[ct].get(model, 0)
+            pct = model_wins / total * 100
+            vals.append(pct)
+            hover_texts.append(f"{_short(model)}: {model_wins} wins ({pct:.1f}%)")
+        fig.add_trace(go.Bar(
+            name=_short(model),
+            x=ct_sorted, y=vals,
+            marker_color=model_colors[model],
+            hovertext=hover_texts,
+            hovertemplate="%{x}<br>%{hovertext}<extra></extra>",
+        ))
+
+    # Add total annotation above each stacked bar
+    for i, ct in enumerate(ct_sorted):
+        total_rate = type_data[ct]["spr_wins"] / max(type_data[ct]["total"], 1) * 100
+        avg_margin = sum(type_data[ct]["margins"]) / max(len(type_data[ct]["margins"]), 1)
+        fig.add_annotation(
+            x=ct, y=total_rate + 1.5,
+            text=f"{total_rate:.0f}% (n={type_data[ct]['total']})",
+            showarrow=False, font=dict(size=10, color="#E8E4D9"),
+        )
+
     fig.update_layout(
+        barmode="stack",
         yaxis=dict(title="Spreader win rate %", range=[0, 35], gridcolor="#2A2A2A"),
         xaxis=dict(tickfont=dict(size=12)),
-        height=320, margin=dict(t=20, b=40, l=50, r=20),
+        legend=dict(orientation="h", y=1.12, x=0.5, xanchor="center"),
+        height=380, margin=dict(t=50, b=40, l=50, r=20),
         **_pb(),
     )
     st.plotly_chart(fig, use_container_width=True)
