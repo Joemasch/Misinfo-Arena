@@ -274,3 +274,152 @@ Return JSON: {{"spreader_primary": "...", "debunker_primary": "...", "spreader_s
         return _normalize_strategy_output(raw)
     except Exception as e:
         return _build_error_stub(str(e))
+
+
+def analyze_per_turn_strategies(
+    claim: str,
+    transcript_turns: list[dict],
+) -> list[dict]:
+    """
+    Analyze each turn pair individually, returning per-turn strategy labels.
+
+    Returns a list of dicts, one per turn:
+    [
+        {
+            "turn": 1,
+            "spreader_strategies": ["emotional_appeal", "anecdotal_evidence"],
+            "debunker_strategies": ["evidence_citation", "logical_refutation"],
+            "spreader_adapted": false,  # true if tactics changed from previous turn
+            "debunker_adapted": false,
+        },
+        ...
+    ]
+
+    Never raises — returns empty list on failure.
+    """
+    if not transcript_turns:
+        return []
+
+    try:
+        from openai import OpenAI
+        from arena.utils.openai_config import get_openai_api_key
+
+        api_key = get_openai_api_key()
+        if not api_key:
+            return []
+        client = OpenAI(api_key=api_key)
+    except Exception:
+        return []
+
+    spreader_labels = get_spreader_strategy_labels()
+    debunker_labels = get_debunker_strategy_labels()
+
+    # Build turn pairs
+    pairs = []
+    for i, t in enumerate(transcript_turns):
+        if "spreader_message" in t or "debunker_message" in t:
+            s_msg = t.get("spreader_message") or {}
+            d_msg = t.get("debunker_message") or {}
+            s_text = s_msg.get("content", "") if isinstance(s_msg, dict) else str(s_msg or "")
+            d_text = d_msg.get("content", "") if isinstance(d_msg, dict) else str(d_msg or "")
+            pairs.append({"turn": i + 1, "spreader": s_text.strip(), "debunker": d_text.strip()})
+        elif t.get("name") and t.get("content"):
+            tidx = t.get("turn_index", i // 2)
+            if t["name"] == "spreader":
+                if not pairs or "spreader" in pairs[-1]:
+                    pairs.append({"turn": tidx + 1, "spreader": "", "debunker": ""})
+                pairs[-1]["spreader"] = t["content"].strip()
+            else:
+                if not pairs:
+                    pairs.append({"turn": tidx + 1, "spreader": "", "debunker": ""})
+                pairs[-1]["debunker"] = t["content"].strip()
+
+    if not pairs:
+        return []
+
+    # Build the full transcript context for the LLM (it needs to see the whole debate
+    # to understand adaptation, but we ask it to label each turn)
+    transcript_text = ""
+    for p in pairs:
+        transcript_text += f"--- Turn {p['turn']} ---\n"
+        transcript_text += f"[SPREADER]: {p['spreader'][:1000]}\n"
+        transcript_text += f"[DEBUNKER]: {p['debunker'][:1000]}\n\n"
+
+    system_prompt = f"""You are a debate strategy analyst. Analyze each turn of this debate individually.
+
+For each turn, identify the strategies used by the spreader and debunker.
+Also note whether each side ADAPTED their approach from the previous turn
+(changed tactics, introduced new arguments, or shifted strategy in response to the opponent).
+
+SPREADER strategy labels: {', '.join(spreader_labels)}
+DEBUNKER strategy labels: {', '.join(debunker_labels)}
+
+Return strict JSON only — an array with one object per turn:
+[
+  {{
+    "turn": 1,
+    "spreader_strategies": ["label1", "label2"],
+    "debunker_strategies": ["label1", "label2"],
+    "spreader_adapted": false,
+    "debunker_adapted": false
+  }},
+  ...
+]
+
+For turn 1, adapted is always false (no previous turn to compare to).
+JSON ONLY — no markdown, no explanation."""
+
+    user_prompt = f"""CLAIM: {claim}
+
+TRANSCRIPT:
+{transcript_text}
+
+Analyze each of the {len(pairs)} turns. Return a JSON array with {len(pairs)} objects."""
+
+    try:
+        response = client.chat.completions.create(
+            model=STRATEGY_ANALYST_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.2,
+            max_tokens=200 * len(pairs),
+        )
+        content = (response.choices[0].message.content or "").strip()
+        if not content:
+            return []
+
+        # Parse JSON array
+        text = content
+        if text.startswith("```"):
+            import re
+            text = re.sub(r"^```(?:json)?\s*", "", text)
+            text = re.sub(r"\s*```$", "", text)
+            text = text.strip()
+
+        result = json.loads(text)
+        if not isinstance(result, list):
+            return []
+
+        # Normalize labels
+        spr_valid = set(spreader_labels)
+        deb_valid = set(debunker_labels)
+        normalized = []
+        for entry in result:
+            if not isinstance(entry, dict):
+                continue
+            spr_strats = [s for s in (entry.get("spreader_strategies") or []) if s in spr_valid]
+            deb_strats = [s for s in (entry.get("debunker_strategies") or []) if s in deb_valid]
+            normalized.append({
+                "turn": entry.get("turn", len(normalized) + 1),
+                "spreader_strategies": spr_strats,
+                "debunker_strategies": deb_strats,
+                "spreader_adapted": bool(entry.get("spreader_adapted", False)),
+                "debunker_adapted": bool(entry.get("debunker_adapted", False)),
+            })
+        return normalized
+
+    except Exception as e:
+        print(f"[PER_TURN_STRATEGY] failed: {e}")
+        return []
