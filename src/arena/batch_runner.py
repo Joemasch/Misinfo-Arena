@@ -545,6 +545,8 @@ def run_experiment_from_spec(
                 # ── Concession detection (all debates) ──
                 # Detect if either side naturally concedes to the opponent's argument.
                 # No prompt instructs concession — this captures organic model behavior.
+                # Uses pivot-aware matching: concession phrase followed by "but/however/though"
+                # within the same sentence is a rhetorical pivot, NOT a real concession.
                 _CONCESSION_PHRASES = [
                     "i agree with you", "you're right", "you are right",
                     "you make a good point", "i concede", "i must concede",
@@ -555,6 +557,18 @@ def run_experiment_from_spec(
                     "this claim is correct", "this is actually true",
                     "this is well-established",
                 ]
+                _PIVOT_WORDS = ["but ", "however", "though ", "nevertheless",
+                                "that said", "nonetheless", "yet ", "still,"]
+
+                def _is_real_concession(text: str, phrase: str) -> bool:
+                    """Check if a concession phrase is genuine, not a rhetorical pivot."""
+                    idx = text.find(phrase)
+                    if idx == -1:
+                        return False
+                    # Check the ~80 chars after the phrase for pivot words
+                    after = text[idx + len(phrase):idx + len(phrase) + 80].lower()
+                    return not any(pw in after for pw in _PIVOT_WORDS)
+
                 conceded = False
                 conceded_by = None
                 concession_turn = None
@@ -563,15 +577,21 @@ def run_experiment_from_spec(
                     d_msg = t_check.get("debunker_message", {})
                     s_text = (s_msg.get("content", "") if isinstance(s_msg, dict) else "").lower()
                     d_text = (d_msg.get("content", "") if isinstance(d_msg, dict) else "").lower()
-                    if any(p in s_text for p in _CONCESSION_PHRASES):
-                        conceded = True
-                        conceded_by = "spreader"
-                        concession_turn = t_idx + 1
+                    for phrase in _CONCESSION_PHRASES:
+                        if phrase in s_text and _is_real_concession(s_text, phrase):
+                            conceded = True
+                            conceded_by = "spreader"
+                            concession_turn = t_idx + 1
+                            break
+                    if conceded:
                         break
-                    if any(p in d_text for p in _CONCESSION_PHRASES):
-                        conceded = True
-                        conceded_by = "debunker"
-                        concession_turn = t_idx + 1
+                    for phrase in _CONCESSION_PHRASES:
+                        if phrase in d_text and _is_real_concession(d_text, phrase):
+                            conceded = True
+                            conceded_by = "debunker"
+                            concession_turn = t_idx + 1
+                            break
+                    if conceded:
                         break
 
                 # Determine concession trigger type
