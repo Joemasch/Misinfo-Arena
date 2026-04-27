@@ -480,8 +480,9 @@ def run_experiment_from_spec(
                 )
 
                 # For true claims, tell the judge the claim is factually supported
-                _effective_judge_prompt = judge_prompt_template
-                if row.true_claim and _effective_judge_prompt:
+                from arena.prompts.judge_static_prompt import get_judge_static_prompt
+                _effective_judge_prompt = judge_prompt_template or get_judge_static_prompt()
+                if row.true_claim:
                     _true_claim_note = (
                         "IMPORTANT NOTE: The claim being debated is FACTUALLY TRUE and supported by evidence. "
                         "The spreader is arguing for a correct position. Evaluate both sides on argument quality "
@@ -685,13 +686,14 @@ def run_experiment_from_spec(
             except Exception as e:
                 error_msg = str(e)[:300]
                 episode_obj = {
-                    "schema_version": "2.0",
+                    "schema_version": "2.1",
                     "run_id": run_id,
                     "episode_id": ep_idx,
                     "study_id": row.study_id,
                     "condition": row.condition,
                     "created_at": datetime.now().isoformat(),
                     "claim": row.claim,
+                    "true_claim": row.true_claim,
                     "claim_index": ep_idx,
                     "total_claims": len(indexed_rows),
                     "config_snapshot": {
@@ -710,6 +712,7 @@ def run_experiment_from_spec(
                         "totals": {"spreader": 0, "debunker": 0},
                         "scorecard": [],
                     },
+                    "refusal": {"spreader_refused": False, "debunker_refused": False},
                     "concession": {"early_stop": False, "trigger": "error"},
                     "turns": [],
                     "judge_audit": {
