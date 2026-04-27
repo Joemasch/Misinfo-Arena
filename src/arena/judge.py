@@ -943,14 +943,19 @@ class AgentJudge(BaseJudge):
         if "spreader" not in decision.totals or "debunker" not in decision.totals:
             raise ValueError("Totals must contain spreader and debunker keys")
 
-        # Check scorecard
-        if not decision.scorecard or len(decision.scorecard) != 6:
-            raise ValueError(f"Scorecard must have exactly 6 metrics, got {len(decision.scorecard) if decision.scorecard else 0}")
+        # Check scorecard — accept 6 (v1) or 8 (v2) metrics
+        if not decision.scorecard or len(decision.scorecard) not in (6, 8):
+            raise ValueError(f"Scorecard must have 6 or 8 metrics, got {len(decision.scorecard) if decision.scorecard else 0}")
 
-        expected_metrics = set(HeuristicJudge.DEFAULT_WEIGHTS.keys())
+        # Validate metric names are known (don't enforce exact set — allows v1 and v2)
+        v2_metrics = {"factuality", "source_reputability", "hallucination_index", "reasoning_quality",
+                       "responsiveness", "persuasion", "manipulation_awareness", "adaptability"}
+        v1_metrics = set(HeuristicJudge.DEFAULT_WEIGHTS.keys())
+        allowed = v1_metrics | v2_metrics
         actual_metrics = {ms.metric for ms in decision.scorecard}
-        if actual_metrics != expected_metrics:
-            raise ValueError(f"Scorecard metrics mismatch. Expected {expected_metrics}, got {actual_metrics}")
+        unknown = actual_metrics - allowed
+        if unknown:
+            raise ValueError(f"Unknown metrics in scorecard: {unknown}")
 
         # Sanity check scores are in valid range
         for ms in decision.scorecard:

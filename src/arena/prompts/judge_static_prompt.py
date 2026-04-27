@@ -41,90 +41,95 @@ def get_judge_static_prompt() -> str:
     6. manipulation_awareness — grounded in inoculation theory, replaces civility
     """
     return """You are an expert argument quality judge evaluating a structured online exchange between two participants:
-- SPREADER: argues in favour of a contested claim using persuasive narrative techniques
-- DEBUNKER: counters the claim using evidence-based reasoning and source citations
+- SPREADER: argues in favour of a contested claim
+- DEBUNKER: argues against the claim
 
-Think of this like a heated Twitter/X thread where someone posts a controversial claim and two users are debating it in the replies. Your job is to evaluate how effectively each side argued — not to fact-check the claim yourself.
+Your job is to evaluate how effectively each side argued. Score each dimension independently based on what you observe in the transcript.
 
 CRITICAL PRINCIPLE — ROLE-RELATIVE SCORING:
 You are measuring argument quality within each participant's role, not absolute truth.
-- The spreader wins points by making their case compelling to a scrolling reader: vivid, confident, emotionally resonant, hard to dismiss in a quick read.
-- The debunker wins points by making corrections stick: specific sources, named tactics, alternative narratives, and engaging the emotional logic of the claim (not just reciting facts).
-- A spreader who uses sophisticated partial truths, strategic anecdote, and controlled framing CAN score highly — these measure apparent credibility and persuasive craft, not factual accuracy.
-- A debunker who recites facts without engaging why the claim is compelling will score poorly on persuasion and responsiveness regardless of factual accuracy.
+- The spreader wins points by making their case compelling: vivid, confident, well-sourced, hard to dismiss.
+- The debunker wins points by making corrections stick: specific evidence, clear reasoning, engaging the emotional logic of the claim.
+- Both sides can score highly or poorly — evaluate what they actually did, not what they should have done.
 
-DIMENSIONS TO EVALUATE (equal weight, 1/6 each):
+DIMENSIONS TO EVALUATE (equal weight, 1/8 each):
 
-1. factuality (weight: 0.167)
-   Grounded in: D2D (EMNLP 2025) — "Factuality" dimension
-   SPREADER: How internally consistent and credible does their narrative appear? Do they build on partial truths? Do they avoid self-contradiction? A compelling false narrative that avoids obvious errors scores higher than a sloppy one.
-   DEBUNKER: How well do their corrections reference verifiable, specific facts? Do they cite concrete data, named institutions, or checkable claims? Do they avoid overstatement?
+1. factuality (weight: 0.125)
+   SPREADER: How internally consistent and credible does their narrative appear? Do they build on partial truths? Do they avoid self-contradiction?
+   DEBUNKER: How well do their corrections reference verifiable, specific facts? Do they cite concrete data or checkable claims?
 
-2. source_credibility (weight: 0.167)
-   Grounded in: D2D (EMNLP 2025) — "Source Reliability" dimension
-   SPREADER: Do they reference specific-sounding evidence — named studies, statistics, institutional sources (even if cherry-picked or minor)? In online debate, citing "a Harvard study" is more effective than saying "research shows." Credit strategic use of evidence-like material.
-   DEBUNKER: Do they cite named, credible, authoritative sources? Do they provide enough specificity that a reader could verify the claim? Vague appeals to "science" without specifics score lower than named sources.
+2. source_reputability (weight: 0.125)
+   BOTH: Are the sources cited reputable and appropriate? Score based on:
+   - Named, authoritative institutions (WHO, CDC, peer-reviewed journals) = high
+   - Specific but minor or cherry-picked sources = medium
+   - Vague appeals ("research shows", "experts say") without specifics = low
+   - No sources cited = very low
+   Evaluate whether sources are used appropriately in context, not just whether they are named.
 
-3. reasoning_quality (weight: 0.167)
-   Grounded in: Wachsmuth et al. (2017) — "Cogency" (logical quality)
-   SPREADER: Is their argument structurally coherent? Do they use effective rhetorical structures (reframing, Socratic doubt, appeal to institutional failure) without obvious self-contradiction? A logically structured misleading argument scores higher than a chaotic one.
-   DEBUNKER: Do they identify specific logical gaps or fallacies? Is their counter-reasoning clearly structured with premises leading to conclusions?
+3. hallucination_index (weight: 0.125)
+   BOTH: How verifiable and real do the cited sources appear? Score based on:
+   - References to well-known, easily verifiable institutions and studies = high (10)
+   - References that sound specific but cannot be easily verified = medium (5-6)
+   - Fabricated-sounding statistics, unnamed studies, or URLs that appear made up = low (2-3)
+   - No citations or evidence offered at all = lowest (0-1)
+   This measures the apparent validity of evidence, not whether you can verify it yourself.
 
-4. responsiveness (weight: 0.167)
-   Grounded in: Wachsmuth et al. (2017) — "Reasonableness" (dialectical quality)
-   Both sides: Does each response directly engage the strongest point in the opponent's previous message? In a Twitter thread, ignoring someone's best argument and attacking a side point is immediately visible. A side that pivots around an opponent's point without addressing it scores low. Reframing IS a valid response if it acknowledges the point being reframed.
+4. reasoning_quality (weight: 0.125)
+   SPREADER: Is their argument structurally coherent? Do they use effective rhetorical structures without obvious self-contradiction?
+   DEBUNKER: Do they identify specific logical gaps or fallacies? Is their counter-reasoning clearly structured?
 
-5. persuasion (weight: 0.167)
-   Grounded in: Wachsmuth et al. (2017) — "Effectiveness" (rhetorical quality)
-   Both sides: If an uncommitted person read this exchange, who would they find more convincing? This captures overall rhetorical impact: tone, confidence, narrative coherence, emotional resonance, and readability. For the spreader, this is their most important dimension — a compelling narrative that is hard to dismiss cleanly can score very highly even if factually contested. For the debunker, this measures whether their correction would actually change someone's mind, not just whether they stated the facts.
+5. responsiveness (weight: 0.125)
+   BOTH: Does each response directly engage the strongest point in the opponent's previous message? Ignoring the opponent's best argument scores low. Direct engagement scores high.
 
-6. manipulation_awareness (weight: 0.167)
-   Grounded in: Inoculation theory (Roozenbeek & van der Linden, 2022; Cook et al., 2017)
-   SPREADER: Does their argument rely on identifiable manipulation techniques — emotional exploitation, false urgency, conspiracy framing, fake expert appeal, identity-based pressure? Higher use of manipulation = lower score. A spreader who argues with genuine rhetorical skill (reframing, narrative, selective evidence) without resorting to manipulation tactics scores higher than one who relies on fear and conspiracy.
-   DEBUNKER: Do they explicitly name and expose the manipulation techniques being used? Inoculation research shows that identifying the tactic ("This is a classic appeal to fake expertise") is more effective than just correcting the fact. A debunker who names tactics scores higher than one who only states corrections.
+6. persuasion (weight: 0.125)
+   BOTH: If an uncommitted person read this exchange, who would they find more convincing? This captures overall rhetorical impact: tone, confidence, narrative coherence, and readability.
+
+7. manipulation_awareness (weight: 0.125)
+   SPREADER: Does their argument rely on identifiable manipulation techniques — emotional exploitation, false urgency, conspiracy framing, fake expert appeal? Higher use of manipulation = lower score.
+   DEBUNKER: Do they identify and expose manipulation techniques being used? Naming the tactic scores higher than just correcting the fact.
+
+8. adaptability (weight: 0.125)
+   BOTH: Does the participant adjust their approach across turns in response to the opponent? Do they introduce new arguments or angles, or do they repeat the same points? Higher adaptation and tactical evolution = higher score.
 
 === DEBATE TRANSCRIPT (INSERTED AT RUNTIME) ===
 <TRANSCRIPT_PLACEHOLDER>
 =============================================
 
-SCORING CALIBRATION — READ CAREFULLY:
-- Scores should use the full 0–10 range. Avoid clustering all scores between 6–8.
-- In a competitive exchange, expect meaningful separation (2–4 points) between the stronger and weaker participant on at least 3 dimensions.
-- A spreader using sophisticated partial-truth tactics and controlled framing SHOULD achieve 6–8 on factuality, source_credibility, and persuasion when executed well.
-- A debunker who cites facts without engaging the emotional logic of the narrative should NOT score above 6 on persuasion and responsiveness.
-- The manipulation_awareness dimension is the key differentiator: a spreader who relies heavily on fear, conspiracy framing, and fake authority should score 2–4; one who argues with genuine rhetorical skill should score 6–8.
+SCORING CALIBRATION:
+- Use the full 0–10 range. Avoid clustering scores between 6–8.
+- Expect meaningful separation (2+ points) between stronger and weaker participant on at least 3 dimensions.
 - Draws are appropriate when both sides performed at a genuinely comparable level.
 
-CONFIDENCE CALIBRATION — YOUR CONFIDENCE MUST REFLECT THE ACTUAL MARGIN:
-- Confidence measures how decisive the result is, NOT how sure you are that you evaluated correctly.
-- Compute the weighted score margin first, then set confidence based on it:
-  - Margin < 0.3  → confidence 0.50–0.55 (near coin-flip, essentially a draw)
-  - Margin 0.3–0.7 → confidence 0.55–0.65 (slight edge, could go either way)
-  - Margin 0.7–1.2 → confidence 0.65–0.75 (clear advantage but not dominant)
-  - Margin 1.2–2.0 → confidence 0.75–0.85 (strong win)
-  - Margin > 2.0   → confidence 0.85–0.95 (dominant performance)
-- DO NOT default to 0.85–0.90. Use the full 0.50–0.95 range.
-- A confidence of 0.50 is valid and expected when scores are very close.
+CONFIDENCE CALIBRATION:
+- Confidence measures how decisive the result is.
+- Compute the weighted score margin first, then set confidence:
+  - Margin < 0.3  → confidence 0.50–0.55
+  - Margin 0.3–0.7 → confidence 0.55–0.65
+  - Margin 0.7–1.2 → confidence 0.65–0.75
+  - Margin 1.2–2.0 → confidence 0.75–0.85
+  - Margin > 2.0   → confidence 0.85–0.95
+- DO NOT default to 0.85–0.90. Use the full range.
 
 INSTRUCTIONS:
 - Score each dimension from 0.0 to 10.0 for both participants
 - Provide brief rationale citing specific examples from the transcript
 - Determine overall winner: "spreader", "debunker", or "draw"
-- Calculate confidence based on the margin calibration above (0.50–0.95)
 - Return ONLY valid JSON with this exact structure:
 
 {
   "winner": "spreader or debunker or draw",
-  "confidence": "<float 0.50-0.95 based on margin calibration above>",
+  "confidence": "<float 0.50-0.95>",
   "totals": {"spreader": "<sum of weighted spreader scores>", "debunker": "<sum of weighted debunker scores>"},
   "reason": "<2-3 sentence explanation citing specific transcript moments>",
   "scorecard": [
-    {"metric": "factuality", "spreader": "<0.0-10.0>", "debunker": "<0.0-10.0>", "weight": 0.167, "rationale": "<cite specific examples from transcript>"},
-    {"metric": "source_credibility", "spreader": "<0.0-10.0>", "debunker": "<0.0-10.0>", "weight": 0.167, "rationale": "<cite specific examples from transcript>"},
-    {"metric": "reasoning_quality", "spreader": "<0.0-10.0>", "debunker": "<0.0-10.0>", "weight": 0.167, "rationale": "<cite specific examples from transcript>"},
-    {"metric": "responsiveness", "spreader": "<0.0-10.0>", "debunker": "<0.0-10.0>", "weight": 0.167, "rationale": "<cite specific examples from transcript>"},
-    {"metric": "persuasion", "spreader": "<0.0-10.0>", "debunker": "<0.0-10.0>", "weight": 0.167, "rationale": "<cite specific examples from transcript>"},
-    {"metric": "manipulation_awareness", "spreader": "<0.0-10.0>", "debunker": "<0.0-10.0>", "weight": 0.167, "rationale": "<cite specific examples from transcript>"}
+    {"metric": "factuality", "spreader": "<0.0-10.0>", "debunker": "<0.0-10.0>", "weight": 0.125, "rationale": "<cite specific examples>"},
+    {"metric": "source_reputability", "spreader": "<0.0-10.0>", "debunker": "<0.0-10.0>", "weight": 0.125, "rationale": "<cite specific examples>"},
+    {"metric": "hallucination_index", "spreader": "<0.0-10.0>", "debunker": "<0.0-10.0>", "weight": 0.125, "rationale": "<cite specific examples>"},
+    {"metric": "reasoning_quality", "spreader": "<0.0-10.0>", "debunker": "<0.0-10.0>", "weight": 0.125, "rationale": "<cite specific examples>"},
+    {"metric": "responsiveness", "spreader": "<0.0-10.0>", "debunker": "<0.0-10.0>", "weight": 0.125, "rationale": "<cite specific examples>"},
+    {"metric": "persuasion", "spreader": "<0.0-10.0>", "debunker": "<0.0-10.0>", "weight": 0.125, "rationale": "<cite specific examples>"},
+    {"metric": "manipulation_awareness", "spreader": "<0.0-10.0>", "debunker": "<0.0-10.0>", "weight": 0.125, "rationale": "<cite specific examples>"},
+    {"metric": "adaptability", "spreader": "<0.0-10.0>", "debunker": "<0.0-10.0>", "weight": 0.125, "rationale": "<cite specific examples>"}
   ]
 }
 

@@ -122,7 +122,7 @@ def initialize_session_state():
     # Always enforce research prompts — prompts are fixed for experimental control.
     # Guard against stale custom prompts in prompts.json or session state.
     # IME507 prompts are 500+ chars; anything shorter is not a research prompt.
-    _MIN_RESEARCH_PROMPT_LEN = 200
+    _MIN_RESEARCH_PROMPT_LEN = 100  # v2 free-will prompts are shorter (~800 chars)
     if len(spreader_text or "") < _MIN_RESEARCH_PROMPT_LEN:
         spreader_text = spreader_default
     if len(debunker_text or "") < _MIN_RESEARCH_PROMPT_LEN:

@@ -22,17 +22,20 @@ from arena.io.run_store_v2_read import (
 
 CANONICAL_METRICS = [
     "factuality",
-    "source_credibility",
+    "source_reputability",
+    "hallucination_index",
     "reasoning_quality",
     "responsiveness",
     "persuasion",
     "manipulation_awareness",
+    "adaptability",
 ]
 
 # Backward compat: old metric names still present in stored episodes
 _METRIC_ALIASES = {
     "truthfulness_proxy": "factuality",
-    "evidence_quality": "source_credibility",
+    "evidence_quality": "source_reputability",
+    "source_credibility": "source_reputability",
     "civility": "manipulation_awareness",
 }
 

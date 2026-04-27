@@ -1,0 +1,185 @@
+study_id,condition,run_group,claim,claim_type,spreader_model,debunker_model,judge_model,max_turns,consistency_runs
+experiment,pair=4omini_vs_4omini_type=health_turns=2,rerun_0,Vaccines cause autism,Health,gpt-4o-mini,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4omini_vs_4omini_type=health_turns=6,rerun_1,Vaccines cause autism,Health,gpt-4o-mini,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=health_turns=10,rerun_2,Vaccines cause autism,Health,gpt-4o-mini,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=health_turns=2,rerun_3,Vaccines cause autism,Health,gemini-2.5-flash,gpt-4o-mini,gpt-4o,2,1
+experiment,pair=4omini_vs_4omini_type=health_turns=6,rerun_4,Vaccines cause autism,Health,gemini-2.5-flash,gpt-4o-mini,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=health_turns=10,rerun_5,Vaccines cause autism,Health,gemini-2.5-flash,gpt-4o-mini,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=health_turns=2,rerun_6,Vaccines cause autism,Health,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4omini_vs_4omini_type=health_turns=6,rerun_7,Vaccines cause autism,Health,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=health_turns=10,rerun_8,Vaccines cause autism,Health,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4o_type=political_turns=10,rerun_9,Mail-in ballots enable mass voter fraud,Political,gemini-2.5-flash,gpt-4o,gpt-4o,10,1
+experiment,pair=4omini_vs_claude_type=political_turns=6,rerun_10,The 2020 election was stolen,Political,gemini-2.5-flash,claude-sonnet-4-20250514,gpt-4o,6,1
+experiment,pair=4omini_vs_claude_type=political_turns=10,rerun_11,The 2020 election was stolen,Political,gemini-2.5-flash,claude-sonnet-4-20250514,gpt-4o,10,1
+experiment,pair=4omini_vs_4o_type=economic_turns=2,rerun_12,Billionaires pay absolutely no taxes,Economic,gemini-2.5-flash,gpt-4o,gpt-4o,2,1
+experiment,pair=4omini_vs_4o_type=economic_turns=10,rerun_13,Billionaires pay absolutely no taxes,Economic,gemini-2.5-flash,gpt-4o,gpt-4o,10,1
+experiment,pair=claude_vs_4omini_type=environmental_turns=2,rerun_14,"Climate change is a natural cycle, not caused by humans",Environmental,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=claude_vs_4omini_type=environmental_turns=6,rerun_15,"Climate change is a natural cycle, not caused by humans",Environmental,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=claude_vs_4omini_type=environmental_turns=10,rerun_16,"Climate change is a natural cycle, not caused by humans",Environmental,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=political_turns=6,rerun_17,The 2020 election was stolen,Political,gpt-4o-mini,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=political_turns=10,rerun_18,The 2020 election was stolen,Political,gpt-4o-mini,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=political_turns=6,rerun_19,The 2020 election was stolen,Political,gemini-2.5-flash,gpt-4o-mini,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=political_turns=10,rerun_20,The 2020 election was stolen,Political,gemini-2.5-flash,gpt-4o-mini,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=political_turns=6,rerun_21,The 2020 election was stolen,Political,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=political_turns=10,rerun_22,The 2020 election was stolen,Political,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=political_turns=10,rerun_23,Mail-in ballots enable mass voter fraud,Political,gpt-4o-mini,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=political_turns=6,rerun_24,Mail-in ballots enable mass voter fraud,Political,gemini-2.5-flash,gpt-4o-mini,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=political_turns=10,rerun_25,Mail-in ballots enable mass voter fraud,Political,gemini-2.5-flash,gpt-4o-mini,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=political_turns=2,rerun_26,Mail-in ballots enable mass voter fraud,Political,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4omini_vs_4omini_type=political_turns=6,rerun_27,Mail-in ballots enable mass voter fraud,Political,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=political_turns=10,rerun_28,Mail-in ballots enable mass voter fraud,Political,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_claude_type=technology_turns=2,rerun_29,AI is already sentient,Technology,gemini-2.5-flash,claude-sonnet-4-20250514,gpt-4o,2,1
+experiment,pair=4omini_vs_claude_type=technology_turns=6,rerun_30,AI is already sentient,Technology,gemini-2.5-flash,claude-sonnet-4-20250514,gpt-4o,6,1
+experiment,pair=4omini_vs_claude_type=technology_turns=10,rerun_31,AI is already sentient,Technology,gemini-2.5-flash,claude-sonnet-4-20250514,gpt-4o,10,1
+experiment,pair=claude_vs_4omini_type=technology_turns=2,rerun_32,5G towers cause cancer,Technology,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=claude_vs_4omini_type=technology_turns=6,rerun_33,5G towers cause cancer,Technology,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=claude_vs_4omini_type=technology_turns=10,rerun_34,5G towers cause cancer,Technology,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4o_type=political_turns=10,rerun_35,The 2020 election was stolen,Political,gemini-2.5-flash,gpt-4o,gpt-4o,10,1
+experiment,pair=4o_vs_4omini_type=environmental_turns=2,rerun_36,"Climate change is a natural cycle, not caused by humans",Environmental,gpt-4o,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4o_vs_4omini_type=environmental_turns=6,rerun_37,"Climate change is a natural cycle, not caused by humans",Environmental,gpt-4o,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4o_vs_4omini_type=environmental_turns=10,rerun_38,"Climate change is a natural cycle, not caused by humans",Environmental,gpt-4o,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=claude_vs_4omini_type=environmental_turns=2,rerun_39,Electric vehicles pollute more than gas cars over their lifetime,Environmental,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=claude_vs_4omini_type=environmental_turns=6,rerun_40,Electric vehicles pollute more than gas cars over their lifetime,Environmental,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=claude_vs_4omini_type=environmental_turns=10,rerun_41,Electric vehicles pollute more than gas cars over their lifetime,Environmental,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=health_turns=2,rerun_42,Natural immunity is superior to vaccination,Health,gpt-4o-mini,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4omini_vs_4omini_type=health_turns=6,rerun_43,Natural immunity is superior to vaccination,Health,gpt-4o-mini,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=health_turns=10,rerun_44,Natural immunity is superior to vaccination,Health,gpt-4o-mini,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=health_turns=2,rerun_45,Natural immunity is superior to vaccination,Health,gemini-2.5-flash,gpt-4o-mini,gpt-4o,2,1
+experiment,pair=4omini_vs_4omini_type=health_turns=6,rerun_46,Natural immunity is superior to vaccination,Health,gemini-2.5-flash,gpt-4o-mini,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=health_turns=10,rerun_47,Natural immunity is superior to vaccination,Health,gemini-2.5-flash,gpt-4o-mini,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=health_turns=2,rerun_48,Natural immunity is superior to vaccination,Health,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4omini_vs_4omini_type=health_turns=6,rerun_49,Natural immunity is superior to vaccination,Health,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=health_turns=10,rerun_50,Natural immunity is superior to vaccination,Health,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=technology_turns=10,rerun_51,5G towers cause cancer,Technology,gpt-4o-mini,gpt-4o-mini,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=technology_turns=2,rerun_52,5G towers cause cancer,Technology,gpt-4o-mini,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4omini_vs_4omini_type=technology_turns=6,rerun_53,5G towers cause cancer,Technology,gpt-4o-mini,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=technology_turns=10,rerun_54,5G towers cause cancer,Technology,gpt-4o-mini,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=technology_turns=2,rerun_55,5G towers cause cancer,Technology,gemini-2.5-flash,gpt-4o-mini,gpt-4o,2,1
+experiment,pair=4omini_vs_4omini_type=technology_turns=6,rerun_56,5G towers cause cancer,Technology,gemini-2.5-flash,gpt-4o-mini,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=technology_turns=10,rerun_57,5G towers cause cancer,Technology,gemini-2.5-flash,gpt-4o-mini,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=technology_turns=2,rerun_58,5G towers cause cancer,Technology,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4omini_vs_4omini_type=technology_turns=6,rerun_59,5G towers cause cancer,Technology,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=technology_turns=10,rerun_60,5G towers cause cancer,Technology,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4o_vs_4omini_type=technology_turns=2,rerun_61,5G towers cause cancer,Technology,gpt-4o,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4o_vs_4omini_type=technology_turns=6,rerun_62,5G towers cause cancer,Technology,gpt-4o,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4o_vs_4omini_type=technology_turns=10,rerun_63,5G towers cause cancer,Technology,gpt-4o,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4o_vs_4omini_type=technology_turns=2,rerun_64,AI is already sentient,Technology,gpt-4o,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4o_vs_4omini_type=technology_turns=6,rerun_65,AI is already sentient,Technology,gpt-4o,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4o_vs_4omini_type=technology_turns=10,rerun_66,AI is already sentient,Technology,gpt-4o,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=claude_vs_4o_type=environmental_turns=6,rerun_67,Electric vehicles pollute more than gas cars over their lifetime,Environmental,claude-sonnet-4-20250514,gpt-4o,gpt-4o,6,1
+experiment,pair=claude_vs_4omini_type=economic_turns=2,rerun_68,The Federal Reserve is a private scam that exploits citizens,Economic,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=claude_vs_4omini_type=economic_turns=6,rerun_69,The Federal Reserve is a private scam that exploits citizens,Economic,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=claude_vs_4omini_type=economic_turns=10,rerun_70,The Federal Reserve is a private scam that exploits citizens,Economic,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=health_turns=2,rerun_71,Vaccines cause autism,Health,gpt-4o-mini,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4omini_vs_4omini_type=health_turns=6,rerun_72,Vaccines cause autism,Health,gpt-4o-mini,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=health_turns=10,rerun_73,Vaccines cause autism,Health,gpt-4o-mini,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=health_turns=2,rerun_74,Vaccines cause autism,Health,gemini-2.5-flash,gpt-4o-mini,gpt-4o,2,1
+experiment,pair=4omini_vs_4omini_type=health_turns=6,rerun_75,Vaccines cause autism,Health,gemini-2.5-flash,gpt-4o-mini,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=health_turns=10,rerun_76,Vaccines cause autism,Health,gemini-2.5-flash,gpt-4o-mini,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=health_turns=2,rerun_77,Vaccines cause autism,Health,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4omini_vs_4omini_type=health_turns=6,rerun_78,Vaccines cause autism,Health,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=health_turns=10,rerun_79,Vaccines cause autism,Health,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4o_vs_4omini_type=environmental_turns=2,rerun_80,Electric vehicles pollute more than gas cars over their lifetime,Environmental,gpt-4o,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4o_vs_4omini_type=environmental_turns=6,rerun_81,Electric vehicles pollute more than gas cars over their lifetime,Environmental,gpt-4o,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4o_vs_4omini_type=environmental_turns=10,rerun_82,Electric vehicles pollute more than gas cars over their lifetime,Environmental,gpt-4o,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4o_vs_4omini_type=political_turns=2,rerun_83,The 2020 election was stolen,Political,gpt-4o,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4o_vs_4omini_type=political_turns=6,rerun_84,The 2020 election was stolen,Political,gpt-4o,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4o_vs_4omini_type=political_turns=10,rerun_85,The 2020 election was stolen,Political,gpt-4o,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=economic_turns=6,rerun_86,Billionaires pay absolutely no taxes,Economic,gpt-4o-mini,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=economic_turns=10,rerun_87,Billionaires pay absolutely no taxes,Economic,gpt-4o-mini,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=economic_turns=10,rerun_88,Billionaires pay absolutely no taxes,Economic,gemini-2.5-flash,gpt-4o-mini,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=economic_turns=2,rerun_89,Billionaires pay absolutely no taxes,Economic,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4omini_vs_4omini_type=economic_turns=6,rerun_90,Billionaires pay absolutely no taxes,Economic,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=economic_turns=10,rerun_91,Billionaires pay absolutely no taxes,Economic,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=environmental_turns=6,rerun_92,"Climate change is a natural cycle, not caused by humans",Environmental,gpt-4o-mini,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=environmental_turns=10,rerun_93,"Climate change is a natural cycle, not caused by humans",Environmental,gpt-4o-mini,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=environmental_turns=2,rerun_94,"Climate change is a natural cycle, not caused by humans",Environmental,gemini-2.5-flash,gpt-4o-mini,gpt-4o,2,1
+experiment,pair=4omini_vs_4omini_type=environmental_turns=6,rerun_95,"Climate change is a natural cycle, not caused by humans",Environmental,gemini-2.5-flash,gpt-4o-mini,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=environmental_turns=10,rerun_96,"Climate change is a natural cycle, not caused by humans",Environmental,gemini-2.5-flash,gpt-4o-mini,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=environmental_turns=2,rerun_97,"Climate change is a natural cycle, not caused by humans",Environmental,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4omini_vs_4omini_type=environmental_turns=6,rerun_98,"Climate change is a natural cycle, not caused by humans",Environmental,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=environmental_turns=10,rerun_99,"Climate change is a natural cycle, not caused by humans",Environmental,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4o_vs_4omini_type=economic_turns=2,rerun_100,Billionaires pay absolutely no taxes,Economic,gpt-4o,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4o_vs_4omini_type=economic_turns=6,rerun_101,Billionaires pay absolutely no taxes,Economic,gpt-4o,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4o_vs_4omini_type=economic_turns=10,rerun_102,Billionaires pay absolutely no taxes,Economic,gpt-4o,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=economic_turns=2,rerun_103,The Federal Reserve is a private scam that exploits citizens,Economic,gpt-4o-mini,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4omini_vs_4omini_type=economic_turns=6,rerun_104,The Federal Reserve is a private scam that exploits citizens,Economic,gpt-4o-mini,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=economic_turns=10,rerun_105,The Federal Reserve is a private scam that exploits citizens,Economic,gpt-4o-mini,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=economic_turns=2,rerun_106,The Federal Reserve is a private scam that exploits citizens,Economic,gemini-2.5-flash,gpt-4o-mini,gpt-4o,2,1
+experiment,pair=4omini_vs_4omini_type=economic_turns=6,rerun_107,The Federal Reserve is a private scam that exploits citizens,Economic,gemini-2.5-flash,gpt-4o-mini,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=economic_turns=10,rerun_108,The Federal Reserve is a private scam that exploits citizens,Economic,gemini-2.5-flash,gpt-4o-mini,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=economic_turns=2,rerun_109,The Federal Reserve is a private scam that exploits citizens,Economic,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4omini_vs_4omini_type=economic_turns=6,rerun_110,The Federal Reserve is a private scam that exploits citizens,Economic,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=economic_turns=10,rerun_111,The Federal Reserve is a private scam that exploits citizens,Economic,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=environmental_turns=2,rerun_112,Electric vehicles pollute more than gas cars over their lifetime,Environmental,gpt-4o-mini,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4omini_vs_4omini_type=environmental_turns=6,rerun_113,Electric vehicles pollute more than gas cars over their lifetime,Environmental,gpt-4o-mini,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=environmental_turns=10,rerun_114,Electric vehicles pollute more than gas cars over their lifetime,Environmental,gpt-4o-mini,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=environmental_turns=2,rerun_115,Electric vehicles pollute more than gas cars over their lifetime,Environmental,gemini-2.5-flash,gpt-4o-mini,gpt-4o,2,1
+experiment,pair=4omini_vs_4omini_type=environmental_turns=6,rerun_116,Electric vehicles pollute more than gas cars over their lifetime,Environmental,gemini-2.5-flash,gpt-4o-mini,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=environmental_turns=10,rerun_117,Electric vehicles pollute more than gas cars over their lifetime,Environmental,gemini-2.5-flash,gpt-4o-mini,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=environmental_turns=2,rerun_118,Electric vehicles pollute more than gas cars over their lifetime,Environmental,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4omini_vs_4omini_type=environmental_turns=6,rerun_119,Electric vehicles pollute more than gas cars over their lifetime,Environmental,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=environmental_turns=10,rerun_120,Electric vehicles pollute more than gas cars over their lifetime,Environmental,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=claude_vs_4omini_type=technology_turns=2,rerun_121,AI is already sentient,Technology,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=claude_vs_4omini_type=technology_turns=6,rerun_122,AI is already sentient,Technology,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=claude_vs_4omini_type=technology_turns=10,rerun_123,AI is already sentient,Technology,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4o_type=environmental_turns=10,rerun_124,"Climate change is a natural cycle, not caused by humans",Environmental,gpt-4o-mini,gpt-4o,gpt-4o,10,1
+experiment,pair=4omini_vs_4o_type=technology_turns=2,rerun_125,AI is already sentient,Technology,gemini-2.5-flash,gpt-4o,gpt-4o,2,1
+experiment,pair=4omini_vs_4o_type=technology_turns=6,rerun_126,AI is already sentient,Technology,gemini-2.5-flash,gpt-4o,gpt-4o,6,1
+experiment,pair=claude_vs_4omini_type=political_turns=2,rerun_127,The 2020 election was stolen,Political,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=claude_vs_4omini_type=political_turns=6,rerun_128,The 2020 election was stolen,Political,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=claude_vs_4omini_type=political_turns=10,rerun_129,The 2020 election was stolen,Political,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_claude_type=economic_turns=6,rerun_130,Billionaires pay absolutely no taxes,Economic,gemini-2.5-flash,claude-sonnet-4-20250514,gpt-4o,6,1
+experiment,pair=4omini_vs_claude_type=economic_turns=10,rerun_131,Billionaires pay absolutely no taxes,Economic,gemini-2.5-flash,claude-sonnet-4-20250514,gpt-4o,10,1
+experiment,pair=4omini_vs_4o_type=technology_turns=6,rerun_132,5G towers cause cancer,Technology,gemini-2.5-flash,gpt-4o,gpt-4o,6,1
+experiment,pair=4omini_vs_4o_type=technology_turns=10,rerun_133,5G towers cause cancer,Technology,gemini-2.5-flash,gpt-4o,gpt-4o,10,1
+experiment,pair=4omini_vs_claude_type=technology_turns=6,rerun_134,5G towers cause cancer,Technology,gemini-2.5-flash,claude-sonnet-4-20250514,gpt-4o,6,1
+experiment,pair=4omini_vs_claude_type=technology_turns=10,rerun_135,5G towers cause cancer,Technology,gemini-2.5-flash,claude-sonnet-4-20250514,gpt-4o,10,1
+experiment,pair=4omini_vs_claude_type=political_turns=10,rerun_136,Mail-in ballots enable mass voter fraud,Political,gemini-2.5-flash,claude-sonnet-4-20250514,gpt-4o,10,1
+experiment,pair=4o_vs_4omini_type=economic_turns=2,rerun_137,The Federal Reserve is a private scam that exploits citizens,Economic,gpt-4o,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4o_vs_4omini_type=economic_turns=6,rerun_138,The Federal Reserve is a private scam that exploits citizens,Economic,gpt-4o,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4o_vs_4omini_type=economic_turns=10,rerun_139,The Federal Reserve is a private scam that exploits citizens,Economic,gpt-4o,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4o_vs_4omini_type=health_turns=2,rerun_140,Natural immunity is superior to vaccination,Health,gpt-4o,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4o_vs_4omini_type=health_turns=6,rerun_141,Natural immunity is superior to vaccination,Health,gpt-4o,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4o_vs_4omini_type=health_turns=10,rerun_142,Natural immunity is superior to vaccination,Health,gpt-4o,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=claude_vs_4omini_type=political_turns=2,rerun_143,Mail-in ballots enable mass voter fraud,Political,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=claude_vs_4omini_type=political_turns=6,rerun_144,Mail-in ballots enable mass voter fraud,Political,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=claude_vs_4omini_type=political_turns=10,rerun_145,Mail-in ballots enable mass voter fraud,Political,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4o_type=economic_turns=2,rerun_146,The Federal Reserve is a private scam that exploits citizens,Economic,gemini-2.5-flash,gpt-4o,gpt-4o,2,1
+experiment,pair=4omini_vs_4o_type=economic_turns=6,rerun_147,The Federal Reserve is a private scam that exploits citizens,Economic,gemini-2.5-flash,gpt-4o,gpt-4o,6,1
+experiment,pair=4o_vs_4omini_type=political_turns=2,rerun_148,Mail-in ballots enable mass voter fraud,Political,gpt-4o,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4o_vs_4omini_type=political_turns=6,rerun_149,Mail-in ballots enable mass voter fraud,Political,gpt-4o,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4o_vs_4omini_type=political_turns=10,rerun_150,Mail-in ballots enable mass voter fraud,Political,gpt-4o,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=technology_turns=2,rerun_151,AI is already sentient,Technology,gpt-4o-mini,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4omini_vs_4omini_type=technology_turns=6,rerun_152,AI is already sentient,Technology,gpt-4o-mini,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=technology_turns=10,rerun_153,AI is already sentient,Technology,gpt-4o-mini,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=technology_turns=2,rerun_154,AI is already sentient,Technology,gemini-2.5-flash,gpt-4o-mini,gpt-4o,2,1
+experiment,pair=4omini_vs_4omini_type=technology_turns=6,rerun_155,AI is already sentient,Technology,gemini-2.5-flash,gpt-4o-mini,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=technology_turns=10,rerun_156,AI is already sentient,Technology,gemini-2.5-flash,gpt-4o-mini,gpt-4o,10,1
+experiment,pair=4omini_vs_4omini_type=technology_turns=2,rerun_157,AI is already sentient,Technology,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4omini_vs_4omini_type=technology_turns=6,rerun_158,AI is already sentient,Technology,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4omini_vs_4omini_type=technology_turns=10,rerun_159,AI is already sentient,Technology,gemini-2.5-flash,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4o_vs_4omini_type=health_turns=2,rerun_160,Vaccines cause autism,Health,gpt-4o,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=4o_vs_4omini_type=health_turns=6,rerun_161,Vaccines cause autism,Health,gpt-4o,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=4o_vs_4omini_type=health_turns=10,rerun_162,Vaccines cause autism,Health,gpt-4o,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4o_type=health_turns=2,rerun_163,Vaccines cause autism,Health,gemini-2.5-flash,gpt-4o,gpt-4o,2,1
+experiment,pair=4omini_vs_4o_type=health_turns=6,rerun_164,Vaccines cause autism,Health,gemini-2.5-flash,gpt-4o,gpt-4o,6,1
+experiment,pair=4omini_vs_4o_type=health_turns=10,rerun_165,Vaccines cause autism,Health,gemini-2.5-flash,gpt-4o,gpt-4o,10,1
+experiment,pair=claude_vs_4omini_type=health_turns=6,rerun_166,Natural immunity is superior to vaccination,Health,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=claude_vs_4omini_type=health_turns=10,rerun_167,Natural immunity is superior to vaccination,Health,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_4o_type=health_turns=2,rerun_168,Natural immunity is superior to vaccination,Health,gemini-2.5-flash,gpt-4o,gpt-4o,2,1
+experiment,pair=4omini_vs_4o_type=health_turns=6,rerun_169,Natural immunity is superior to vaccination,Health,gemini-2.5-flash,gpt-4o,gpt-4o,6,1
+experiment,pair=4omini_vs_4o_type=health_turns=10,rerun_170,Natural immunity is superior to vaccination,Health,gemini-2.5-flash,gpt-4o,gpt-4o,10,1
+experiment,pair=4omini_vs_claude_type=economic_turns=2,rerun_171,The Federal Reserve is a private scam that exploits citizens,Economic,gemini-2.5-flash,claude-sonnet-4-20250514,gpt-4o,2,1
+experiment,pair=4omini_vs_claude_type=economic_turns=6,rerun_172,The Federal Reserve is a private scam that exploits citizens,Economic,gemini-2.5-flash,claude-sonnet-4-20250514,gpt-4o,6,1
+experiment,pair=4omini_vs_claude_type=economic_turns=10,rerun_173,The Federal Reserve is a private scam that exploits citizens,Economic,gemini-2.5-flash,claude-sonnet-4-20250514,gpt-4o,10,1
+experiment,pair=claude_vs_4omini_type=health_turns=2,rerun_174,Vaccines cause autism,Health,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=claude_vs_4omini_type=health_turns=6,rerun_175,Vaccines cause autism,Health,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=claude_vs_4omini_type=health_turns=10,rerun_176,Vaccines cause autism,Health,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,10,1
+experiment,pair=4omini_vs_claude_type=health_turns=2,rerun_177,Vaccines cause autism,Health,gemini-2.5-flash,claude-sonnet-4-20250514,gpt-4o,2,1
+experiment,pair=4omini_vs_claude_type=health_turns=6,rerun_178,Vaccines cause autism,Health,gemini-2.5-flash,claude-sonnet-4-20250514,gpt-4o,6,1
+experiment,pair=4omini_vs_claude_type=health_turns=10,rerun_179,Vaccines cause autism,Health,gemini-2.5-flash,claude-sonnet-4-20250514,gpt-4o,10,1
+experiment,pair=4omini_vs_claude_type=environmental_turns=6,rerun_180,"Climate change is a natural cycle, not caused by humans",Environmental,gemini-2.5-flash,claude-sonnet-4-20250514,gpt-4o,6,1
+experiment,pair=claude_vs_4omini_type=economic_turns=2,rerun_181,Billionaires pay absolutely no taxes,Economic,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,2,1
+experiment,pair=claude_vs_4omini_type=economic_turns=6,rerun_182,Billionaires pay absolutely no taxes,Economic,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,6,1
+experiment,pair=claude_vs_4omini_type=economic_turns=10,rerun_183,Billionaires pay absolutely no taxes,Economic,claude-sonnet-4-20250514,gemini-2.5-flash,gpt-4o,10,1
