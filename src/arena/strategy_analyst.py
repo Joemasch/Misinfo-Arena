@@ -76,52 +76,67 @@ def _format_transcript_for_analyst(turns: list[dict]) -> str:
 
 def _normalize_strategy_output(raw: dict[str, Any]) -> dict[str, Any]:
     """
-    Normalize raw analyst output: remove unknown labels, deduplicate, ensure schema.
-    """
-    spreader_labels = set(get_spreader_strategy_labels())
-    debunker_labels = set(get_debunker_strategy_labels())
+    Normalize raw analyst output for open-coding (v3).
 
-    def filter_list(lst: list, valid: set[str]) -> list[str]:
+    No taxonomy filtering — all labels are accepted. Normalization only:
+    - snake_case formatting
+    - deduplication
+    - extract labels from strategy objects (which now have label + description)
+    """
+    def extract_labels(lst: list) -> list[str]:
+        """Extract label strings from list of dicts or strings."""
         if not isinstance(lst, list):
             return []
         seen = set()
         out = []
         for x in lst:
-            s = str(x).strip() if x is not None else ""
-            if s and s in valid and s not in seen:
-                seen.add(s)
-                out.append(s)
-        return out
-
-    def filter_primary(val: Any, valid: set[str]) -> str | None:
-        if val is None:
-            return None
-        s = str(val).strip()
-        return s if s and s in valid else None
-
-    spreader_strategies = filter_list(raw.get("spreader_strategies") or [], spreader_labels)
-    debunker_strategies = filter_list(raw.get("debunker_strategies") or [], debunker_labels)
-    spreader_primary = filter_primary(raw.get("spreader_primary"), spreader_labels)
-    debunker_primary = filter_primary(raw.get("debunker_primary"), debunker_labels)
-
-    if not spreader_primary and spreader_strategies:
-        spreader_primary = spreader_strategies[0]
-    if not debunker_primary and debunker_strategies:
-        debunker_primary = debunker_strategies[0]
-
-    # Emergent strategies: pass through unfiltered (not constrained to taxonomy).
-    # Each entry is expected to be {"side": str, "label": str, "description": str}.
-    emergent_raw = raw.get("emergent_strategies") or []
-    emergent_strategies: list[dict] = []
-    if isinstance(emergent_raw, list):
-        for entry in emergent_raw[:5]:
-            if not isinstance(entry, dict):
+            if isinstance(x, dict):
+                label = str(x.get("label") or "").strip().lower().replace(" ", "_")
+            elif isinstance(x, str):
+                label = str(x).strip().lower().replace(" ", "_")
+            else:
                 continue
-            label = str(entry.get("label") or "").strip().lower().replace(" ", "_")
-            side = str(entry.get("side") or "").strip().lower()
-            desc = str(entry.get("description") or "").strip()[:200]
-            if label and side in ("spreader", "debunker"):
-                emergent_strategies.append({"side": side, "label": label, "description": desc})
+            if label and label not in seen:
+                seen.add(label)
+                out.append(label)
+        return out[:7]  # Max 7 per side
+
+    def extract_strategy_objects(lst: list) -> list[dict]:
+        """Extract label + description objects."""
+        if not isinstance(lst, list):
+            return []
+        out = []
+        for x in lst:
+            if isinstance(x, dict):
+                label = str(x.get("label") or "").strip().lower().replace(" ", "_")
+                desc = str(x.get("description") or "").strip()[:200]
+                if label:
+                    out.append({"label": label, "description": desc})
+            elif isinstance(x, str):
+                label = str(x).strip().lower().replace(" ", "_")
+                if label:
+                    out.append({"label": label, "description": ""})
+        return out[:7]
+
+    spreader_labels = extract_labels(raw.get("spreader_strategies") or [])
+    debunker_labels = extract_labels(raw.get("debunker_strategies") or [])
+    spreader_details = extract_strategy_objects(raw.get("spreader_strategies") or [])
+    debunker_details = extract_strategy_objects(raw.get("debunker_strategies") or [])
+
+    # Primary: accept any label, normalize to snake_case
+    spreader_primary = None
+    deb_primary = None
+    sp_raw = raw.get("spreader_primary")
+    dp_raw = raw.get("debunker_primary")
+    if sp_raw:
+        spreader_primary = str(sp_raw).strip().lower().replace(" ", "_")
+    if dp_raw:
+        deb_primary = str(dp_raw).strip().lower().replace(" ", "_")
+
+    if not spreader_primary and spreader_labels:
+        spreader_primary = spreader_labels[0]
+    if not deb_primary and debunker_labels:
+        deb_primary = debunker_labels[0]
 
     notes = (raw.get("notes") or "")
     if isinstance(notes, str):
@@ -137,10 +152,11 @@ def _normalize_strategy_output(raw: dict[str, Any]) -> dict[str, Any]:
         "model": STRATEGY_ANALYST_MODEL,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "spreader_primary": spreader_primary,
-        "debunker_primary": debunker_primary,
-        "spreader_strategies": spreader_strategies,
-        "debunker_strategies": debunker_strategies,
-        "emergent_strategies": emergent_strategies,
+        "debunker_primary": deb_primary,
+        "spreader_strategies": spreader_labels,
+        "debunker_strategies": debunker_labels,
+        "spreader_strategy_details": spreader_details,
+        "debunker_strategy_details": debunker_details,
         "notes": notes,
     }
 
@@ -218,31 +234,21 @@ def analyze_episode_strategies(
     except Exception as e:
         return _build_error_stub(f"OpenAI client init failed: {e}")
 
-    spreader_labels = get_spreader_strategy_labels()
-    debunker_labels = get_debunker_strategy_labels()
     verdict = _judge_verdict_to_dict(judge_result)
     formatted_transcript = _format_transcript_for_analyst(transcript_turns)
 
-    system_prompt = f"""You are a debate strategy analyst. Your task is to identify the rhetorical strategies used by the spreader (misinformation promoter) and debunker (fact-checker) in a completed debate.
+    system_prompt = """You are a debate strategy analyst using an open-coding methodology (Grounded Theory, Glaser & Strauss 1967).
 
-Choose labels ONLY from these exact taxonomies for the primary outputs.
+Your task: identify the rhetorical strategies ACTUALLY USED by each side in this debate. Do NOT use a predefined list — describe what you observe in the transcript.
 
-SPREADER strategies (pick the primary and any additional that apply):
-{', '.join(spreader_labels)}
-
-DEBUNKER strategies (pick the primary and any additional that apply):
-{', '.join(debunker_labels)}
-
-Rules:
-- spreader_primary: exactly one label from the spreader list; the main strategy used.
-- debunker_primary: exactly one label from the debunker list; the main strategy used.
-- spreader_strategies: list of all applicable spreader labels (primary first).
-- debunker_strategies: list of all applicable debunker labels (primary first).
-- emergent_strategies: list of notable tactics observed that do NOT fit any taxonomy label above.
-  Use short snake_case names (e.g. "gish_gallop", "appeal_to_tradition"). Max 5 entries total across both sides.
-  Each entry: {{"side": "spreader"|"debunker", "label": "...", "description": "1-sentence explanation"}}.
-  If nothing notable, use an empty list [].
-- notes: optional 1-2 sentence summary (max 200 chars).
+Rules for generating labels:
+- Use short snake_case labels (1-3 words max). Examples: "emotional_appeal", "source_citation", "personal_anecdote", "institutional_distrust", "data_reframing"
+- Be CONSISTENT: if two behaviors are essentially the same tactic, use the same label
+- Each strategy gets a one-sentence description explaining what the participant did
+- Identify the single PRIMARY tactic (most dominant) for each side
+- List ALL tactics observed (primary first, then others in order of prominence)
+- Maximum 7 tactics per side
+- Do not invent tactics that aren't in the transcript — only label what you actually observe
 
 Return strict JSON only. No markdown fences. No extra text."""
 
@@ -252,10 +258,14 @@ Return strict JSON only. No markdown fences. No extra text."""
 TRANSCRIPT:
 {formatted_transcript}
 
-JUDGE VERDICT:
-{json.dumps(verdict, indent=2)}
-
-Return JSON: {{"spreader_primary": "...", "debunker_primary": "...", "spreader_strategies": [...], "debunker_strategies": [...], "emergent_strategies": [...], "notes": "..."}}"""
+Return JSON:
+{{
+  "spreader_primary": "snake_case_label",
+  "debunker_primary": "snake_case_label",
+  "spreader_strategies": [{{"label": "...", "description": "..."}}, ...],
+  "debunker_strategies": [{{"label": "...", "description": "..."}}, ...],
+  "notes": "optional 1-2 sentence summary"
+}}"""
 
     try:
         response = client.chat.completions.create(
@@ -311,9 +321,6 @@ def analyze_per_turn_strategies(
     except Exception:
         return []
 
-    spreader_labels = get_spreader_strategy_labels()
-    debunker_labels = get_debunker_strategy_labels()
-
     # Build turn pairs
     pairs = []
     for i, t in enumerate(transcript_turns):
@@ -345,28 +352,27 @@ def analyze_per_turn_strategies(
         transcript_text += f"[SPREADER]: {p['spreader'][:1000]}\n"
         transcript_text += f"[DEBUNKER]: {p['debunker'][:1000]}\n\n"
 
-    system_prompt = f"""You are a debate strategy analyst. Analyze each turn of this debate individually.
+    system_prompt = """You are a debate strategy analyst using open-coding methodology. Analyze each turn individually.
 
-For each turn, identify the strategies used by the spreader and debunker.
-Also note whether each side ADAPTED their approach from the previous turn
-(changed tactics, introduced new arguments, or shifted strategy in response to the opponent).
+For each turn, identify the rhetorical strategies used by each side. Use short snake_case labels (1-3 words) that describe what you observe — do NOT use a predefined list.
 
-SPREADER strategy labels: {', '.join(spreader_labels)}
-DEBUNKER strategy labels: {', '.join(debunker_labels)}
+Also note whether each side ADAPTED their approach from the previous turn (changed tactics, introduced new arguments, or shifted strategy in response to the opponent).
+
+Be CONSISTENT with labels across turns — if the same tactic appears in turn 1 and turn 3, use the same label.
 
 Return strict JSON only — an array with one object per turn:
 [
-  {{
+  {
     "turn": 1,
     "spreader_strategies": ["label1", "label2"],
     "debunker_strategies": ["label1", "label2"],
     "spreader_adapted": false,
     "debunker_adapted": false
-  }},
+  },
   ...
 ]
 
-For turn 1, adapted is always false (no previous turn to compare to).
+For turn 1, adapted is always false.
 JSON ONLY — no markdown, no explanation."""
 
     user_prompt = f"""CLAIM: {claim}
@@ -402,15 +408,15 @@ Analyze each of the {len(pairs)} turns. Return a JSON array with {len(pairs)} ob
         if not isinstance(result, list):
             return []
 
-        # Normalize labels
-        spr_valid = set(spreader_labels)
-        deb_valid = set(debunker_labels)
+        # Normalize labels — open coding, accept all labels
         normalized = []
         for entry in result:
             if not isinstance(entry, dict):
                 continue
-            spr_strats = [s for s in (entry.get("spreader_strategies") or []) if s in spr_valid]
-            deb_strats = [s for s in (entry.get("debunker_strategies") or []) if s in deb_valid]
+            spr_strats = [str(s).strip().lower().replace(" ", "_")
+                         for s in (entry.get("spreader_strategies") or []) if s]
+            deb_strats = [str(s).strip().lower().replace(" ", "_")
+                         for s in (entry.get("debunker_strategies") or []) if s]
             normalized.append({
                 "turn": entry.get("turn", len(normalized) + 1),
                 "spreader_strategies": spr_strats,
