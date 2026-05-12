@@ -869,10 +869,11 @@ def render_atlas_page():
         '<h2 style="font-family:\'Playfair Display\',Georgia,serif;font-size:1.4rem;'
         'font-weight:700;margin:1.5rem 0 0.4rem 0">Strategies</h2>'
         '<p style="font-size:0.85rem;color:#9ca3af;margin:0 0 0.8rem 0">'
-        'Rhetorical tactics observed in your debates, grouped by how each was used: '
-        '<span style="color:#D4A843;font-weight:600">spreader-only</span>, '
-        '<span style="color:#16a34a;font-weight:600">used by both sides</span>, or '
-        '<span style="color:#4A7FA5;font-weight:600">fact-checker-only</span>.'
+        'Rhetorical tactics observed in your debates, grouped by '
+        '<span style="color:#D4A843;font-weight:600">dominant spreader use</span> or '
+        '<span style="color:#4A7FA5;font-weight:600">dominant fact-checker use</span>. '
+        'Tactics with at least 25% balance between sides are marked '
+        '<span style="color:#16a34a;font-weight:600">↔ used by both</span>.'
         '</p>',
         unsafe_allow_html=True,
     )
@@ -884,35 +885,49 @@ def render_atlas_page():
             return (plain.lower(), 0)
         return (-n_uses, plain.lower())
 
-    # Three-way usage bucketing:
-    #   spreader-only / used by both / fact-checker-only.
-    # Tactics with zero usage fall back to the catalogue's canonical side so
-    # the glossary entries stay visible in a natural home from day one.
+    # Two-bucket layout. Every tactic goes into its dominant side. A tactic
+    # is flagged "shared" if the minor side has ≥25% of the major side's
+    # usage — that catches genuine cross-side patterns and excludes the
+    # statistical-noise cases (e.g. emotional_appeal at 5% balance).
+    SHARED_THRESHOLD = 0.25
+    BOTH_COLOR = "#16a34a"
+
     strat_items = sorted(strategy_index.items(), key=_strat_sort_key)
-    strat_by_bucket = {"spreader": [], "both": [], "debunker": []}
+    strat_by_bucket: dict[str, list] = {"spreader": [], "debunker": []}
     for plain, data in strat_items:
         n_spr = len(data["spreader"])
         n_deb = len(data["debunker"])
-        if n_spr > 0 and n_deb > 0:
-            bucket = "both"
-        elif n_spr > 0:
-            bucket = "spreader"
-        elif n_deb > 0:
-            bucket = "debunker"
-        else:
-            # Never used — bucket by canonical side from the catalogue
+        if n_spr == 0 and n_deb == 0:
+            # No usage yet — fall back to the catalogue's canonical side
             bucket = _side_for(plain, data.get("raw_label", ""), data)
+            if bucket == "both":
+                bucket = "spreader"  # arbitrary default — only happens for unused catalogue entries
+            data["_is_shared"] = False
+            data["_n_spr"] = n_spr
+            data["_n_deb"] = n_deb
+        else:
+            bucket = "spreader" if n_spr >= n_deb else "debunker"
+            major = max(n_spr, n_deb)
+            minor = min(n_spr, n_deb)
+            data["_is_shared"] = bool(major > 0 and (minor / major) >= SHARED_THRESHOLD and minor > 0)
+            data["_n_spr"] = n_spr
+            data["_n_deb"] = n_deb
         strat_by_bucket[bucket].append((plain, data))
-
-    BOTH_COLOR = "#16a34a"  # green — also used elsewhere for "shared" things
 
     def _render_strategy_column(entries, header_label, color_tag, accent_color, empty_msg):
         accent_rgb = _hex_to_rgb(accent_color)
+        both_rgb = _hex_to_rgb(BOTH_COLOR)
+        # Header — show how many of the entries are shared
+        n_shared = sum(1 for _, d in entries if d.get("_is_shared"))
+        shared_suffix = (
+            f' · <span style="color:{BOTH_COLOR}">{n_shared} shared</span>'
+            if n_shared else ""
+        )
         st.markdown(
             f'<div style="font-size:0.72rem;color:{accent_color};font-weight:700;'
             f'text-transform:uppercase;letter-spacing:0.07em;margin:0.2rem 0 0.5rem 0;'
             f'padding-bottom:0.35rem;border-bottom:2px solid rgba({accent_rgb},0.4)">'
-            f'{header_label} · {len(entries)}'
+            f'{header_label} · {len(entries)}{shared_suffix}'
             f'</div>',
             unsafe_allow_html=True,
         )
@@ -922,11 +937,37 @@ def render_atlas_page():
         for plain, data in entries:
             raw = data.get("raw_label", "")
             desc = _description_for(plain, raw, data)
-            n_spr = len(data["spreader"])
-            n_deb = len(data["debunker"])
+            n_spr = data.get("_n_spr", len(data["spreader"]))
+            n_deb = data.get("_n_deb", len(data["debunker"]))
             n_total = n_spr + n_deb
-            header = f":{color_tag}[**{plain}**] · {n_total} ep{'s' if n_total != 1 else ''}"
+            is_shared = bool(data.get("_is_shared"))
+
+            # Header label — color-coded green when shared, native side color otherwise.
+            color_for_header = "green" if is_shared else color_tag
+            marker = " ↔" if is_shared else ""
+            header = f":{color_for_header}[**{plain}{marker}**] · {n_total} ep{'s' if n_total != 1 else ''}"
+
             with st.expander(header):
+                # Shared-tactic banner with the per-side balance
+                if is_shared:
+                    balance_pct = (
+                        round(min(n_spr, n_deb) / max(n_spr, n_deb) * 100)
+                        if max(n_spr, n_deb) else 0
+                    )
+                    st.markdown(
+                        f'<div style="background:rgba({both_rgb},0.10);border:1px solid rgba({both_rgb},0.45);'
+                        f'border-radius:6px;padding:0.45rem 0.7rem;margin:0.1rem 0 0.6rem 0;'
+                        f'font-size:0.82rem;color:#C8C4B9">'
+                        f'<span style="color:{BOTH_COLOR};font-weight:700;letter-spacing:0.04em;'
+                        f'text-transform:uppercase;font-size:0.7rem">↔ used by both sides</span>'
+                        f' &middot; '
+                        f'Spreader <strong>{n_spr}</strong> ep · '
+                        f'Fact-checker <strong>{n_deb}</strong> ep · '
+                        f'<span style="color:#9ca3af">balance {balance_pct}%</span>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+
                 # Prominent "About this tactic" definition section
                 st.markdown(
                     f'<div style="background:var(--color-surface-alt,#1A1A1A);'
@@ -950,24 +991,18 @@ def render_atlas_page():
                     unsafe_allow_html=True,
                 )
 
-    _sc1, _sc2, _sc3 = st.columns(3)
+    _sc1, _sc2 = st.columns(2)
     with _sc1:
         _render_strategy_column(
             strat_by_bucket["spreader"],
             "Spreader tactics", "orange", SPREADER_COLOR,
-            "— no spreader-only tactics yet —",
+            "— no tactics dominantly used by the spreader yet —",
         )
     with _sc2:
         _render_strategy_column(
-            strat_by_bucket["both"],
-            "Used by both", "green", BOTH_COLOR,
-            "— no tactics used by both sides yet — these emerge as you run more debates —",
-        )
-    with _sc3:
-        _render_strategy_column(
             strat_by_bucket["debunker"],
             "Fact-checker tactics", "blue", DEBUNKER_COLOR,
-            "— no fact-checker-only tactics yet —",
+            "— no tactics dominantly used by the fact-checker yet —",
         )
 
     # ────────────────────────────────────────────────────────────────────
