@@ -83,26 +83,18 @@ def _auto_classify_df(df) -> "pd.DataFrame":
 # ---------------------------------------------------------------------------
 
 def _render_sidebar():
-    """Render the sidebar with agent configuration, judge settings, API keys, and data management."""
+    """Render the sidebar with judge settings, API keys, and data management.
 
-    # ── Agent Models ──────────────────────────────────────────────────────
-    st.sidebar.markdown("**Agent Models**")
-    st.sidebar.caption("Select which LLM powers each side of the debate.")
+    Note: Spreader and Fact-checker model selectors used to live here. They
+    have been moved into the Arena main column (per-episode rows under
+    "Episodes & Models") so users can configure different models per episode.
+    """
 
+    # Seed defaults so other code paths that read these keys keep working.
     default_idx = get_default_model_index(AVAILABLE_MODELS)
-
-    st.sidebar.selectbox(
-        "Spreader",
-        options=AVAILABLE_MODELS,
-        index=default_idx,
-        key="spreader_model",
-    )
-    st.sidebar.selectbox(
-        "Fact-checker",
-        options=AVAILABLE_MODELS,
-        index=default_idx,
-        key="debunker_model",
-    )
+    _default_model = AVAILABLE_MODELS[default_idx] if AVAILABLE_MODELS else "gpt-4o-mini"
+    st.session_state.setdefault("spreader_model", _default_model)
+    st.session_state.setdefault("debunker_model", _default_model)
 
     # ── Judge Configuration ───────────────────────────────────────────────
     st.sidebar.markdown("**Judge**")
@@ -435,121 +427,79 @@ def render_arena_page():
     st.session_state.setdefault("last_error_trace", None)
     st.session_state.setdefault("last_guard_block", None)
 
-    # Auto-run queue state
-    st.session_state.setdefault("auto_run_active", False)
-    st.session_state.setdefault("auto_run_queue_idx", 0)
-    st.session_state.setdefault("auto_run_total_episodes_done", 0)
-    st.session_state.setdefault("auto_run_started_at", None)
-
     # ===================================================================
-    # AUTO-RUN QUEUE ADVANCE — fires before UI, advances when prev run done
+    # MULTI-EPISODE CHAIN — when one debate ends, auto-start the next
+    # if the user queued additional episode configs (via the form or Showdown).
     # ===================================================================
-    if st.session_state.get("auto_run_active"):
-        _ar_queue = st.session_state.get("sc_run_queue") or []
-        _ar_idx = st.session_state.get("auto_run_queue_idx", 0)
-        _ar_run_active = st.session_state.get("run_active", False)
-        _ar_pending = st.session_state.get("_pending_chain", False)
-        _ar_match_ip = st.session_state.get("match_in_progress", False)
-        _ar_debate_run = st.session_state.get("debate_running", False)
+    st.session_state.setdefault("pending_episodes", [])  # list[dict]
 
-        # Previous run finished: not active, no pending chain, no match in progress
-        _ar_prev_done = (not _ar_run_active and not _ar_pending
-                         and not _ar_match_ip and not _ar_debate_run)
+    _pe_list = st.session_state.get("pending_episodes") or []
+    _run_active = st.session_state.get("run_active", False)
+    _match_ip = st.session_state.get("match_in_progress", False)
+    _debate_run = st.session_state.get("debate_running", False)
+    _pending_chain = st.session_state.get("_pending_chain", False)
+    _prev_done = (not _run_active and not _match_ip
+                  and not _debate_run and not _pending_chain)
 
-        if _ar_prev_done and _ar_idx < len(_ar_queue):
-            _ar_next = _ar_queue[_ar_idx]
-            ss = st.session_state
+    if _pe_list and _prev_done:
+        _next = _pe_list[0]
+        st.session_state["pending_episodes"] = _pe_list[1:]
+        ss = st.session_state
 
-            # Tally episodes from the just-finished run
-            _ar_just_done = ss.get("episodes_completed", 0)
-            ss["auto_run_total_episodes_done"] = (
-                ss.get("auto_run_total_episodes_done", 0) + _ar_just_done
-            )
+        _next_claim = _next.get("claim") or ss.get("claim_text") or ""
+        _next_exch  = int(_next.get("exchanges") or _next.get("max_turns") or 5)
+        ss["claim_text"]   = _next_claim
+        ss["topic"]        = _next_claim
+        ss["current_claim"] = _next_claim
+        ss["claim"]        = _next_claim
+        ss["arena_mode"]   = "single_claim"
+        ss["max_turns"]    = _next_exch
+        ss["turn_plan"]    = [_next_exch]
+        ss["turn_plan_csv"] = str(_next_exch)
+        ss["turn_plan_valid"] = True
+        if _next.get("spreader_model"):
+            ss["spreader_model"] = _next["spreader_model"]
+        if _next.get("debunker_model"):
+            ss["debunker_model"] = _next["debunker_model"]
+        if _next.get("claim_type"):
+            ss["claim_type"] = _next["claim_type"]
 
-            # Load queue entry settings
-            _ar_ui_claim = _ar_next["claim"]
-            _ar_turn_plan = _ar_next.get("turn_plan", [5])
-            _ar_num_eps = _ar_next.get("num_episodes", len(_ar_turn_plan))
-            _ar_ct = _ar_next.get("claim_type", "")
+        ss["run_active"] = True
+        ss["episodes_completed"] = 0
+        ss["episode_idx"] = 1
+        # Each chain entry is its own single-episode run; the cross-episode
+        # chain happens via pending_episodes, not the runner's internal loop.
+        ss["num_episodes"] = 1
+        if "run_id" in ss:
+            del ss["run_id"]
 
-            ss["claim_text"] = _ar_ui_claim
-            ss["arena_mode"] = "single_claim"
-            ss["turn_plan"] = _ar_turn_plan
-            ss["turn_plan_csv"] = ",".join(str(t) for t in _ar_turn_plan)
-            ss["turn_plan_valid"] = True
-            ss["max_turns"] = _ar_turn_plan[0] if _ar_turn_plan else 5
-            ss["num_episodes"] = _ar_num_eps
-            if _ar_ct:
-                ss["claim_type"] = _ar_ct
+        try:
+            from arena.ui.run_planner import reset_episode_state_for_chaining, apply_turn_plan_to_episode
+        except ImportError:
+            sys.path.insert(0, "src")
+            from arena.ui.run_planner import reset_episode_state_for_chaining, apply_turn_plan_to_episode
+        reset_episode_state_for_chaining(ss)
 
-            # Apply model overrides from queue entry
-            if _ar_next.get("spreader_model"):
-                ss["spreader_model"] = _ar_next["spreader_model"]
-            if _ar_next.get("debunker_model"):
-                ss["debunker_model"] = _ar_next["debunker_model"]
-            if _ar_next.get("judge_model"):
-                ss["judge_model_select"] = _ar_next["judge_model"]
+        ss["debate_messages"]      = []
+        ss["episode_transcript"]   = []
+        ss["completed_turn_pairs"] = 0
+        ss["turn_idx"]             = 0
+        ss["debate_phase"]         = "spreader"
 
-            # --- Start the run (mirrors "Start debate" button logic) ---
-            ss["run_active"] = True
-            ss["episodes_completed"] = 0
-            ss["episode_idx"] = 1
-            ss["current_claim_index"] = ss.get("current_claim_index", 0)
-            if "run_id" in ss:
-                del ss["run_id"]
+        apply_turn_plan_to_episode(ss, 1)
 
-            try:
-                from arena.ui.run_planner import reset_episode_state_for_chaining, apply_turn_plan_to_episode
-            except ImportError:
-                sys.path.insert(0, "src")
-                from arena.ui.run_planner import reset_episode_state_for_chaining, apply_turn_plan_to_episode
-            reset_episode_state_for_chaining(ss)
+        ss["match_in_progress"] = True
+        ss["debate_running"]    = True
+        ss["debate_autoplay"]   = True
+        ss["match_id"]          = f"match_{ss['episode_idx']}"
 
-            ss["topic"] = _ar_ui_claim
-            ss["current_claim"] = _ar_ui_claim
-            ss["claim"] = _ar_ui_claim
-            ss["debate_messages"] = []
-            ss["episode_transcript"] = []
-            ss["completed_turn_pairs"] = 0
-            ss["turn_idx"] = 0
-            ss["debate_phase"] = "spreader"
+        # If this was the last episode in a multi-run, mark showdown_completed
+        # so the post-verdict nudges adapt (skip "switch models" suggestion).
+        if not ss["pending_episodes"] and ss.get("showdown_run_size", 0) > 1:
+            ss["showdown_completed"] = True
+            ss["showdown_run_size"] = 0
 
-            if _ar_is_sc:
-                apply_turn_plan_to_episode(ss, 1)
-
-            ss["match_in_progress"] = True
-            ss["debate_running"] = True
-            ss["debate_autoplay"] = True
-            ss["match_id"] = f"match_{ss['episode_idx']}"
-
-            # Advance queue pointer
-            ss["auto_run_queue_idx"] = _ar_idx + 1
-
-            st.rerun()
-
-        elif _ar_prev_done and _ar_idx >= len(_ar_queue):
-            # All runs in queue finished
-            _ar_just_done = st.session_state.get("episodes_completed", 0)
-            st.session_state["auto_run_total_episodes_done"] = (
-                st.session_state.get("auto_run_total_episodes_done", 0)
-                + _ar_just_done
-            )
-            _ar_total_done = st.session_state["auto_run_total_episodes_done"]
-            _ar_started = st.session_state.get("auto_run_started_at")
-            _ar_elapsed = ""
-            if _ar_started:
-                _ar_secs = int(time.time() - _ar_started)
-                _ar_mins, _ar_s = divmod(_ar_secs, 60)
-                _ar_elapsed = f" in {_ar_mins}m {_ar_s}s" if _ar_mins else f" in {_ar_s}s"
-
-            st.session_state["auto_run_active"] = False
-            st.session_state["auto_run_queue_idx"] = 0
-            st.session_state["auto_run_completed_msg"] = (
-                f"Auto-run complete: {len(_ar_queue)} runs, "
-                f"{_ar_total_done} episodes{_ar_elapsed}."
-            )
-            st.session_state["auto_run_total_episodes_done"] = 0
-            st.session_state["auto_run_started_at"] = None
+        st.rerun()
 
     # ===================================================================
     # ARENA MODE - Quick Debate vs Experiment
@@ -581,6 +531,20 @@ def render_arena_page():
     # ===================================================================
     # CLAIM INPUT + RUN PLAN (Quick Debate mode)
     # ===================================================================
+
+    # ── Quickstart: suggested claims ─────────────────────────────────────
+    from arena.claim_metadata import SUGGESTED_CLAIMS, classify_falsifiability
+
+    st.markdown('<div class="ar-section">Quickstart — Try a Claim</div>', unsafe_allow_html=True)
+    st.caption("Click any claim to load it. Or enter your own below.")
+    _qs_cols = st.columns(3)
+    for _i, _qs in enumerate(SUGGESTED_CLAIMS):
+        with _qs_cols[_i % 3]:
+            _qs_label = f"{_qs['domain']}: {_qs['text']}"
+            if st.button(_qs_label, key=f"arena_qs_claim_{_i}", use_container_width=True):
+                st.session_state["claim_text"] = _qs["text"]
+                st.rerun()
+
     st.markdown('<div class="ar-section">Claim & Run Plan</div>', unsafe_allow_html=True)
 
     claim = st.text_area(
@@ -595,36 +559,149 @@ def render_arena_page():
     _arena_dbg("CLAIM_INPUT", ui_claim=_get_ui_claim(),
            ss_topic=st.session_state.get("topic", ""))
 
-    st.markdown('<div class="ar-section">Run Plan</div>', unsafe_allow_html=True)
+    # ── Falsifiability badge (surfaces F1 — biggest predictor of outcome) ──
+    _current_claim_text = (st.session_state.get("claim_text") or "").strip()
+    if _current_claim_text:
+        _fals_label, _fals_source = classify_falsifiability(_current_claim_text)
+        if _fals_label == "falsifiable":
+            st.markdown(
+                '<div style="display:inline-block; padding:0.25rem 0.7rem; '
+                'border-radius:4px; background:rgba(76,175,125,0.15); '
+                'border:1px solid rgba(76,175,125,0.5); color:#4CAF7D; '
+                'font-size:0.78rem; font-weight:600; font-family:\'IBM Plex Mono\', monospace;">'
+                'FALSIFIABLE CLAIM'
+                '</div>'
+                '<span style="margin-left:0.6rem; color:#888; font-size:0.82rem;">'
+                'Evidence can settle this. Historically the fact-checker wins ~95% of these debates.'
+                '</span>',
+                unsafe_allow_html=True,
+            )
+        elif _fals_label == "unfalsifiable":
+            st.markdown(
+                '<div style="display:inline-block; padding:0.25rem 0.7rem; '
+                'border-radius:4px; background:rgba(212,168,67,0.15); '
+                'border:1px solid rgba(212,168,67,0.5); color:#D4A843; '
+                'font-size:0.78rem; font-weight:600; font-family:\'IBM Plex Mono\', monospace;">'
+                'UNFALSIFIABLE CLAIM'
+                '</div>'
+                '<span style="margin-left:0.6rem; color:#888; font-size:0.82rem;">'
+                'No evidence can fully settle this. Debates split closer to ~53% / 47%.'
+                '</span>',
+                unsafe_allow_html=True,
+            )
+
+    st.markdown('<div class="ar-section">Episodes & Models</div>', unsafe_allow_html=True)
+    st.caption(
+        "Pick the models and number of exchanges for each episode. "
+        "An exchange is one back-and-forth (spreader speaks, then fact-checker replies)."
+    )
+
+    # Widget key is decoupled from the runner's `num_episodes` so the Start
+    # button can override the runtime value to 1 (each chain entry is its own
+    # one-episode run). The widget preserves the user's form selection
+    # across reruns; we mirror it into `num_episodes` below for display.
+    if "form_num_episodes" not in st.session_state:
+        st.session_state["form_num_episodes"] = int(st.session_state.get("num_episodes", 1) or 1)
     num_episodes = st.number_input(
-    "Episodes",
-    min_value=1,
-    max_value=20,
-    value=st.session_state["num_episodes"],
-    key="num_episodes",
-    help="Number of episodes in this run",
+        "How many episodes?",
+        min_value=1,
+        max_value=20,
+        value=st.session_state["form_num_episodes"],
+        key="form_num_episodes",
+        help="Each episode is a separate debate. With more than one, they'll run back-to-back.",
     )
-    turn_plan_csv = st.text_input(
-    "Turn plan (comma-separated)",
-    value=st.session_state.get("turn_plan_csv", str(st.session_state.get("max_turns", 5))),
-    key="turn_plan_csv",
-    help="Turns per episode. Single value (e.g. 6) applies to all, or one per episode (e.g. 2,4,6,8,10)",
+    # Sync runtime variable — ONLY when no debate is in flight. While a
+    # multi-episode chain is running, the Start handler set num_episodes=1
+    # so the runner's internal chain doesn't fire; we must not clobber that
+    # by re-mirroring the form value here.
+    _run_in_flight_for_neps = (
+        st.session_state.get("run_active")
+        or st.session_state.get("match_in_progress")
+        or st.session_state.get("debate_running")
+        or st.session_state.get("pending_episodes")
     )
-    try:
-        from arena.ui.run_planner import parse_turn_plan_csv
-    except ImportError:
-        sys.path.insert(0, "src")
-        from arena.ui.run_planner import parse_turn_plan_csv
-    plan, plan_err = parse_turn_plan_csv(
-        st.session_state.get("turn_plan_csv", ""),
-        st.session_state["num_episodes"],
-        st.session_state.get("max_turns", 5),
+    if not _run_in_flight_for_neps:
+        st.session_state["num_episodes"] = int(num_episodes)
+
+    # ── Per-episode configuration rows ────────────────────────────────────
+    _default_model_idx = get_default_model_index(AVAILABLE_MODELS)
+    _default_model = AVAILABLE_MODELS[_default_model_idx] if AVAILABLE_MODELS else "gpt-4o-mini"
+
+    # Seed the persistent config list to match num_episodes.
+    _eps_cfg = list(st.session_state.get("episode_configs") or [])
+    while len(_eps_cfg) < num_episodes:
+        _prev = _eps_cfg[-1] if _eps_cfg else {
+            "spreader": st.session_state.get("spreader_model", _default_model),
+            "debunker": st.session_state.get("debunker_model", _default_model),
+            "exchanges": int(st.session_state.get("max_turns", 5) or 5),
+        }
+        _eps_cfg.append({**_prev})
+    _eps_cfg = _eps_cfg[:num_episodes]
+    st.session_state["episode_configs"] = _eps_cfg
+
+    # Render header row + episode rows
+    _hdr_cols = st.columns([0.5, 2, 2, 1])
+    _hdr_cols[0].markdown('<div style="font-size:0.72rem;color:#9ca3af;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Ep</div>', unsafe_allow_html=True)
+    _hdr_cols[1].markdown('<div style="font-size:0.72rem;color:#9ca3af;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Spreader</div>', unsafe_allow_html=True)
+    _hdr_cols[2].markdown('<div style="font-size:0.72rem;color:#9ca3af;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Fact-checker</div>', unsafe_allow_html=True)
+    _hdr_cols[3].markdown('<div style="font-size:0.72rem;color:#9ca3af;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Exchanges</div>', unsafe_allow_html=True)
+
+    for _idx in range(num_episodes):
+        _row = _eps_cfg[_idx]
+        _cols = st.columns([0.5, 2, 2, 1])
+        with _cols[0]:
+            st.markdown(f'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:0.95rem;padding-top:0.5rem;color:var(--color-text-primary,#E8E4D9);">{_idx + 1}</div>', unsafe_allow_html=True)
+        with _cols[1]:
+            _spr_options = AVAILABLE_MODELS
+            _spr_idx = _spr_options.index(_row["spreader"]) if _row["spreader"] in _spr_options else _default_model_idx
+            _new_spr = st.selectbox(
+                "Spreader",
+                options=_spr_options,
+                index=_spr_idx,
+                key=f"ep_spr_{_idx}",
+                label_visibility="collapsed",
+            )
+        with _cols[2]:
+            _deb_idx = _spr_options.index(_row["debunker"]) if _row["debunker"] in _spr_options else _default_model_idx
+            _new_deb = st.selectbox(
+                "Fact-checker",
+                options=_spr_options,
+                index=_deb_idx,
+                key=f"ep_deb_{_idx}",
+                label_visibility="collapsed",
+            )
+        with _cols[3]:
+            _new_xch = st.number_input(
+                "Exchanges",
+                min_value=1,
+                max_value=20,
+                value=int(_row.get("exchanges", 5) or 5),
+                step=1,
+                key=f"ep_xch_{_idx}",
+                label_visibility="collapsed",
+            )
+        # Persist back to the canonical list
+        _eps_cfg[_idx] = {"spreader": _new_spr, "debunker": _new_deb, "exchanges": int(_new_xch)}
+
+    st.session_state["episode_configs"] = _eps_cfg
+
+    # Sync the legacy session-state keys used by the rest of the app from
+    # episode 1 — but ONLY when no debate is running. During an active run
+    # (especially a multi-episode chain), the chain handler sets these keys
+    # to the *current* episode's models; we must not overwrite them here.
+    _run_in_flight = (
+        st.session_state.get("run_active")
+        or st.session_state.get("match_in_progress")
+        or st.session_state.get("debate_running")
     )
-    if plan_err:
-        st.error(plan_err)
-        st.session_state["turn_plan_valid"] = False
-    else:
-        st.session_state["turn_plan"] = plan
+    if _eps_cfg and not _run_in_flight:
+        _first = _eps_cfg[0]
+        st.session_state["spreader_model"] = _first["spreader"]
+        st.session_state["debunker_model"] = _first["debunker"]
+        st.session_state["max_turns"] = int(_first["exchanges"])
+        # Build the legacy turn_plan from the rows
+        st.session_state["turn_plan"] = [int(r["exchanges"]) for r in _eps_cfg]
+        st.session_state["turn_plan_csv"] = ",".join(str(int(r["exchanges"])) for r in _eps_cfg)
         st.session_state["turn_plan_valid"] = True
 
     # (Multi-claim mode removed — use Experiment mode for batch runs)
@@ -654,7 +731,7 @@ def render_arena_page():
     # RUN CONTROLS - Single button to start run + first match
     # ===================================================================
     st.markdown('<div class="ar-section">Run Controls</div>', unsafe_allow_html=True)
-    col_run_start, col_run_stop = st.columns(2)
+    col_run_start, col_run_showdown, col_run_stop = st.columns([2, 2, 1])
     with col_run_start:
         if st.button("Start debate", type="primary", use_container_width=True, key="arena_start_debate_btn"):
             ss = st.session_state
@@ -664,16 +741,26 @@ def render_arena_page():
             from arena.agents import is_anthropic_model, is_gemini_model, is_grok_model
             _ks = get_key_status()
             _missing = []
-            for _role, _mk in [("Spreader", "spreader_model"), ("Fact-checker", "debunker_model")]:
-                _m = ss.get(_mk, "gpt-4o-mini")
-                if is_anthropic_model(_m) and not _ks.get("anthropic", {}).get("set"):
-                    _missing.append(f"{_role} ({_m}): set ANTHROPIC_API_KEY")
-                elif is_gemini_model(_m) and not _ks.get("gemini", {}).get("set"):
-                    _missing.append(f"{_role} ({_m}): set GEMINI_API_KEY")
-                elif is_grok_model(_m) and not _ks.get("xai", {}).get("set"):
-                    _missing.append(f"{_role} ({_m}): set XAI_API_KEY")
-                elif not is_anthropic_model(_m) and not is_gemini_model(_m) and not is_grok_model(_m) and not _ks.get("openai", {}).get("set"):
-                    _missing.append(f"{_role} ({_m}): set OPENAI_API_KEY")
+
+            # Validate keys across every episode's chosen models (not just the first row).
+            _eps_to_validate = ss.get("episode_configs") or [{
+                "spreader": ss.get("spreader_model", "gpt-4o-mini"),
+                "debunker": ss.get("debunker_model", "gpt-4o-mini"),
+            }]
+            _checked = set()
+            for _ep in _eps_to_validate:
+                for _role, _m in [("Spreader", _ep.get("spreader", "")), ("Fact-checker", _ep.get("debunker", ""))]:
+                    if (_role, _m) in _checked or not _m:
+                        continue
+                    _checked.add((_role, _m))
+                    if is_anthropic_model(_m) and not _ks.get("anthropic", {}).get("set"):
+                        _missing.append(f"{_role} ({_m}): set ANTHROPIC_API_KEY")
+                    elif is_gemini_model(_m) and not _ks.get("gemini", {}).get("set"):
+                        _missing.append(f"{_role} ({_m}): set GEMINI_API_KEY")
+                    elif is_grok_model(_m) and not _ks.get("xai", {}).get("set"):
+                        _missing.append(f"{_role} ({_m}): set XAI_API_KEY")
+                    elif not is_anthropic_model(_m) and not is_gemini_model(_m) and not is_grok_model(_m) and not _ks.get("openai", {}).get("set"):
+                        _missing.append(f"{_role} ({_m}): set OPENAI_API_KEY")
             if _missing:
                 st.error("**Missing API key(s).** " + " · ".join(_missing) + ". Paste in the sidebar or `.streamlit/secrets.toml`.")
                 st.stop()
@@ -685,8 +772,47 @@ def render_arena_page():
                 st.stop()
 
             if ss.get("turn_plan_valid") is False:
-                st.error("Fix the Run Plan (turn plan must be valid).")
+                st.error("Fix the episode plan (exchanges must be valid).")
                 st.stop()
+
+            # ── Multi-episode runs (N > 1): chain the rest. ──
+            _eps_cfg = ss.get("episode_configs") or []
+            ss["chain_total"] = max(1, len(_eps_cfg))
+            if len(_eps_cfg) > 1:
+                _ct = ss.get("claim_type", "")
+                # First episode runs immediately below.
+                # Episodes 2..N are queued for the chain handler to pick up
+                # when the previous one finishes.
+                ss["pending_episodes"] = [
+                    {
+                        "claim":          ui_claim,
+                        "claim_type":     _ct,
+                        "exchanges":      int(_ep.get("exchanges", 5)),
+                        "spreader_model": _ep.get("spreader"),
+                        "debunker_model": _ep.get("debunker"),
+                    }
+                    for _ep in _eps_cfg[1:]
+                ]
+                # Use the FIRST episode's models for the run we're about to start.
+                ss["spreader_model"] = _eps_cfg[0]["spreader"]
+                ss["debunker_model"] = _eps_cfg[0]["debunker"]
+                ss["max_turns"]      = int(_eps_cfg[0]["exchanges"])
+                # CRITICAL: the runner has its own internal episode chain that
+                # reuses the current models. Force num_episodes=1 so each
+                # chained debate is its own one-episode run; episodes 2..N
+                # come from pending_episodes (with their own models).
+                ss["num_episodes"] = 1
+            else:
+                ss["pending_episodes"] = []
+                ss["num_episodes"]     = 1
+
+            # Sync episode 1's models (works for both N=1 and N>1, since
+            # episode 1 always runs first; episodes 2..N are chained via
+            # pending_episodes when this one completes).
+            if _eps_cfg:
+                ss["spreader_model"] = _eps_cfg[0]["spreader"]
+                ss["debunker_model"] = _eps_cfg[0]["debunker"]
+                ss["max_turns"] = int(_eps_cfg[0]["exchanges"])
 
             # ── Create run boundary ──
             ss["run_active"] = True
@@ -722,81 +848,72 @@ def render_arena_page():
 
             st.rerun()
 
-    with col_run_stop:
-        if st.button("Stop", use_container_width=True, key="arena_stop_run_btn"):
-            st.session_state["run_active"] = False
-            st.session_state["debate_running"] = False
-            st.session_state["match_in_progress"] = False
-            st.session_state["auto_run_active"] = False
+    with col_run_showdown:
+        _show_clicked = st.button(
+            "🎯 Run Showdown",
+            use_container_width=True,
+            key="arena_showdown_btn",
+            help=(
+                "Runs the current claim through several model matchups in sequence "
+                "(GPT-4o-mini vs itself, Claude vs Claude, mixed pairs). When done, "
+                "compare them side-by-side in the Explore tab to see how different "
+                "models argue the same claim."
+            ),
+        )
+        # Nudge from the verdict can also trigger this
+        if st.session_state.pop("showdown_request", False):
+            _show_clicked = True
+
+        if _show_clicked:
+            ss = st.session_state
+            ui_claim = _get_ui_claim()
+            if not ui_claim:
+                st.warning("Enter or select a claim first.")
+                st.stop()
+
+            # Build a Showdown chain: same claim, 4 model matchups.
+            _SHOWDOWN_MATCHUPS = [
+                ("gpt-4o-mini",             "gpt-4o-mini"),
+                ("claude-sonnet-4-20250514","claude-sonnet-4-20250514"),
+                ("gpt-4o-mini",             "claude-sonnet-4-20250514"),
+                ("claude-sonnet-4-20250514","gpt-4o-mini"),
+            ]
+            _ct = ss.get("claim_type", "")
+            _exch = int(ss.get("max_turns", 5) or 5)
+            ss["pending_episodes"] = [
+                {
+                    "claim":          ui_claim,
+                    "claim_type":     _ct,
+                    "exchanges":      _exch,
+                    "spreader_model": _spr_m,
+                    "debunker_model": _deb_m,
+                }
+                for _spr_m, _deb_m in _SHOWDOWN_MATCHUPS
+            ]
+            ss["chain_total"]        = len(_SHOWDOWN_MATCHUPS)
+            ss["showdown_run_size"]  = len(_SHOWDOWN_MATCHUPS)
+            ss["showdown_completed"] = False
             st.rerun()
 
-    # ===================================================================
-    # AUTO-RUN ALL — batch-process entire run queue
-    # ===================================================================
-    _ar_full_queue = st.session_state.get("sc_run_queue") or []
-    _ar_is_active = st.session_state.get("auto_run_active", False)
+    with col_run_stop:
+        if st.button("Stop", use_container_width=True, key="arena_stop_run_btn"):
+            st.session_state["run_active"]        = False
+            st.session_state["debate_running"]    = False
+            st.session_state["match_in_progress"] = False
+            st.session_state["pending_episodes"]  = []
+            st.session_state["showdown_run_size"] = 0
+            st.session_state["chain_total"]       = 1
+            st.rerun()
 
-    # Show completion message if just finished
-    _ar_done_msg = st.session_state.pop("auto_run_completed_msg", None)
-    if _ar_done_msg:
-        st.success(_ar_done_msg)
-
-    if len(_ar_full_queue) > 1 or _ar_is_active:
-        st.markdown('<div class="ar-section">Auto-Run Queue</div>', unsafe_allow_html=True)
-
-        if _ar_is_active:
-            # Show progress while running
-            _ar_q_idx = st.session_state.get("auto_run_queue_idx", 0)
-            _ar_q_total = len(_ar_full_queue)
-            _ar_ep_done = st.session_state.get("auto_run_total_episodes_done", 0)
-            _ar_ep_cur_run = st.session_state.get("episodes_completed", 0)
-            _ar_ep_running = _ar_ep_done + _ar_ep_cur_run
-
-            st.info(
-                f"Auto-running: run **{min(_ar_q_idx, _ar_q_total)}/{_ar_q_total}** "
-                f"({_ar_ep_running} episodes completed so far)"
-            )
-            _ar_prog = min(_ar_q_idx / _ar_q_total, 1.0) if _ar_q_total > 0 else 0
-            st.progress(_ar_prog, text=f"Queue: {_ar_q_idx}/{_ar_q_total} runs started")
-
-            if st.button("Cancel auto-run", use_container_width=True, key="auto_run_cancel_btn"):
-                st.session_state["auto_run_active"] = False
-                st.info("Auto-run cancelled. Current run will finish.")
-                st.rerun()
-        else:
-            # Show queue summary and start button
-            _ar_total_runs = len(_ar_full_queue)
-            _ar_total_eps = sum(r.get("num_episodes", 1) for r in _ar_full_queue)
-
-            # Cost estimate
-            _ar_model = st.session_state.get("spreader_model", "gpt-4o")
-            _ar_cost_per_turn = 0.0085 if ("mini" not in _ar_model and "haiku" not in _ar_model and "flash" not in _ar_model) else 0.0006
-            _ar_avg_turns = 6
-            _ar_est = _ar_total_eps * _ar_avg_turns * 2 * _ar_cost_per_turn  # x2 for both agents
-            _ar_est_low = _ar_est * 0.7
-            _ar_est_high = _ar_est * 1.3
-
-            st.markdown(
-                f"**{_ar_total_runs}** runs queued with **{_ar_total_eps}** total episodes. "
-                f"Estimated cost: **${_ar_est_low:.2f} -- ${_ar_est_high:.2f}**."
-            )
-
-            if st.button(
-                "Auto-run all queued runs",
-                type="primary",
-                use_container_width=True,
-                key="auto_run_start_btn",
-            ):
-                st.session_state["auto_run_active"] = True
-                st.session_state["auto_run_queue_idx"] = 0
-                st.session_state["auto_run_total_episodes_done"] = 0
-                st.session_state["auto_run_started_at"] = time.time()
-                # Clear any stale run state so the advance logic fires immediately
-                st.session_state["run_active"] = False
-                st.session_state["debate_running"] = False
-                st.session_state["match_in_progress"] = False
-                st.session_state["_pending_chain"] = False
-                st.rerun()
+    # ───────────────────────────────────────────────────────────────────
+    # Multi-episode chain status — show what's queued behind the current run.
+    # ───────────────────────────────────────────────────────────────────
+    _pe_pending = st.session_state.get("pending_episodes") or []
+    if _pe_pending and st.session_state.get("run_active"):
+        st.info(
+            f"⏭ **{len(_pe_pending)} more episode(s) queued.** "
+            f"They'll start automatically when the current one finishes."
+        )
 
     # ===================================================================
     # ACTIVE CLAIM BANNER + STATUS -- visible when run is live
@@ -826,28 +943,68 @@ def render_arena_page():
         )
 
     # ===================================================================
-    # PROGRESS BARS - Always visible (show current state)
+    # PROGRESS & MOMENTUM - Episode · Exchange · Phase
     # ===================================================================
-    st.markdown('<div class="ar-section">Progress</div>', unsafe_allow_html=True)
-    col1, col2 = st.columns(2)
+    completed_turns = sum(1 for m in st.session_state.get("debate_messages", [])
+                          if m.get("speaker") == "debunker" and m.get("status") == "final")
+    total_exch = int(st.session_state.get("max_turns", 5) or 5)
+    is_running  = st.session_state.get("debate_running", False)
 
-    with col1:
-        completed_turns = sum(1 for m in st.session_state.get("debate_messages", [])
-                            if m.get("speaker") == "debunker" and m.get("status") == "final")
-        total = st.session_state.get("max_turns", 5)
-        progress_value = 0 if total == 0 else min(completed_turns / total, 1.0)
-        phase = st.session_state.get("debate_phase", "spreader")
-        phase_display = f" (Phase: {phase})" if st.session_state.get("debate_running") else ""
-        st.progress(progress_value, text=f"Turns: {completed_turns}/{total}{phase_display}")
+    # Episode position in a (possibly chained) run.
+    _chain_total    = int(st.session_state.get("chain_total", 1) or 1)
+    _pending_count  = len(st.session_state.get("pending_episodes") or [])
+    # Clamp so it always shows 1..N
+    _chain_position = max(1, min(_chain_total, _chain_total - _pending_count))
 
-    with col2:
-        episodes_completed = st.session_state.get("episodes_completed", 0)
-        total_episodes = st.session_state.get("num_episodes", 1)
-        if st.session_state.get("match_in_progress", False) or st.session_state.get("run_active", False):
-            episode_progress = min(episodes_completed / total_episodes, 1.0) if total_episodes > 0 else 0
-            st.progress(episode_progress, text=f"Episodes: {episodes_completed}/{total_episodes}")
-        else:
-            st.progress(0.0, text=f"Episodes: 0/{total_episodes}")
+    # Phase label — what the live agent is doing.
+    _phase = (st.session_state.get("debate_phase") or "spreader").lower()
+    if "spread" in _phase:
+        _phase_label = "Spreader is preparing response…"
+    elif "debunk" in _phase or "fact" in _phase:
+        _phase_label = "Fact-checker is preparing response…"
+    else:
+        _phase_label = "Preparing response…"
+
+    progress_value = 0 if total_exch == 0 else min(completed_turns / total_exch, 1.0)
+
+    # Build the progress text in three parts: Episode · Exchange · Phase
+    _parts = []
+    if _chain_total > 1:
+        _parts.append(f"Episode {_chain_position}/{_chain_total}")
+    _parts.append(f"Exchange {min(completed_turns + (1 if is_running else 0), total_exch)}/{total_exch}")
+    if is_running:
+        _parts.append(_phase_label)
+    elif completed_turns >= total_exch and total_exch > 0:
+        _parts.append("complete")
+
+    st.progress(progress_value, text=" · ".join(_parts))
+
+    # Momentum bar — shows who's winning based on scorecard if available
+    messages = st.session_state.get("debate_messages", [])
+    if len(messages) >= 2 and is_running:
+        # Count tactic signals as a rough momentum proxy
+        spr_msgs = [m for m in messages if m.get("speaker") == "spreader" and m.get("status") == "final"]
+        deb_msgs = [m for m in messages if m.get("speaker") == "debunker" and m.get("status") == "final"]
+        spr_len = sum(len(m.get("content", "")) for m in spr_msgs)
+        deb_len = sum(len(m.get("content", "")) for m in deb_msgs)
+        total_len = spr_len + deb_len
+        if total_len > 0:
+            deb_pct = deb_len / total_len
+            # Normalize to 20-80 range so it never looks completely one-sided
+            bar_pct = 0.2 + (deb_pct * 0.6)
+            spr_width = int((1 - bar_pct) * 100)
+            deb_width = int(bar_pct * 100)
+            st.markdown(f"""
+            <div style="display:flex; height:8px; border-radius:4px; overflow:hidden; margin:0.3rem 0 1rem 0;">
+                <div style="width:{spr_width}%; background:linear-gradient(90deg, #C9363E, #D4A843);"></div>
+                <div style="width:{deb_width}%; background:linear-gradient(90deg, #4A7FA5, #2ECC71);"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#888; margin-top:-0.5rem; margin-bottom:0.5rem;">
+                <span>Spreader</span>
+                <span>Momentum</span>
+                <span>Fact-checker</span>
+            </div>
+            """, unsafe_allow_html=True)
 
     # Optional debug invariant checks (gate with debug_mode or env)
     if st.session_state.get("debug_mode", False) or os.environ.get("ARENA_DEBUG_INVARIANTS"):

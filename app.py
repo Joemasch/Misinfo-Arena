@@ -102,11 +102,9 @@ from arena.state import initialize_session_state, is_concession
 
 # Page module imports
 from arena.presentation.streamlit.pages.explore_page import render_explore_page
-from arena.presentation.streamlit.pages.study_results_page import render_study_results_page
-# replay_page import removed — merged into explore_page
 from arena.presentation.streamlit.pages.guide_page import render_guide_page
-from arena.presentation.streamlit.pages.tools_page import render_tools_page
 from arena.presentation.streamlit.pages.arena_page import render_arena_page
+from arena.presentation.streamlit.pages.findings_page import render_findings_page
 
 # Arena component imports
 from arena.presentation.streamlit.components.arena.judge_report import render_judge_report
@@ -884,35 +882,15 @@ def main():
             raise
 
     # ===================================================================
-    # OPENAI API KEY PREFLIGHT CHECK - Fail fast if API key missing
+    # OPENAI API KEY CHECK - Store status, don't block app
     # ===================================================================
     from arena.utils.openai_config import get_openai_api_key, mask_key
 
     api_key = get_openai_api_key()
-    if not api_key:
-        st.error("❌ **OpenAI API Key Missing**")
-        st.error("""
-        The OpenAI API key is required to run debates. Please set it using one of these methods:
-
-        **For Streamlit Cloud/Local:**
-        Add to `.streamlit/secrets.toml`:
-        ```
-        OPENAI_API_KEY = "sk-your-key-here"
-        ```
-
-        **For Local Development:**
-        Set environment variable:
-        ```bash
-        export OPENAI_API_KEY="sk-your-key-here"
-        ```
-
-        Then restart the application.
-        """)
-        st.stop()
-        return
+    _api_key_missing = not api_key
 
     # Basic key format validation (looks like sk-...)
-    if not api_key.startswith("sk-"):
+    if api_key and not api_key.startswith("sk-"):
         st.warning(f"⚠️ **API Key Format Warning**: Key should start with 'sk-'. You provided: {mask_key(api_key)}")
         st.info("The key format looks unusual but we'll try to use it. If you see 401 errors, double-check your key.")
 
@@ -948,38 +926,28 @@ def main():
     from arena.presentation.streamlit.styles import inject_global_css
     inject_global_css()
 
-    # API key validation for OpenAI agents
-    # Check for OpenAI API key (always required now)
-    if not os.getenv('OPENAI_API_KEY'):
-        st.error(
-            "❌ **OpenAI API Key Required**\n\n"
-            "The `OPENAI_API_KEY` environment variable must be set to run debates.\n\n"
-            "**To fix this:**\n"
-            "1. Get an OpenAI API key from https://platform.openai.com/api-keys\n"
-            "2. Set the environment variable: `export OPENAI_API_KEY=your_key_here`\n"
-            "3. Restart the application\n\n"
-            "Debates cannot run without a valid API key."
-        )
-
-    # Navigation tabs (5 tabs — organized by research workflow)
-    tab_home, tab_arena, tab_studies, tab_explore, tab_tools = st.tabs([
-        "Home", "Arena", "Study Results", "Explore", "Tools",
+    # Navigation tabs (4 tabs — conference demo layout)
+    tab_home, tab_arena, tab_replay, tab_findings = st.tabs([
+        "Home", "Arena", "Replay", "Findings",
     ])
 
     with tab_home:
         render_guide_page()
 
     with tab_arena:
+        if _api_key_missing:
+            st.warning(
+                "**API keys required to run live debates.** "
+                "Set your keys in the sidebar or via environment variables. "
+                "Replay and Findings tabs work without keys."
+            )
         render_arena_page()
 
-    with tab_studies:
-        render_study_results_page()
-
-    with tab_explore:
+    with tab_replay:
         render_explore_page()
 
-    with tab_tools:
-        render_tools_page()
+    with tab_findings:
+        render_findings_page()
 
     # Footer
     st.markdown("---")

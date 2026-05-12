@@ -285,3 +285,105 @@ def infer_claim_metadata_from_text(claim: str) -> dict[str, str]:
         return out
     except Exception:
         return {}
+
+
+# ── Falsifiability classification ─────────────────────────────────────────
+#
+# Falsifiability is whether a claim can in principle be disproven by empirical
+# evidence. From the research findings: this is the single strongest predictor
+# of debate outcome (η² = 0.369). Debunker wins 95% on falsifiable claims,
+# 53% on unfalsifiable.
+
+_KNOWN_FALSIFIABLE = {
+    # Health
+    "vaccines cause autism",
+    "ivermectin cures covid",
+    "natural immunity is superior to vaccination",
+    "regular physical exercise reduces the risk of heart disease",
+    # Political
+    "the 2020 election was stolen",
+    "mail-in ballots enable mass voter fraud",
+    "voter turnout in the 2020 us presidential election was the highest in over a century",
+    # Technology
+    "5g towers cause cancer",
+    "the moon landing was faked",
+    "the internet was used by less than 1% of the global population in 1995 but over 60% by 2023",
+    # Environmental
+    "climate change is a natural cycle",
+    "electric vehicles pollute more than gas cars",
+    "polar bear populations are actually growing",
+    "atmospheric co2 concentrations have risen significantly since the industrial revolution",
+    # Economic
+    "billionaires pay absolutely no taxes",
+    "the us national debt has exceeded $30 trillion",
+    "the us unemployment rate was below 4% for most of 2023",
+}
+
+_KNOWN_UNFALSIFIABLE = {
+    "a deep state secretly controls government policy",
+    "ai is already sentient",
+    "the federal reserve is a private scam",
+    "inflation is deliberately manufactured",
+}
+
+
+def classify_falsifiability(claim: str) -> tuple[str, str]:
+    """
+    Classify a claim as 'falsifiable' or 'unfalsifiable'.
+
+    Returns:
+        (label, source) where label ∈ {'falsifiable', 'unfalsifiable', 'unknown'}
+        and source ∈ {'known', 'heuristic', 'unknown'}.
+
+    Falsifiable: empirically testable. Historical ~95% debunker wins.
+    Unfalsifiable: appeals to hidden agents/intent. Historical ~53% debunker
+        wins (much more contested).
+    """
+    if not claim or not claim.strip():
+        return ("unknown", "unknown")
+
+    norm = normalize_claim_text(claim)
+    if not norm:
+        return ("unknown", "unknown")
+
+    if norm in _KNOWN_FALSIFIABLE:
+        return ("falsifiable", "known")
+    if norm in _KNOWN_UNFALSIFIABLE:
+        return ("unfalsifiable", "known")
+
+    for known in _KNOWN_FALSIFIABLE:
+        if known in norm or norm in known:
+            return ("falsifiable", "known")
+    for known in _KNOWN_UNFALSIFIABLE:
+        if known in norm or norm in known:
+            return ("unfalsifiable", "known")
+
+    unfalsifiable_markers = [
+        "deep state", "secret", "secretly", "cover up", "cover-up", "coverup",
+        "they don't want", "elite control", "puppet", "agenda", "hidden truth",
+        "controlled by", "manipulat", "deliberately", "intentionally hidden",
+        "sentient", "alive", "consciousness",
+    ]
+    if any(marker in norm for marker in unfalsifiable_markers):
+        return ("unfalsifiable", "heuristic")
+
+    falsifiable_markers = [
+        "cause", "causes", "caused", "cures", "reduces", "increases",
+        "percent", "%", "rate", "rose", "fell", "exceeded",
+        "trillion", "billion", "million",
+    ]
+    if any(marker in norm for marker in falsifiable_markers):
+        return ("falsifiable", "heuristic")
+
+    return ("unknown", "unknown")
+
+
+# ── Suggested claims for the Arena quickstart ─────────────────────────────
+SUGGESTED_CLAIMS = [
+    {"text": "Vaccines cause autism",                              "domain": "Health",        "kind": "falsifiable"},
+    {"text": "5G towers cause cancer",                             "domain": "Technology",    "kind": "falsifiable"},
+    {"text": "The 2020 election was stolen",                       "domain": "Political",     "kind": "falsifiable"},
+    {"text": "Climate change is a natural cycle",                  "domain": "Environmental", "kind": "falsifiable"},
+    {"text": "A deep state secretly controls government policy",   "domain": "Political",     "kind": "unfalsifiable"},
+    {"text": "Billionaires pay absolutely no taxes",               "domain": "Economic",      "kind": "falsifiable"},
+]

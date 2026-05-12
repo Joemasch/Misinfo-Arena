@@ -145,12 +145,29 @@ def _persist_completed_match(ss) -> None:
         arena_mode=arena_mode,
     )
 
+    # Per-turn strategy labels (powers the Strategy tab's swimlane,
+    # frequency bars, reaction patterns, and outcome attribution).
+    per_turn_strategies = []
+    if os.getenv("ENABLE_STRATEGY_ANALYST", "1").lower() in ("1", "true", "yes") and turns:
+        try:
+            from arena.strategy_analyst import analyze_per_turn_strategies
+            per_turn_strategies = analyze_per_turn_strategies(
+                claim=ss.get("topic", ""),
+                transcript_turns=turns,
+            ) or []
+            print(f"[PER_TURN_STRATEGY] got {len(per_turn_strategies)} turns")
+        except Exception as e:
+            print(f"[PER_TURN_STRATEGY] failed: {e}")
+            per_turn_strategies = []
+
     # Build v2 objects
     run_obj = _build_run_object(ss, run_id, arena_mode)
     episode_obj = _build_episode_object(
         ss, run_id, episode_id, turns, judge_decision,
         concession_data, strategy_analysis, arena_mode,
     )
+    if per_turn_strategies:
+        episode_obj["per_turn_strategies"] = per_turn_strategies
 
     # Persist to disk
     try:

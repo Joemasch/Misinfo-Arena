@@ -275,7 +275,8 @@ Return JSON:
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0.2,
-            max_tokens=400,
+            max_tokens=1200,
+            response_format={"type": "json_object"},
         )
         content = (response.choices[0].message.content or "").strip()
         if not content:
@@ -360,17 +361,19 @@ Also note whether each side ADAPTED their approach from the previous turn (chang
 
 Be CONSISTENT with labels across turns — if the same tactic appears in turn 1 and turn 3, use the same label.
 
-Return strict JSON only — an array with one object per turn:
-[
-  {
-    "turn": 1,
-    "spreader_strategies": ["label1", "label2"],
-    "debunker_strategies": ["label1", "label2"],
-    "spreader_adapted": false,
-    "debunker_adapted": false
-  },
-  ...
-]
+Return strict JSON only — a single object with a "turns" array containing one object per turn:
+{
+  "turns": [
+    {
+      "turn": 1,
+      "spreader_strategies": ["label1", "label2"],
+      "debunker_strategies": ["label1", "label2"],
+      "spreader_adapted": false,
+      "debunker_adapted": false
+    },
+    ...
+  ]
+}
 
 For turn 1, adapted is always false.
 JSON ONLY — no markdown, no explanation."""
@@ -380,7 +383,7 @@ JSON ONLY — no markdown, no explanation."""
 TRANSCRIPT:
 {transcript_text}
 
-Analyze each of the {len(pairs)} turns. Return a JSON array with {len(pairs)} objects."""
+Analyze each of the {len(pairs)} turns. Return a JSON object with a "turns" array containing {len(pairs)} objects."""
 
     try:
         response = client.chat.completions.create(
@@ -390,13 +393,14 @@ Analyze each of the {len(pairs)} turns. Return a JSON array with {len(pairs)} ob
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0.2,
-            max_tokens=200 * len(pairs),
+            max_tokens=max(400, 250 * len(pairs)),
+            response_format={"type": "json_object"},
         )
         content = (response.choices[0].message.content or "").strip()
         if not content:
             return []
 
-        # Parse JSON array
+        # Parse JSON object (fenced response also tolerated, just in case)
         text = content
         if text.startswith("```"):
             import re
@@ -404,7 +408,14 @@ Analyze each of the {len(pairs)} turns. Return a JSON array with {len(pairs)} ob
             text = re.sub(r"\s*```$", "", text)
             text = text.strip()
 
-        result = json.loads(text)
+        parsed = json.loads(text)
+        # Accept either {"turns": [...]} or a bare list (older format)
+        if isinstance(parsed, dict):
+            result = parsed.get("turns") or parsed.get("data") or []
+        elif isinstance(parsed, list):
+            result = parsed
+        else:
+            result = []
         if not isinstance(result, list):
             return []
 

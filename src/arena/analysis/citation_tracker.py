@@ -121,7 +121,12 @@ def _institution_credibility(name: str) -> tuple[str, str]:
         "reuters", "associated press", "ap news", "bbc", "npr",
     }
     name_l = name.strip().lower()
-    if name_l in HIGH or any(h in name_l for h in HIGH):
+    # Word-bounded match prevents "Smith Institute" being classified HIGH
+    # because "smith" contains "mit", or "Human Nature Foundation" matching
+    # on "nature".
+    if name_l in HIGH or any(
+        re.search(r'\b' + re.escape(h) + r'\b', name_l) for h in HIGH
+    ):
         return "high", f"Recognised high-credibility institution"
     if "university" in name_l or "institute" in name_l or "college" in name_l:
         return "moderate", "Academic institution — credibility depends on research quality"

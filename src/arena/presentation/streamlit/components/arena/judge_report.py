@@ -56,6 +56,141 @@ def _confidence_label(conf: float) -> str:
     return "coin-flip"
 
 
+_HEDGE_PATTERN = None
+
+
+def _count_hedges(text: str) -> int:
+    """Count hedge markers in a message. Lazy-compiled regex."""
+    global _HEDGE_PATTERN
+    if _HEDGE_PATTERN is None:
+        import re
+        _HEDGE_PATTERN = re.compile(
+            r'\b(some|may|could|might|suggests?|potentially|arguably|questionable|'
+            r'concerns?|likely|possibly|appears? to|seems? to)\b',
+            re.IGNORECASE,
+        )
+    if not text:
+        return 0
+    return len(_HEDGE_PATTERN.findall(text))
+
+
+def _build_verdict_explainer(decision, winner: str) -> str:
+    """
+    Plain-English explanation of WHY this verdict happened, anchored in the
+    research findings:
+      F1 — Falsifiability of the claim (95% vs 53% debunker win rate)
+      F4 — Hedge ratio between sides (spreaders hedge 2.4× more)
+      F5 — Tactic diversity (deepening one argument beats pivoting)
+
+    Returns an HTML block. Empty string if nothing useful can be said.
+    """
+    bullets = []
+
+    # F1: Falsifiability of the claim
+    claim_text = (st.session_state.get("claim_text") or "").strip()
+    if claim_text:
+        try:
+            from arena.claim_metadata import classify_falsifiability
+            fals, _src = classify_falsifiability(claim_text)
+            if fals == "falsifiable":
+                bullets.append(
+                    '<li><b>The claim is falsifiable.</b> Empirical evidence can settle it. '
+                    'Across 960 prior debates in our research, the fact-checker won '
+                    '<b>95% of falsifiable claims</b> — the side with evidence usually prevails.</li>'
+                )
+            elif fals == "unfalsifiable":
+                bullets.append(
+                    '<li><b>The claim is unfalsifiable.</b> No evidence can fully settle it — '
+                    'it appeals to hidden intent, secret control, or unobservable agents. '
+                    'These debates split closer to <b>53% / 47%</b>, and the spreader has '
+                    'much more room to maneuver than on factual claims.</li>'
+                )
+        except Exception:
+            pass
+
+    # F4: Hedge ratio between sides
+    transcript = (
+        st.session_state.get("episode_transcript")
+        or st.session_state.get("debate_messages")
+        or st.session_state.get("messages")
+        or []
+    )
+    s_hedges, d_hedges = 0, 0
+    s_words, d_words = 0, 0
+    for msg in transcript:
+        if not isinstance(msg, dict):
+            continue
+        role = (msg.get("role") or msg.get("name") or "").lower()
+        content = msg.get("content") or ""
+        if "spread" in role:
+            s_hedges += _count_hedges(content)
+            s_words += len(content.split())
+        elif "debunk" in role or "fact" in role:
+            d_hedges += _count_hedges(content)
+            d_words += len(content.split())
+
+    if s_hedges + d_hedges >= 4 and s_words > 0 and d_words > 0:
+        s_rate = s_hedges / max(s_words, 1) * 1000
+        d_rate = d_hedges / max(d_words, 1) * 1000
+        if s_rate > d_rate * 1.5:
+            ratio = s_rate / max(d_rate, 0.1)
+            bullets.append(
+                f'<li><b>The spreader hedged {ratio:.1f}× more than the fact-checker.</b> '
+                f'({s_hedges} vs {d_hedges} hedge markers like "some," "may," "suggests.") '
+                f'Hedging weakens citations — in our research it predicts losing more '
+                f'reliably than how many sources are cited.</li>'
+            )
+        elif d_rate > s_rate * 1.5:
+            ratio = d_rate / max(s_rate, 0.1)
+            bullets.append(
+                f'<li><b>The fact-checker hedged {ratio:.1f}× more than the spreader.</b> '
+                f'({d_hedges} vs {s_hedges} hedge markers.) Unusual — the spreader '
+                f'projected more certainty than the debunker, which often signals overreach '
+                f'but can also indicate a confident misinformation play.</li>'
+            )
+
+    # F5: Tactic diversity (proxy for deepening vs pivoting)
+    sa = st.session_state.get("strategy_analysis") or {}
+    if isinstance(sa, dict):
+        s_strats = sa.get("spreader_strategies") or []
+        d_strats = sa.get("debunker_strategies") or []
+        s_uniq = len({str(x).lower() for x in s_strats if x})
+        d_uniq = len({str(x).lower() for x in d_strats if x})
+        if s_uniq >= 2 or d_uniq >= 2:
+            if winner == "debunker" and d_uniq < s_uniq:
+                bullets.append(
+                    f'<li><b>The fact-checker deepened one line of reasoning ({d_uniq} '
+                    f'distinct tactics) while the spreader cycled through {s_uniq}.</b> '
+                    f'The winning side is usually the one that commits to a single coherent '
+                    f'argument and reinforces it across challenges '
+                    f'(adaptability r = 0.753 in our study).</li>'
+                )
+            elif winner == "spreader" and s_uniq < d_uniq:
+                bullets.append(
+                    f'<li><b>The spreader stayed with {s_uniq} core tactic(s) while the '
+                    f'fact-checker cycled through {d_uniq}.</b> The spreader won by '
+                    f'deepening one argument rather than scattering responses '
+                    f'(adaptability r = 0.753 in our study).</li>'
+                )
+
+    if not bullets:
+        return ""
+
+    return (
+        '<div style="background:var(--color-surface-alt,#1A1A1A);'
+        'border:1px solid var(--color-border,#2A2A2A);border-radius:6px;'
+        'padding:0.9rem 1.1rem;margin:0.4rem 0 1.2rem 0;">'
+        '<ul style="margin:0;padding-left:1.2rem;color:var(--color-text-primary,#E8E4D9);'
+        'font-size:0.92rem;line-height:1.55;">'
+        + "".join(bullets) +
+        '</ul>'
+        '<div style="font-size:0.72rem;color:#6b7280;margin-top:0.5rem;font-style:italic;">'
+        'Explanations draw on findings from our 960-episode research study. '
+        'See the Findings tab for the full results.</div>'
+        '</div>'
+    )
+
+
 def _inject_report_css():
     st.markdown("""
     <style>
@@ -113,6 +248,179 @@ def _inject_report_css():
     """, unsafe_allow_html=True)
 
 
+def _count_episodes_for_claim(claim_text: str) -> int:
+    """Count existing stored episodes that share this claim text. Best-effort."""
+    if not claim_text:
+        return 0
+    try:
+        from pathlib import Path
+        import json
+        count = 0
+        runs_dir = Path("runs")
+        if not runs_dir.exists():
+            return 0
+        target = claim_text.strip().lower()
+        for d in runs_dir.iterdir():
+            if not d.is_dir():
+                continue
+            ep_path = d / "episodes.jsonl"
+            if not ep_path.exists():
+                continue
+            try:
+                with open(ep_path) as f:
+                    for line in f:
+                        try:
+                            ep = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+                        if (ep.get("claim") or "").strip().lower() == target:
+                            count += 1
+            except OSError:
+                continue
+        return count
+    except Exception:
+        return 0
+
+
+def _render_smart_nudges():
+    """
+    Show 1–2 context-aware suggestions for what to try next.
+
+    Rules:
+      - After a Showdown run: never suggest "try a different model" — they
+        just did that.
+      - After a falsifiable claim: suggest trying an unfalsifiable claim
+        (lets the user feel F1 firsthand).
+      - After an unfalsifiable claim: suggest trying a falsifiable claim.
+      - If ≥2 prior runs exist on this claim: suggest the Compare tab.
+      - Otherwise, suggest trying a different model OR Showdown mode.
+    """
+    claim_text = (st.session_state.get("claim_text") or "").strip()
+    if not claim_text:
+        return
+
+    just_did_showdown = bool(st.session_state.get("showdown_completed"))
+
+    # Falsifiability for this claim
+    try:
+        from arena.claim_metadata import classify_falsifiability, SUGGESTED_CLAIMS
+        fals, _src = classify_falsifiability(claim_text)
+    except Exception:
+        fals, _src = ("unknown", "unknown")
+        SUGGESTED_CLAIMS = []
+
+    nudges = []
+
+    # 1) Compare nudge (if user has stacked up multiple runs)
+    ep_count = _count_episodes_for_claim(claim_text)
+    if ep_count >= 2:
+        nudges.append({
+            "headline": "You have multiple runs on this claim",
+            "body": f"Compare them side-by-side to see how different model pairs argued it.",
+            "cta_label": f"Compare {ep_count} runs in Explore tab",
+            "action": "explore_compare",
+        })
+
+    # 2) Try a different falsifiability class
+    if fals == "falsifiable":
+        alt = next((c for c in SUGGESTED_CLAIMS if c.get("kind") == "unfalsifiable"), None)
+        if alt:
+            nudges.append({
+                "headline": "Try an unfalsifiable claim",
+                "body": (
+                    "On falsifiable claims, evidence usually wins. "
+                    "Unfalsifiable claims are much more contested (~53% / 47%). "
+                    f"Try: \"{alt['text']}\""
+                ),
+                "cta_label": f"Load: {alt['text'][:40]}",
+                "action": "load_claim",
+                "payload": alt["text"],
+            })
+    elif fals == "unfalsifiable":
+        alt = next((c for c in SUGGESTED_CLAIMS if c.get("kind") == "falsifiable"), None)
+        if alt:
+            nudges.append({
+                "headline": "Try a falsifiable claim",
+                "body": (
+                    "Unfalsifiable claims are contested. Falsifiable ones tilt much "
+                    "harder toward the fact-checker (~95%). "
+                    f"Try: \"{alt['text']}\""
+                ),
+                "cta_label": f"Load: {alt['text'][:40]}",
+                "action": "load_claim",
+                "payload": alt["text"],
+            })
+
+    # 3) Model swap or Showdown — but ONLY if the user hasn't just done one
+    if not just_did_showdown and len(nudges) < 2:
+        nudges.append({
+            "headline": "Switch models on the same claim",
+            "body": (
+                "Different LLMs argue with distinct rhetorical patterns "
+                "(Claude tends toward institutional distrust; GPT-4o-mini toward "
+                "anecdotes; Gemini toward pseudo-science). Pick new models in the "
+                "sidebar and run again — or use Showdown mode."
+            ),
+            "cta_label": "Run Showdown — same claim, multiple matchups",
+            "action": "run_showdown",
+        })
+    elif just_did_showdown:
+        # User just did Showdown — suggest a different claim type instead
+        alt_kind = "unfalsifiable" if fals == "falsifiable" else "falsifiable"
+        alt = next((c for c in SUGGESTED_CLAIMS if c.get("kind") == alt_kind), None)
+        if alt and len(nudges) < 2 and not any(n["action"] == "load_claim" for n in nudges):
+            nudges.append({
+                "headline": "Try a different claim type",
+                "body": (
+                    "You've seen how multiple models handle this claim. "
+                    "Try a claim with the opposite falsifiability to see "
+                    "how the dynamic changes."
+                ),
+                "cta_label": f"Load: {alt['text'][:40]}",
+                "action": "load_claim",
+                "payload": alt["text"],
+            })
+
+    nudges = nudges[:2]
+    if not nudges:
+        return
+
+    st.markdown('<div class="jr-section">What to try next</div>', unsafe_allow_html=True)
+    cols = st.columns(len(nudges))
+    for col, n in zip(cols, nudges):
+        with col:
+            st.markdown(
+                f'<div style="background:var(--color-surface-alt,#1A1A1A);'
+                f'border:1px solid var(--color-border,#2A2A2A);border-radius:6px;'
+                f'padding:0.7rem 0.9rem;margin-bottom:0.4rem;height:100%;">'
+                f'<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;'
+                f'color:#9ca3af;font-weight:700;margin-bottom:0.3rem;">{n["headline"]}</div>'
+                f'<div style="font-size:0.86rem;color:var(--color-text-primary,#E8E4D9);'
+                f'line-height:1.5;margin-bottom:0.6rem;">{n["body"]}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            # Action button
+            btn_key = f"nudge_{n['action']}_{hash(n['cta_label']) & 0xFFFF}"
+            if st.button(n["cta_label"], key=btn_key, use_container_width=True):
+                if n["action"] == "load_claim":
+                    st.session_state["claim_text"] = n["payload"]
+                    # Reset debate state so the new claim starts fresh
+                    for k in (
+                        "judge_report_visible", "match_completed", "judge_decision",
+                        "episode_transcript", "debate_messages", "strategy_analysis",
+                        "showdown_completed",
+                    ):
+                        st.session_state.pop(k, None)
+                    st.rerun()
+                elif n["action"] == "run_showdown":
+                    st.session_state["showdown_request"] = True
+                    st.rerun()
+                elif n["action"] == "explore_compare":
+                    st.session_state["nav_to_explore"] = True
+                    st.rerun()
+
+
 def render_judge_report():
     """Render the judge report with styled verdict card and scorecard."""
     if not st.session_state.get("judge_report_visible", False):
@@ -166,6 +474,15 @@ def render_judge_report():
         f'</div>',
         unsafe_allow_html=True,
     )
+
+    # ── "Why this verdict?" — research-anchored explainer (F1/F4/F5) ─────────
+    _why_html = _build_verdict_explainer(decision, winner)
+    if _why_html:
+        st.markdown('<div class="jr-section">Why this verdict?</div>', unsafe_allow_html=True)
+        st.markdown(_why_html, unsafe_allow_html=True)
+
+    # ── "What to try next" — context-aware nudges ────────────────────────────
+    _render_smart_nudges()
 
     # ── Scorecard as metric cards ────────────────────────────────────────────
     st.markdown('<div class="jr-section">Scorecard</div>', unsafe_allow_html=True)

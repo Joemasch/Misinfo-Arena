@@ -21,6 +21,14 @@ _NAMED_SOURCES = [
     "United Nations", "World Bank", "IMF",
 ]
 
+# Word-bounded, case-sensitive patterns — prevents false positives like
+# "MIT" matching "limit", "WHO" matching the pronoun "who".
+import re as _re_src
+_SOURCE_PATTERNS = {
+    src: _re_src.compile(r'\b' + _re_src.escape(src) + r'\b')
+    for src in _NAMED_SOURCES
+}
+
 _VAGUE_KEYWORDS = [
     "research shows", "studies show", "experts say", "scientists say",
     "according to studies", "evidence suggests", "research suggests",
@@ -44,7 +52,8 @@ def _extract_citation_data(ep: dict) -> dict:
             if "http" in text_lower:
                 result[f"{prefix}_urls"] += 1
             for src in _NAMED_SOURCES:
-                if src.lower() in text_lower:
+                pat = _SOURCE_PATTERNS.get(src)
+                if pat is not None and pat.search(text):
                     result[f"{prefix}_named_sources"] += 1
                     break
             for kw in _VAGUE_KEYWORDS:

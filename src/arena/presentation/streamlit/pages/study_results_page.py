@@ -42,6 +42,15 @@ _NAMED_SOURCES = [
     "United Nations", "World Bank", "IMF",
 ]
 
+# Word-bounded, case-sensitive patterns — prevents false positives like
+# "MIT" matching "limit", "WHO" matching the pronoun "who", or "Nature"
+# matching "human nature."
+import re as _re_src
+_SOURCE_PATTERNS = {
+    src: _re_src.compile(r'\b' + _re_src.escape(src) + r'\b')
+    for src in _NAMED_SOURCES
+}
+
 _VAGUE_KEYWORDS = [
     "research shows", "studies show", "experts say", "scientists say",
     "according to studies", "evidence suggests", "research suggests",
@@ -791,9 +800,9 @@ def _render_citations(episodes):
             ]:
                 msg = t.get(side_key, {})
                 text = msg.get("content", "") if isinstance(msg, dict) else ""
-                tl = text.lower()
                 for src in _NAMED_SOURCES:
-                    if src.lower() in tl:
+                    pat = _SOURCE_PATTERNS.get(src)
+                    if pat is not None and pat.search(text):
                         store[model][src] = store[model].get(src, 0) + 1
                         src_store[model][src] += 1
 
