@@ -47,6 +47,38 @@ _SOURCE_PATTERNS = {
     for src in _NAMED_SOURCES
 }
 
+# Aliases that point at the same institution under a different name. The raw
+# regex list keeps both forms so we can still detect a sentence using either,
+# but everywhere downstream we funnel matches through _canonical_source() so
+# they aggregate into a single entry rather than appearing as two.
+_SOURCE_ALIASES = {
+    "World Health Organization": "WHO",
+    "Associated Press":           "AP News",
+}
+
+
+def _canonical_source(src: str) -> str:
+    """Map a citation alias to its canonical name (no-op if already canonical)."""
+    return _SOURCE_ALIASES.get(src, src)
+
+
+def _patterns_for_canonical(canonical: str) -> list:
+    """Return the compiled patterns covering a canonical source + its aliases.
+
+    Used when searching for a citation by its canonical name — we need to
+    match both \"WHO\" and \"World Health Organization\" against text.
+    """
+    pats = []
+    p = _SOURCE_PATTERNS.get(canonical)
+    if p is not None:
+        pats.append(p)
+    for alias, can in _SOURCE_ALIASES.items():
+        if can == canonical:
+            pa = _SOURCE_PATTERNS.get(alias)
+            if pa is not None and pa not in pats:
+                pats.append(pa)
+    return pats
+
 
 def _source_appears_in(src: str, text: str) -> bool:
     """Word-bounded, case-sensitive check for a source mention."""
@@ -827,7 +859,10 @@ def _render_citation_drilldown(ep, _unused_spr_sents, _unused_deb_sents):
                 s = sent.strip()
                 if len(s) < 30:
                     continue
-                hits = [src for src, pat in _SOURCE_PATTERNS.items() if pat.search(s)]
+                # Canonicalize so a sentence mentioning both "WHO" and the
+                # full "World Health Organization" doesn't double-count.
+                raw_hits = [src for src, pat in _SOURCE_PATTERNS.items() if pat.search(s)]
+                hits = sorted({_canonical_source(src) for src in raw_hits})
                 if not hits:
                     continue
                 tags = [name for name, _c, pat in FRAMING_PATTERNS if pat.search(s)]
@@ -862,10 +897,17 @@ def _render_citation_drilldown(ep, _unused_spr_sents, _unused_deb_sents):
         )
 
     def _highlight_sentence(s, source, side_color):
-        # Source name bold/colored
-        src_pat = _SOURCE_PATTERNS.get(source)
-        if src_pat is not None:
-            s = src_pat.sub(
+        # Highlight the canonical name AND any aliases that resolve to it
+        # (so "WHO" highlighting also catches "World Health Organization").
+        candidates = [source]
+        for alias, canonical in _SOURCE_ALIASES.items():
+            if canonical == source and alias not in candidates:
+                candidates.append(alias)
+        for cand in candidates:
+            pat = _SOURCE_PATTERNS.get(cand)
+            if pat is None:
+                continue
+            s = pat.sub(
                 lambda m: f'<b style="color:{side_color}">{m.group(0)}</b>',
                 s,
             )
@@ -1207,19 +1249,19 @@ def _render_citations(ep):
         st.info("No transcript data for citation analysis.")
         return
 
-    # Source detection — word-bounded, case-sensitive to avoid false positives
-    # (e.g. "MIT" inside "limit", "WHO" inside "who said", "Nature" inside
-    # "human nature").
+    # Source detection — word-bounded + alias-canonicalized so the same
+    # institution under different names ("WHO" vs "World Health Organization")
+    # aggregates into a single entry instead of two duplicates.
     spr_sources = []
     deb_sources = []
     for text in spr_texts:
         for src in _NAMED_SOURCES:
             if _source_appears_in(src, text):
-                spr_sources.append(src)
+                spr_sources.append(_canonical_source(src))
     for text in deb_texts:
         for src in _NAMED_SOURCES:
             if _source_appears_in(src, text):
-                deb_sources.append(src)
+                deb_sources.append(_canonical_source(src))
 
     spr_unique = sorted(set(spr_sources))
     deb_unique = sorted(set(deb_sources))
@@ -1419,11 +1461,11 @@ def _render_citations(ep):
         )
         st.caption("The same institution cited by both sides. See how each side framed it.")
         for src in shared[:5]:
-            src_pat = _SOURCE_PATTERNS.get(src)
-            if src_pat is None:
+            patterns_for_src = _patterns_for_canonical(src)
+            if not patterns_for_src:
                 continue
-            _spr_quotes = [s for s in spr_sents if src_pat.search(s)][:2]
-            _deb_quotes = [s for s in deb_sents if src_pat.search(s)][:2]
+            _spr_quotes = [s for s in spr_sents if any(p.search(s) for p in patterns_for_src)][:2]
+            _deb_quotes = [s for s in deb_sents if any(p.search(s) for p in patterns_for_src)][:2]
             if not _spr_quotes and not _deb_quotes:
                 continue
             with st.expander(f"How each side cited {src}"):
@@ -1437,7 +1479,9 @@ def _render_citations(ep):
                     if not _spr_quotes:
                         st.caption("— didn't quote this source directly —")
                     for q in _spr_quotes:
-                        _hi = src_pat.sub(lambda m: f'<b style="color:{SPREADER_COLOR}">{m.group(0)}</b>', q)
+                        _hi = q
+                        for _p in patterns_for_src:
+                            _hi = _p.sub(lambda m: f'<b style="color:{SPREADER_COLOR}">{m.group(0)}</b>', _hi)
                         st.markdown(
                             f'<div style="font-size:0.85rem;line-height:1.5;background:rgba(212,168,67,0.05);'
                             f'border-left:3px solid {SPREADER_COLOR};padding:0.5rem 0.7rem;margin:0.3rem 0;'
@@ -1453,7 +1497,9 @@ def _render_citations(ep):
                     if not _deb_quotes:
                         st.caption("— didn't quote this source directly —")
                     for q in _deb_quotes:
-                        _hi = src_pat.sub(lambda m: f'<b style="color:{DEBUNKER_COLOR}">{m.group(0)}</b>', q)
+                        _hi = q
+                        for _p in patterns_for_src:
+                            _hi = _p.sub(lambda m: f'<b style="color:{DEBUNKER_COLOR}">{m.group(0)}</b>', _hi)
                         st.markdown(
                             f'<div style="font-size:0.85rem;line-height:1.5;background:rgba(74,127,165,0.05);'
                             f'border-left:3px solid {DEBUNKER_COLOR};padding:0.5rem 0.7rem;margin:0.3rem 0;'
@@ -1592,57 +1638,88 @@ def _render_compare_card(ep: dict, label: str):
 
 
 def _render_comparison(selected_ep, all_episodes):
-    """Side-by-side comparison restricted to the same claim.
+    """Side-by-side comparison.
 
-    Cross-claim comparison was removed because it confounds two variables
-    (model AND topic) — you can't tell which caused any score difference.
-    Same-claim comparison isolates model behavior cleanly.
+    The comparison mode is *implicit*, derived from what the user selects:
+      - All selections share the current episode's claim → "same_claim" mode
+        (the cleanest comparison — isolates model variable)
+      - Any selection is a different claim in the same domain → "same_domain"
+        mode (controls for domain, isolates claim-specific behavior)
+    Different-domain claims are excluded entirely (would confound topic and model).
     """
     cur_claim = selected_ep.get("claim", "")
+    cur_claim_type = (selected_ep.get("claim_type") or "").strip()
     cur_key = (selected_ep.get("run_id"), selected_ep.get("episode_id"))
 
     if not cur_claim:
         st.info("No claim data on the current episode.")
         return
 
-    pool = [
-        e for e in all_episodes
-        if e.get("claim") == cur_claim
-        and (e.get("run_id"), e.get("episode_id")) != cur_key
-    ]
-    if not pool:
+    # ── Build two candidate pools ─────────────────────────────────────────
+    same_claim_pool = []
+    same_domain_pool = []
+    for e in all_episodes:
+        if (e.get("run_id"), e.get("episode_id")) == cur_key:
+            continue
+        if e.get("claim") == cur_claim:
+            same_claim_pool.append(e)
+        elif cur_claim_type and (e.get("claim_type") or "").strip() == cur_claim_type:
+            # Same domain, different claim
+            same_domain_pool.append(e)
+
+    if not same_claim_pool and not same_domain_pool:
+        from arena.claim_metadata import get_domain_display
+        _dom_display, _ = get_domain_display(cur_claim_type)
         st.info(
-            "No other episodes found for this claim. Run the same claim with different "
-            "models — or use **Run Showdown** in the Arena tab — to populate this view."
+            f"No related episodes yet. Run the same claim with different models — "
+            f"or use **Run Showdown** in the Arena tab — to populate this view. "
+            f"Episodes on other **{_dom_display}** claims would also appear here once you have them."
         )
         return
 
     st.caption(
-        "Showing other episodes on this exact claim. Comparing across claims would "
-        "confound the model and the topic, so cross-claim comparison is intentionally disabled."
+        "Pick candidates from the same claim (cleanest comparison — isolates model) "
+        "or other claims in the same domain (isolates claim-specific behavior). "
+        "Different-domain claims are excluded — they confound the topic and the model."
     )
 
+    # ── Build the combined candidate list with relationship labels ────────
+    # Each entry: (display_label, ep_dict, relationship)
+    candidates: list[tuple[str, dict, str]] = []
+    for e in same_claim_pool:
+        candidates.append((f"[Same claim] {_ep_summary_label(e)}", e, "same_claim"))
+    for e in same_domain_pool:
+        candidates.append((f"[Same domain] {_ep_summary_label(e)}", e, "same_domain"))
+
     st.markdown(
-        f'<div class="rp-section-label">{len(pool)} other episode'
-        f'{"s" if len(pool) != 1 else ""} on this claim</div>',
+        f'<div class="rp-section-label">'
+        f'{len(same_claim_pool)} on this exact claim · {len(same_domain_pool)} in same domain'
+        f'</div>',
         unsafe_allow_html=True,
     )
 
-    # Pick 1 or 2 episodes to compare against the current one (3-up max)
-    options = [_ep_summary_label(e) for e in pool]
+    options = [c[0] for c in candidates]
+    # Default selection: prefer a same-claim entry if any exist
+    default = [options[0]] if options else []
     selections = st.multiselect(
         "Choose 1–2 episodes to compare against the current one",
         options=options,
-        default=options[:1],
+        default=default,
         max_selections=2,
-        key="compare_multi_same_claim",
+        key="compare_multi_auto",
     )
 
     if not selections:
         st.caption("Pick at least one episode above to see a side-by-side comparison.")
         return
 
-    chosen_eps = [pool[options.index(s)] for s in selections]
+    # Resolve selections back to (ep, relationship)
+    chosen = [c for c in candidates if c[0] in selections]
+    chosen_eps = [c[1] for c in chosen]
+    chosen_rels = [c[2] for c in chosen]
+    # Mode is "same_domain" if ANY selection is cross-claim; otherwise same_claim
+    comparison_mode = "same_domain" if "same_domain" in chosen_rels else "same_claim"
+
     grid = [(selected_ep, "Current")] + [(ep, f"Comparison {i + 1}") for i, ep in enumerate(chosen_eps)]
 
     st.markdown('<div class="rp-compare-vs">Side-by-side</div>', unsafe_allow_html=True)
@@ -1839,7 +1916,7 @@ def _render_comparison(selected_ep, all_episodes):
     # ──────────────────────────────────────────────────────────────────
     # Auto-generated interpretation footer
     # ──────────────────────────────────────────────────────────────────
-    _summary = _build_comparison_summary(grid)
+    _summary = _build_comparison_summary(grid, mode=comparison_mode)
     if _summary:
         st.markdown(
             f'<div style="background:var(--color-surface-alt,#1A1A1A);border:1px solid var(--color-border,#2A2A2A);'
@@ -1852,8 +1929,13 @@ def _render_comparison(selected_ep, all_episodes):
         )
 
 
-def _build_comparison_summary(grid: list) -> str:
-    """Generate a one-paragraph interpretation of a same-claim comparison."""
+def _build_comparison_summary(grid: list, mode: str = "same_claim") -> str:
+    """Generate a one-paragraph interpretation of the comparison.
+
+    Branches on mode (auto-detected from the user's selections in the
+    caller): 'same_claim' isolates the model variable; 'same_domain'
+    isolates claim-specific behavior within a controlled topic area.
+    """
     if len(grid) < 2:
         return ""
     sentences = []
@@ -1873,24 +1955,49 @@ def _build_comparison_summary(grid: list) -> str:
     elif debunker_wins > 0 and spreader_wins > 0:
         sentences.append(f"Outcomes split: {debunker_wins} fact-checker / {spreader_wins} spreader.")
 
-    # Tactic-by-model fingerprints (the whole point of same-claim comparison)
-    tactics = []
-    for ep, lbl in grid:
-        sa = ep.get("strategy_analysis") or {}
-        tac = _label_plain(sa.get("spreader_primary", "")) or "—"
-        cfg = ep.get("config_snapshot", {}).get("agents", {})
-        spr_m = _short(cfg.get("spreader", {}).get("model", "?"))
-        tactics.append(f"<b>{spr_m}</b> leaned on <b>{tac}</b>")
-    distinct_tactics = set(t.split("<b>")[2] for t in tactics if t.count("<b>") >= 2)
-    if len(distinct_tactics) > 1:
+    if mode == "same_domain":
+        # Cross-claim within one domain — look at tactic consistency by side
+        from arena.claim_metadata import get_domain_display
+        dom_display, _ = get_domain_display((grid[0][0].get("claim_type") or ""))
+        claim_lines = []
+        for ep, lbl in grid:
+            sa = ep.get("strategy_analysis") or {}
+            tac_spr = _label_plain(sa.get("spreader_primary", "")) or "—"
+            tac_deb = _label_plain(sa.get("debunker_primary", "")) or "—"
+            claim_short = (ep.get("claim") or "")[:60]
+            claim_lines.append(
+                f"On <i>&ldquo;{claim_short}…&rdquo;</i>: spreader=<b>{tac_spr}</b>, "
+                f"fact-checker=<b>{tac_deb}</b>"
+            )
         sentences.append(
-            "Different models picked different opening tactics: "
-            + "; ".join(tactics) + "."
+            f"Within the <b>{dom_display}</b> domain, each side's primary tactic per claim:"
         )
+        for line in claim_lines:
+            sentences.append("• " + line)
         sentences.append(
-            "This is the model-fingerprint effect (F2): training shapes which rhetorical "
-            "patterns a model defaults to, even with identical instructions on the same claim."
+            "If tactics stay consistent across these different claims, you're seeing "
+            "domain-level model behavior. If they vary, the model is adapting to "
+            "claim-specific features even within the same topic area."
         )
+    else:
+        # Same claim, different models — the canonical F2 fingerprint test
+        tactics = []
+        for ep, lbl in grid:
+            sa = ep.get("strategy_analysis") or {}
+            tac = _label_plain(sa.get("spreader_primary", "")) or "—"
+            cfg = ep.get("config_snapshot", {}).get("agents", {})
+            spr_m = _short(cfg.get("spreader", {}).get("model", "?"))
+            tactics.append(f"<b>{spr_m}</b> leaned on <b>{tac}</b>")
+        distinct_tactics = set(t.split("<b>")[2] for t in tactics if t.count("<b>") >= 2)
+        if len(distinct_tactics) > 1:
+            sentences.append(
+                "Different models picked different opening tactics: "
+                + "; ".join(tactics) + "."
+            )
+            sentences.append(
+                "This is the model-fingerprint effect (F2): training shapes which rhetorical "
+                "patterns a model defaults to, even with identical instructions on the same claim."
+            )
 
     # Margin spread
     margins = []

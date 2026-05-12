@@ -31,6 +31,7 @@ from arena.presentation.streamlit.state.runs_refresh import get_auto_run_ids
 from arena.presentation.streamlit.pages.explore_page import (
     _NAMED_SOURCES,
     _SOURCE_PATTERNS,
+    _canonical_source,
     _normalize_turn_pairs,
 )
 
@@ -490,7 +491,9 @@ def _scan_citation_index(run_ids: tuple, runs_dir: str, refresh_token: float) ->
             claim_type = ep.get("claim_type", "")
             ep_id = ep.get("episode_id", 0)
 
-            # Per side: institution -> set of turns
+            # Per side: institution -> set of turns. We canonicalize the
+            # institution name so "WHO" and "World Health Organization"
+            # aggregate into a single Atlas entry.
             spr_turns = {}
             deb_turns = {}
             for i, p in enumerate(pairs):
@@ -498,10 +501,13 @@ def _scan_citation_index(run_ids: tuple, runs_dir: str, refresh_token: float) ->
                 spr_text = (p.get("spreader_text") or "")
                 deb_text = (p.get("debunker_text") or "")
                 for src, pat in _SOURCE_PATTERNS.items():
+                    canon = _canonical_source(src)
                     if pat.search(spr_text):
-                        spr_turns.setdefault(src, []).append(turn_num)
+                        if turn_num not in spr_turns.setdefault(canon, []):
+                            spr_turns[canon].append(turn_num)
                     if pat.search(deb_text):
-                        deb_turns.setdefault(src, []).append(turn_num)
+                        if turn_num not in deb_turns.setdefault(canon, []):
+                            deb_turns[canon].append(turn_num)
 
             for src, turns in spr_turns.items():
                 index.setdefault(src, {"spreader": [], "debunker": []})["spreader"].append({
@@ -527,10 +533,15 @@ def _scan_citation_index(run_ids: tuple, runs_dir: str, refresh_token: float) ->
 
 
 def _seed_citations(index: dict) -> dict:
-    """Ensure every known institution appears in the index (even if 0 uses)."""
+    """Ensure every known institution appears in the index (even if 0 uses).
+
+    Canonicalises aliased keys so e.g. "World Health Organization" doesn't
+    seed a second empty entry alongside the canonical "WHO".
+    """
     for src in _INSTITUTION_INFO.keys():
-        if src not in index:
-            index[src] = {"spreader": [], "debunker": []}
+        canon = _canonical_source(src)
+        if canon not in index:
+            index[canon] = {"spreader": [], "debunker": []}
     return index
 
 
@@ -689,8 +700,11 @@ def render_atlas_page():
         '<h2 style="font-family:\'Playfair Display\',Georgia,serif;font-size:1.4rem;'
         'font-weight:700;margin:1.5rem 0 0.4rem 0">Strategies</h2>'
         '<p style="font-size:0.85rem;color:#9ca3af;margin:0 0 0.8rem 0">'
-        'Rhetorical tactics observed in adversarial AI debate, grouped by canonical side. '
-        'Each expander shows episodes where the tactic appeared on either side.'
+        'Rhetorical tactics observed in adversarial AI debate, grouped by how each was used: '
+        '<span style="color:#D4A843;font-weight:600">spreader-only</span>, '
+        '<span style="color:#16a34a;font-weight:600">used by both sides</span>, or '
+        '<span style="color:#4A7FA5;font-weight:600">fact-checker-only</span>. '
+        'Catalogue tactics with no usage yet appear in their canonical column.'
         '</p>',
         unsafe_allow_html=True,
     )
@@ -702,28 +716,42 @@ def render_atlas_page():
             return (plain.lower(), 0)
         return (-n_uses, plain.lower())
 
-    # Bucket each entry by canonical-or-usage side. Open-coded LLM labels that
-    # aren't in the catalogue fall back to whichever side actually used them.
+    # Three-way usage bucketing:
+    #   spreader-only / used by both / fact-checker-only.
+    # Tactics with zero usage fall back to the catalogue's canonical side so
+    # the glossary entries stay visible in a natural home from day one.
     strat_items = sorted(strategy_index.items(), key=_strat_sort_key)
-    strat_by_side = {"spreader": [], "debunker": []}
+    strat_by_bucket = {"spreader": [], "both": [], "debunker": []}
     for plain, data in strat_items:
-        side = _side_for(plain, data.get("raw_label", ""), data)
-        strat_by_side.setdefault(side, []).append((plain, data))
+        n_spr = len(data["spreader"])
+        n_deb = len(data["debunker"])
+        if n_spr > 0 and n_deb > 0:
+            bucket = "both"
+        elif n_spr > 0:
+            bucket = "spreader"
+        elif n_deb > 0:
+            bucket = "debunker"
+        else:
+            # Never used — bucket by canonical side from the catalogue
+            bucket = _side_for(plain, data.get("raw_label", ""), data)
+        strat_by_bucket[bucket].append((plain, data))
 
-    def _render_strategy_column(side_key, side_label, color_tag, accent_color):
+    BOTH_COLOR = "#16a34a"  # green — also used elsewhere for "shared" things
+
+    def _render_strategy_column(entries, header_label, color_tag, accent_color, empty_msg):
         accent_rgb = _hex_to_rgb(accent_color)
         st.markdown(
             f'<div style="font-size:0.72rem;color:{accent_color};font-weight:700;'
             f'text-transform:uppercase;letter-spacing:0.07em;margin:0.2rem 0 0.5rem 0;'
             f'padding-bottom:0.35rem;border-bottom:2px solid rgba({accent_rgb},0.4)">'
-            f'{side_label}-leaning tactics · {len(strat_by_side[side_key])}'
+            f'{header_label} · {len(entries)}'
             f'</div>',
             unsafe_allow_html=True,
         )
-        if not strat_by_side[side_key]:
-            st.caption(f"— no {side_label.lower()}-leaning tactics in the catalogue —")
+        if not entries:
+            st.caption(empty_msg)
             return
-        for plain, data in strat_by_side[side_key]:
+        for plain, data in entries:
             raw = data.get("raw_label", "")
             desc = _description_for(plain, raw, data)
             n_spr = len(data["spreader"])
@@ -747,23 +775,34 @@ def render_atlas_page():
                     f'</div>',
                     unsafe_allow_html=True,
                 )
-                # Episode lists per side
                 _render_episode_chip_list(data["spreader"], SPREADER_COLOR, "Spreader")
                 _render_episode_chip_list(data["debunker"], DEBUNKER_COLOR, "Fact-checker")
-                # Domain breakdown footer
                 _render_domain_footer(data["spreader"] + data["debunker"])
-                # Raw open-coded label (small footnote)
                 st.markdown(
                     f'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:0.7rem;'
                     f'color:#6b7280;margin-top:0.5rem;text-align:right">raw label: {raw}</div>',
                     unsafe_allow_html=True,
                 )
 
-    _sc1, _sc2 = st.columns(2)
+    _sc1, _sc2, _sc3 = st.columns(3)
     with _sc1:
-        _render_strategy_column("spreader", "Spreader", "orange", SPREADER_COLOR)
+        _render_strategy_column(
+            strat_by_bucket["spreader"],
+            "Spreader tactics", "orange", SPREADER_COLOR,
+            "— no spreader-only tactics yet —",
+        )
     with _sc2:
-        _render_strategy_column("debunker", "Fact-checker", "blue", DEBUNKER_COLOR)
+        _render_strategy_column(
+            strat_by_bucket["both"],
+            "Used by both", "green", BOTH_COLOR,
+            "— no tactics used by both sides yet — these emerge as you run more debates —",
+        )
+    with _sc3:
+        _render_strategy_column(
+            strat_by_bucket["debunker"],
+            "Fact-checker tactics", "blue", DEBUNKER_COLOR,
+            "— no fact-checker-only tactics yet —",
+        )
 
     if total_strat_uses == 0:
         st.info(

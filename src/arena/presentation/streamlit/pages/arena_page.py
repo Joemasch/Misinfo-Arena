@@ -321,9 +321,12 @@ def _run_live_detection():
 
     # ── Citation detection (regex, instant) ─────────────────────────────
     try:
-        from arena.presentation.streamlit.pages.explore_page import _SOURCE_PATTERNS
+        from arena.presentation.streamlit.pages.explore_page import (
+            _SOURCE_PATTERNS, _canonical_source,
+        )
     except Exception:
         _SOURCE_PATTERNS = {}
+        _canonical_source = lambda s: s  # noqa: E731
 
     for t_idx in new_turn_indices:
         pair = turns_by_idx[t_idx]
@@ -332,16 +335,19 @@ def _run_live_detection():
             for src, pat in _SOURCE_PATTERNS.items():
                 if not pat.search(text):
                     continue
-                event_id = f"cite::{t_idx}::{side_name}::{src}"
+                # Canonicalize so "World Health Organization" and "WHO" mentions
+                # produce a single toast / panel entry rather than two.
+                canon = _canonical_source(src)
+                event_id = f"cite::{t_idx}::{side_name}::{canon}"
                 if event_id in toasted_ids:
                     continue
                 ss["live_citations"].append({
-                    "turn": t_idx, "side": side_name, "source": src,
+                    "turn": t_idx, "side": side_name, "source": canon,
                 })
                 toasted_ids.add(event_id)
                 side_label = "Spreader" if side_name == "spreader" else "Fact-checker"
                 icon = "📎"
-                st.toast(f"{src} cited by {side_label} (Turn {t_idx})", icon=icon)
+                st.toast(f"{canon} cited by {side_label} (Turn {t_idx})", icon=icon)
 
     # ── Strategy detection (LLM call on accumulated turns) ──────────────
     try:
