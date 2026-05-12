@@ -746,7 +746,9 @@ def render_arena_page():
     st.markdown('<div class="ar-section">Episodes & Models</div>', unsafe_allow_html=True)
     st.caption(
         "Pick the models and number of exchanges for each episode. "
-        "An exchange is one back-and-forth (spreader speaks, then fact-checker replies)."
+        "An exchange is one back-and-forth (spreader speaks, then fact-checker replies). "
+        "Adding a second episode? Give it its own claim to chain debates on different "
+        "topics — or leave it blank to reuse Episode 1's claim."
     )
 
     # Widget key is decoupled from the runner's `num_episodes` so the Start
@@ -787,8 +789,9 @@ def render_arena_page():
             "spreader": st.session_state.get("spreader_model", _default_model),
             "debunker": st.session_state.get("debunker_model", _default_model),
             "exchanges": int(st.session_state.get("max_turns", 5) or 5),
+            "claim": "",
         }
-        _eps_cfg.append({**_prev})
+        _eps_cfg.append({**_prev, "claim": ""})
     _eps_cfg = _eps_cfg[:num_episodes]
     st.session_state["episode_configs"] = _eps_cfg
 
@@ -799,8 +802,39 @@ def render_arena_page():
     _hdr_cols[2].markdown('<div style="font-size:0.72rem;color:#9ca3af;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Fact-checker</div>', unsafe_allow_html=True)
     _hdr_cols[3].markdown('<div style="font-size:0.72rem;color:#9ca3af;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Exchanges</div>', unsafe_allow_html=True)
 
+    _top_claim = (st.session_state.get("claim_text") or "").strip()
+
     for _idx in range(num_episodes):
         _row = _eps_cfg[_idx]
+        # For episodes 2..N, surface a per-row claim text input. Episode 1
+        # always uses the top-level "Claim" text area, so its claim field
+        # is implicit (no extra input). Leaving a row's claim blank means
+        # "reuse Episode 1's claim".
+        if _idx > 0:
+            _claim_cols = st.columns([0.5, 5])
+            with _claim_cols[0]:
+                st.markdown(
+                    '<div style="font-size:0.72rem;color:#9ca3af;font-weight:700;'
+                    'text-transform:uppercase;letter-spacing:0.06em;padding-top:0.5rem">'
+                    'Claim</div>',
+                    unsafe_allow_html=True,
+                )
+            with _claim_cols[1]:
+                _row_claim = st.text_input(
+                    f"Claim for Episode {_idx + 1}",
+                    value=_row.get("claim", "") or "",
+                    placeholder=f"Defaults to Episode 1's claim: \"{_top_claim[:60]}\"" if _top_claim else "Enter a claim",
+                    key=f"ep_claim_{_idx}",
+                    label_visibility="collapsed",
+                    help=(
+                        "Leave blank to run this episode on Episode 1's claim. "
+                        "Or type a different claim to chain debates on different "
+                        "topics (e.g. two Health claims back-to-back)."
+                    ),
+                )
+        else:
+            _row_claim = ""  # episode 1 uses top-level claim
+
         _cols = st.columns([0.5, 2, 2, 1])
         with _cols[0]:
             st.markdown(f'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:0.95rem;padding-top:0.5rem;color:var(--color-text-primary,#E8E4D9);">{_idx + 1}</div>', unsafe_allow_html=True)
@@ -834,7 +868,12 @@ def render_arena_page():
                 label_visibility="collapsed",
             )
         # Persist back to the canonical list
-        _eps_cfg[_idx] = {"spreader": _new_spr, "debunker": _new_deb, "exchanges": int(_new_xch)}
+        _eps_cfg[_idx] = {
+            "spreader":  _new_spr,
+            "debunker":  _new_deb,
+            "exchanges": int(_new_xch),
+            "claim":     (_row_claim or "").strip(),
+        }
 
     st.session_state["episode_configs"] = _eps_cfg
 
@@ -932,20 +971,30 @@ def render_arena_page():
             _eps_cfg = ss.get("episode_configs") or []
             ss["chain_total"] = max(1, len(_eps_cfg))
             if len(_eps_cfg) > 1:
-                _ct = ss.get("claim_type", "")
-                # First episode runs immediately below.
+                _ct_ep1 = ss.get("claim_type", "")
+                # First episode runs immediately below on ui_claim.
                 # Episodes 2..N are queued for the chain handler to pick up
-                # when the previous one finishes.
-                ss["pending_episodes"] = [
-                    {
-                        "claim":          ui_claim,
-                        "claim_type":     _ct,
+                # when the previous one finishes. Each entry uses its own
+                # row-level claim if the user typed one, otherwise falls
+                # back to Episode 1's claim (ui_claim).
+                from arena.claim_metadata import classify_claim as _classify_claim
+                _pending = []
+                for _ep in _eps_cfg[1:]:
+                    _ep_claim = (_ep.get("claim") or "").strip() or ui_claim
+                    # Auto-classify the row's domain — falls back to Episode 1's
+                    # domain if classification yields nothing.
+                    try:
+                        _ep_ct, _ = _classify_claim(_ep_claim, use_llm_fallback=False)
+                    except Exception:
+                        _ep_ct = ""
+                    _pending.append({
+                        "claim":          _ep_claim,
+                        "claim_type":     _ep_ct or _ct_ep1,
                         "exchanges":      int(_ep.get("exchanges", 5)),
                         "spreader_model": _ep.get("spreader"),
                         "debunker_model": _ep.get("debunker"),
-                    }
-                    for _ep in _eps_cfg[1:]
-                ]
+                    })
+                ss["pending_episodes"] = _pending
                 # Use the FIRST episode's models for the run we're about to start.
                 ss["spreader_model"] = _eps_cfg[0]["spreader"]
                 ss["debunker_model"] = _eps_cfg[0]["debunker"]
