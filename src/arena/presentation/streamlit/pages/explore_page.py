@@ -1718,9 +1718,9 @@ def _render_comparison(selected_ep, all_episodes):
         from arena.claim_metadata import get_domain_display
         _dom_display, _ = get_domain_display(cur_claim_type)
         st.info(
-            f"No related episodes yet. Run the same claim with different models — "
-            f"or use **Run Showdown** in the Arena tab — to populate this view. "
-            f"Episodes on other **{_dom_display}** claims would also appear here once you have them."
+            f"No related episodes yet. Run the same claim again with different models "
+            f"to populate this view. Episodes on other **{_dom_display}** claims would "
+            f"also appear here once you have them."
         )
         return
 

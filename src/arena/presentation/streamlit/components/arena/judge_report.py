@@ -287,19 +287,14 @@ def _render_smart_nudges():
     Show 1–2 context-aware suggestions for what to try next.
 
     Rules:
-      - After a Showdown run: never suggest "try a different model" — they
-        just did that.
       - After a falsifiable claim: suggest trying an unfalsifiable claim
         (lets the user feel F1 firsthand).
       - After an unfalsifiable claim: suggest trying a falsifiable claim.
       - If ≥2 prior runs exist on this claim: suggest the Compare tab.
-      - Otherwise, suggest trying a different model OR Showdown mode.
     """
     claim_text = (st.session_state.get("claim_text") or "").strip()
     if not claim_text:
         return
-
-    just_did_showdown = bool(st.session_state.get("showdown_completed"))
 
     # Falsifiability for this claim
     try:
@@ -351,36 +346,6 @@ def _render_smart_nudges():
                 "payload": alt["text"],
             })
 
-    # 3) Model swap or Showdown — but ONLY if the user hasn't just done one
-    if not just_did_showdown and len(nudges) < 2:
-        nudges.append({
-            "headline": "Switch models on the same claim",
-            "body": (
-                "Different LLMs argue with distinct rhetorical patterns "
-                "(Claude tends toward institutional distrust; GPT-4o-mini toward "
-                "anecdotes; Gemini toward pseudo-science). Pick new models in the "
-                "sidebar and run again — or use Showdown mode."
-            ),
-            "cta_label": "Run Showdown — same claim, multiple matchups",
-            "action": "run_showdown",
-        })
-    elif just_did_showdown:
-        # User just did Showdown — suggest a different claim type instead
-        alt_kind = "unfalsifiable" if fals == "falsifiable" else "falsifiable"
-        alt = next((c for c in SUGGESTED_CLAIMS if c.get("kind") == alt_kind), None)
-        if alt and len(nudges) < 2 and not any(n["action"] == "load_claim" for n in nudges):
-            nudges.append({
-                "headline": "Try a different claim type",
-                "body": (
-                    "You've seen how multiple models handle this claim. "
-                    "Try a claim with the opposite falsifiability to see "
-                    "how the dynamic changes."
-                ),
-                "cta_label": f"Load: {alt['text'][:40]}",
-                "action": "load_claim",
-                "payload": alt["text"],
-            })
-
     nudges = nudges[:2]
     if not nudges:
         return
@@ -409,12 +374,8 @@ def _render_smart_nudges():
                     for k in (
                         "judge_report_visible", "match_completed", "judge_decision",
                         "episode_transcript", "debate_messages", "strategy_analysis",
-                        "showdown_completed",
                     ):
                         st.session_state.pop(k, None)
-                    st.rerun()
-                elif n["action"] == "run_showdown":
-                    st.session_state["showdown_request"] = True
                     st.rerun()
                 elif n["action"] == "explore_compare":
                     st.session_state["nav_to_explore"] = True

@@ -665,25 +665,8 @@ def render_arena_page():
 
         st.rerun()
 
-    # ===================================================================
-    # ARENA MODE - Quick Debate vs Experiment
-    # ===================================================================
-    arena_top_mode = st.radio(
-        "Arena mode",
-        options=["quick_debate", "experiment"],
-        format_func=lambda x: "Quick Debate" if x == "quick_debate" else "Experiment",
-        horizontal=True,
-        key="arena_top_mode",
-        label_visibility="collapsed",
-    )
-
-    # ── Experiment mode: delegate to spec CSV runner ─────────────────
-    if arena_top_mode == "experiment":
-        from arena.presentation.streamlit.pages.experiment_page import render_experiment_page
-        render_experiment_page()
-        return
-
-    # Quick Debate mode uses single_claim internally
+    # Arena is single-claim only (experiment mode removed — it was for the
+    # original study, not user-facing).
     arena_mode = "single_claim"
     st.session_state["arena_mode"] = arena_mode
 
@@ -901,7 +884,7 @@ def render_arena_page():
     # RUN CONTROLS - Single button to start run + first match
     # ===================================================================
     st.markdown('<div class="ar-section">Run Controls</div>', unsafe_allow_html=True)
-    col_run_start, col_run_showdown, col_run_stop = st.columns([2, 2, 1])
+    col_run_start, col_run_stop = st.columns([3, 1])
     with col_run_start:
         if st.button("Start debate", type="primary", use_container_width=True, key="arena_start_debate_btn"):
             ss = st.session_state
@@ -1021,52 +1004,9 @@ def render_arena_page():
 
             st.rerun()
 
-    with col_run_showdown:
-        _show_clicked = st.button(
-            "🎯 Run Showdown",
-            use_container_width=True,
-            key="arena_showdown_btn",
-            help=(
-                "Runs the current claim through several model matchups in sequence "
-                "(GPT-4o-mini vs itself, Claude vs Claude, mixed pairs). When done, "
-                "compare them side-by-side in the Explore tab to see how different "
-                "models argue the same claim."
-            ),
-        )
-        # Nudge from the verdict can also trigger this
-        if st.session_state.pop("showdown_request", False):
-            _show_clicked = True
-
-        if _show_clicked:
-            ss = st.session_state
-            ui_claim = _get_ui_claim()
-            if not ui_claim:
-                st.warning("Enter or select a claim first.")
-                st.stop()
-
-            # Build a Showdown chain: same claim, 4 model matchups.
-            _SHOWDOWN_MATCHUPS = [
-                ("gpt-4o-mini",             "gpt-4o-mini"),
-                ("claude-sonnet-4-20250514","claude-sonnet-4-20250514"),
-                ("gpt-4o-mini",             "claude-sonnet-4-20250514"),
-                ("claude-sonnet-4-20250514","gpt-4o-mini"),
-            ]
-            _ct = ss.get("claim_type", "")
-            _exch = int(ss.get("max_turns", 5) or 5)
-            ss["pending_episodes"] = [
-                {
-                    "claim":          ui_claim,
-                    "claim_type":     _ct,
-                    "exchanges":      _exch,
-                    "spreader_model": _spr_m,
-                    "debunker_model": _deb_m,
-                }
-                for _spr_m, _deb_m in _SHOWDOWN_MATCHUPS
-            ]
-            ss["chain_total"]        = len(_SHOWDOWN_MATCHUPS)
-            ss["showdown_run_size"]  = len(_SHOWDOWN_MATCHUPS)
-            ss["showdown_completed"] = False
-            st.rerun()
+    # Discard any pending Showdown nudges left over from older verdicts —
+    # the feature is removed.
+    st.session_state.pop("showdown_request", None)
 
     with col_run_stop:
         if st.button("Stop", use_container_width=True, key="arena_stop_run_btn"):

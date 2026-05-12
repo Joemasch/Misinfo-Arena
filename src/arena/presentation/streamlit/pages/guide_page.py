@@ -412,11 +412,11 @@ def render_guide_page():
                 </div>
             </div>
             <div class="hp-feature">
-                <div class="hp-feature-title">3. Start &mdash; or Showdown</div>
+                <div class="hp-feature-title">3. Start the debate</div>
                 <div class="hp-feature-body">
                     <strong>Start Debate</strong> runs your configured episodes back-to-back.
-                    <strong>Run Showdown</strong> queues four model matchups on the same claim
-                    in one click &mdash; the fastest way to see how different models argue the same thing.
+                    Want to see how different models argue the same claim? Add a second row,
+                    pick different models, and they&rsquo;ll run in sequence.
                 </div>
             </div>
         </div>
