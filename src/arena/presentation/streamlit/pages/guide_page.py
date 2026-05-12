@@ -246,9 +246,10 @@ def render_guide_page():
     # ── Hero ──────────────────────────────────────────────────────────────
     st.markdown(
         '<h1 class="hp-h1">Misinformation Arena</h1>'
-        '<p class="hp-prose" style="font-size:1.1rem;color:#999;max-width:680px;margin:0 auto 1rem auto;text-align:center;">'
-        'A research platform for studying how false narratives compete with facts — '
-        'and why the outcome is rarely as simple as &ldquo;truth wins.&rdquo;'
+        '<p class="hp-prose" style="font-size:1.1rem;color:#999;max-width:720px;margin:0 auto 0.7rem auto;text-align:center;">'
+        'Watch two AI models debate a misinformation claim live. See who wins, why, '
+        'and what each side did. Every debate teaches you something the research found '
+        'across 960 episodes — embedded in the experience, not buried in a paper.'
         '</p>',
         unsafe_allow_html=True,
     )
@@ -325,8 +326,9 @@ def render_guide_page():
         st.markdown('<h2 class="hp-h2">What this platform does differently</h2>', unsafe_allow_html=True)
         st.markdown(
             '<p class="hp-prose">'
-            'Two AI agents debate a claim. A third AI judges. Every argument, every score, '
-            'every strategy is recorded.'
+            'Two AI models debate a misinformation claim. A third AI judges. Every argument, '
+            'every citation, every rhetorical tactic is captured — and surfaced back to you '
+            'as the debate unfolds.'
             '</p>',
             unsafe_allow_html=True,
         )
@@ -336,22 +338,25 @@ def render_guide_page():
             <div class="hp-feature">
                 <div class="hp-feature-title">Simulate the exchange</div>
                 <div class="hp-feature-body">
-                    Model the actual argumentative exchange — how a spreader responds to
-                    pushback, how a debunker adapts when emotional appeals land.
+                    Run a real argumentative back-and-forth — see how a spreader responds to
+                    pushback, how a fact-checker adapts when emotional appeals land. Five
+                    exchanges by default, configurable per episode.
                 </div>
             </div>
             <div class="hp-feature">
                 <div class="hp-feature-title">Measure persuasion, not just truth</div>
                 <div class="hp-feature-body">
-                    The judge scores evidence quality, reasoning, responsiveness, and
-                    persuasive impact — because a claim can be false and still win rhetorically.
+                    The judge scores eight dimensions, equally weighted — factuality,
+                    source reputability, hallucination index, reasoning, responsiveness, persuasion,
+                    manipulation awareness, and adaptability. A claim can be false and still win rhetorically.
                 </div>
             </div>
             <div class="hp-feature">
-                <div class="hp-feature-title">Test at scale</div>
+                <div class="hp-feature-title">Learn while you watch</div>
                 <div class="hp-feature-body">
-                    Import hundreds of claims via CSV, auto-run thousands of episodes,
-                    and compare across models and providers.
+                    Citation toasts and strategy chips pop up live during each turn. After
+                    the verdict, a plain-English explainer ties the outcome to specific
+                    findings from our 960-episode study.
                 </div>
             </div>
         </div>
@@ -377,25 +382,109 @@ def render_guide_page():
     with tab_how:
         st.markdown('<div class="hp-dark">', unsafe_allow_html=True)
 
+        # ── User flow walkthrough ─────────────────────────────────────────
+        st.markdown('<h2 class="hp-h2">Run your first debate</h2>', unsafe_allow_html=True)
+        st.markdown(
+            '<p class="hp-prose">'
+            'The app is built around a single magic moment: watching two AI models actually argue. '
+            'Everything else exists to make that moment more meaningful.'
+            '</p>',
+            unsafe_allow_html=True,
+        )
+
+        st.markdown("""
+        <div class="hp-features-row">
+            <div class="hp-feature">
+                <div class="hp-feature-title">1. Pick a claim</div>
+                <div class="hp-feature-body">
+                    Click a <strong>Quickstart</strong> chip on the Arena tab, or type your own claim.
+                    The app auto-detects the domain (Health, Political, Tech, Environmental, Economic)
+                    and shows a <strong>Falsifiable / Unfalsifiable</strong> badge so you know what
+                    kind of debate to expect.
+                </div>
+            </div>
+            <div class="hp-feature">
+                <div class="hp-feature-title">2. Configure models</div>
+                <div class="hp-feature-body">
+                    Each episode has its own row: choose a spreader model, a fact-checker model, and
+                    how many exchanges to run. Want to run two episodes with the same models in
+                    swapped roles? Add a second row and flip them.
+                </div>
+            </div>
+            <div class="hp-feature">
+                <div class="hp-feature-title">3. Start &mdash; or Showdown</div>
+                <div class="hp-feature-body">
+                    <strong>Start Debate</strong> runs your configured episodes back-to-back.
+                    <strong>Run Showdown</strong> queues four model matchups on the same claim
+                    in one click &mdash; the fastest way to see how different models argue the same thing.
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("""
+        <div class="hp-features-row">
+            <div class="hp-feature">
+                <div class="hp-feature-title">4. Watch live</div>
+                <div class="hp-feature-body">
+                    Messages stream turn by turn. The progress bar shows
+                    <em>Episode X/N &middot; Exchange Y/M &middot; current phase</em>.
+                    Citation and strategy toasts pop up the moment something interesting happens
+                    &mdash; <em>WHO cited by Fact-checker (Turn 2)</em>, <em>Spreader used: Conspiracy Framing (Turn 3)</em>.
+                </div>
+            </div>
+            <div class="hp-feature">
+                <div class="hp-feature-title">5. Read the verdict</div>
+                <div class="hp-feature-body">
+                    The verdict card explains who won and <strong>why</strong> in plain English &mdash;
+                    citing falsifiability dynamics, hedge ratios, or tactic diversity from our study.
+                    Then a <strong>&ldquo;What to try next&rdquo;</strong> panel suggests a context-aware
+                    next debate, never repeating what you just did.
+                </div>
+            </div>
+            <div class="hp-feature">
+                <div class="hp-feature-title">6. Dig deeper</div>
+                <div class="hp-feature-body">
+                    Open the <strong>Replay</strong> tab. The Strategy sub-tab shows a swimlane of
+                    every tactic by turn. Citations shows how each side framed its sources.
+                    Compare puts two episodes side-by-side and adapts based on whether you picked
+                    same-claim or same-domain candidates.
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown('<hr class="hp-divider">', unsafe_allow_html=True)
+
+        # ── The agents — what they actually are ──────────────────────────
         st.markdown('<h2 class="hp-h2">The two agents</h2>', unsafe_allow_html=True)
+        st.markdown(
+            '<p class="hp-prose">'
+            'Both agents receive minimal instructions &mdash; roughly 180 characters each. '
+            'No predefined tactics. No strategy lists. The only directive is which side to argue. '
+            'Everything you see &mdash; the conspiratorial framing, the institutional distrust, '
+            'the evidence citation, the mechanism explanation &mdash; emerges from the model&rsquo;s '
+            'training, not from prompt engineering.'
+            '</p>',
+            unsafe_allow_html=True,
+        )
+
         st.markdown("""
         <div class="hp-agents-row">
             <div class="hp-agent-card spreader">
                 <div class="hp-agent-title spreader">The Spreader</div>
                 <div class="hp-agent-body">
-                    Uses the IME507 research prompt with 8 rhetorical strategies — emotional appeals,
-                    selective evidence, conspiratorial framing, fake expert appeal, identity-based
-                    pressure, repetition, and inoculation against corrections. Grounded in
-                    misinformation research literature.
+                    Argues <strong>in favor</strong> of the claim. With free-will prompting,
+                    we observe what tactics the model actually defaults to &mdash; the rhetorical
+                    fingerprint of its training, not the engineer&rsquo;s preferences.
                 </div>
             </div>
             <div class="hp-agent-card factchecker">
                 <div class="hp-agent-title factchecker">The Fact-Checker</div>
                 <div class="hp-agent-body">
-                    Uses the IME507 6-step response architecture — lead with the truth, name the
-                    manipulation tactic, provide structured evidence, address cognitive bias,
-                    offer an alternative narrative, close with calibrated confidence. Based on
-                    inoculation theory.
+                    Argues <strong>against</strong> the claim. Same minimal prompt structure.
+                    On falsifiable claims, models converge on evidence citation; on unfalsifiable
+                    ones, they diverge by training lineage.
                 </div>
             </div>
         </div>
@@ -404,7 +493,7 @@ def render_guide_page():
         st.markdown('<h2 class="hp-h2">The judge</h2>', unsafe_allow_html=True)
         st.markdown(
             '<p class="hp-prose">'
-            'An AI judge evaluates the debate across six dimensions, scored 0&ndash;10 for each side. '
+            'An AI judge evaluates the debate across eight dimensions, scored 0&ndash;10 for each side. '
             'All dimensions are weighted equally. The judge uses <strong>role-relative scoring</strong>: '
             'the spreader is scored on persuasive effectiveness, not factual accuracy.'
             '</p>',
@@ -415,39 +504,51 @@ def render_guide_page():
         <table class="hp-score-table">
             <tr>
                 <td class="hp-score-name">Factuality</td>
-                <td><span class="hp-score-weight">1/6</span></td>
-                <td>Narrative consistency (spreader) / factual grounding (debunker)</td>
+                <td><span class="hp-score-weight">1/8</span></td>
+                <td>Narrative consistency (spreader) / factual grounding (fact-checker)</td>
                 <td class="hp-score-cite">D2D, EMNLP 2025</td>
             </tr>
             <tr>
-                <td class="hp-score-name">Source Credibility</td>
-                <td><span class="hp-score-weight">1/6</span></td>
-                <td>Specificity and checkability of cited sources</td>
+                <td class="hp-score-name">Source Reputability</td>
+                <td><span class="hp-score-weight">1/8</span></td>
+                <td>Specificity and authority of cited sources</td>
                 <td class="hp-score-cite">D2D, EMNLP 2025</td>
+            </tr>
+            <tr>
+                <td class="hp-score-name">Hallucination Index</td>
+                <td><span class="hp-score-weight">1/8</span></td>
+                <td>Apparent validity of cited evidence; penalizes fabricated-sounding sources</td>
+                <td class="hp-score-cite">LLM-as-judge</td>
             </tr>
             <tr>
                 <td class="hp-score-name">Reasoning Quality</td>
-                <td><span class="hp-score-weight">1/6</span></td>
+                <td><span class="hp-score-weight">1/8</span></td>
                 <td>Logical structure, avoidance of fallacies</td>
                 <td class="hp-score-cite">Wachsmuth 2017 &mdash; Cogency</td>
             </tr>
             <tr>
                 <td class="hp-score-name">Responsiveness</td>
-                <td><span class="hp-score-weight">1/6</span></td>
+                <td><span class="hp-score-weight">1/8</span></td>
                 <td>Direct engagement with opponent&rsquo;s strongest point</td>
                 <td class="hp-score-cite">Wachsmuth 2017 &mdash; Reasonableness</td>
             </tr>
             <tr>
                 <td class="hp-score-name">Persuasion</td>
-                <td><span class="hp-score-weight">1/6</span></td>
+                <td><span class="hp-score-weight">1/8</span></td>
                 <td>Convincingness to an uncommitted reader</td>
                 <td class="hp-score-cite">Wachsmuth 2017 &mdash; Effectiveness</td>
             </tr>
             <tr>
                 <td class="hp-score-name">Manipulation Awareness</td>
-                <td><span class="hp-score-weight">1/6</span></td>
-                <td>Penalizes manipulation (spreader) / rewards naming tactics (debunker)</td>
+                <td><span class="hp-score-weight">1/8</span></td>
+                <td>Penalizes manipulation (spreader) / rewards naming tactics (fact-checker)</td>
                 <td class="hp-score-cite">Inoculation theory</td>
+            </tr>
+            <tr>
+                <td class="hp-score-name">Adaptability</td>
+                <td><span class="hp-score-weight">1/8</span></td>
+                <td>Tactical evolution across turns; rewards introducing new angles over repetition</td>
+                <td class="hp-score-cite">Argumentation dynamics</td>
             </tr>
         </table>
         """, unsafe_allow_html=True)
@@ -467,27 +568,56 @@ def render_guide_page():
         st.markdown("""
         <div class="hp-nav-row">
             <div class="hp-nav-card">
+                <div class="hp-nav-title">Home</div>
+                <div class="hp-nav-body">You&rsquo;re here. Context for the platform and a walkthrough of the user flow.</div>
+            </div>
+            <div class="hp-nav-card">
                 <div class="hp-nav-title">Arena</div>
-                <div class="hp-nav-body">Run debates. Single claim or CSV batch. Auto-run for bulk experiments.</div>
-            </div>
-            <div class="hp-nav-card">
-                <div class="hp-nav-title">Analytics</div>
-                <div class="hp-nav-body">Performance, models, strategy, citations, concessions, anomalies.</div>
-            </div>
-            <div class="hp-nav-card">
-                <div class="hp-nav-title">Claims</div>
-                <div class="hp-nav-body">Difficulty index, domain breakdown, turn sensitivity, consistency.</div>
+                <div class="hp-nav-body">Run a debate. Quickstart claims, per-episode model rows, Showdown mode, live citation &amp; strategy toasts.</div>
             </div>
             <div class="hp-nav-card">
                 <div class="hp-nav-title">Replay</div>
-                <div class="hp-nav-body">Full transcript, verdict, scorecard, strategy lens for any episode.</div>
+                <div class="hp-nav-body">
+                    Browse past episodes (with domain &amp; falsifiability columns) and drill into any one
+                    via five sub-tabs: <em>Verdict</em>, <em>Transcript</em>, <em>Strategy</em>,
+                    <em>Citations</em>, <em>Compare</em>.
+                </div>
             </div>
             <div class="hp-nav-card">
-                <div class="hp-nav-title">Tools</div>
-                <div class="hp-nav-body">Prompts, experiment runner, human annotation, statistical exports.</div>
+                <div class="hp-nav-title">Atlas</div>
+                <div class="hp-nav-body">
+                    Reference library for the strategies and citations you encounter. Each entry has
+                    a definition and shows which of your debates featured it. Three columns: spreader-leaning,
+                    used by both, fact-checker-leaning.
+                </div>
+            </div>
+            <div class="hp-nav-card">
+                <div class="hp-nav-title">Findings</div>
+                <div class="hp-nav-body">
+                    The five findings from the 960-episode study, each with effect sizes, supporting visuals,
+                    and a plain-English interpretation.
+                </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
+
+        st.markdown('<hr class="hp-divider">', unsafe_allow_html=True)
+
+        # ── Features you might miss ──────────────────────────────────────
+        st.markdown('<h3 class="hp-h3">Small things that change the experience</h3>', unsafe_allow_html=True)
+        st.markdown(
+            '<p class="hp-prose" style="font-size:0.9rem;">'
+            '<strong>Domain badges</strong> appear on every episode card &mdash; coloured per domain '
+            '(Health pink, Political purple, Tech cyan, Environmental lime, Economic orange, Conspiracy amber). '
+            '<strong>Falsifiability badges</strong> sit next to claims everywhere they appear &mdash; green '
+            'for falsifiable, amber for unfalsifiable. <strong>Cross-domain Compare is intentionally disabled</strong> '
+            '&mdash; comparing two claims from different domains confounds the model and the topic, so the '
+            'Compare tab only surfaces same-claim or same-domain candidates. <strong>The Compare tab adapts</strong> '
+            'based on which candidate you pick: same-claim shows model fingerprints; same-domain shows tactic '
+            'consistency, citation continuity, and per-side behavioural metrics.'
+            '</p>',
+            unsafe_allow_html=True,
+        )
 
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -496,6 +626,87 @@ def render_guide_page():
     # ══════════════════════════════════════════════════════════════════════
     with tab_research:
         st.markdown('<div class="hp-dark">', unsafe_allow_html=True)
+
+        st.markdown('<h2 class="hp-h2">What we tested</h2>', unsafe_allow_html=True)
+        st.markdown(
+            '<p class="hp-prose">'
+            'The findings surfaced in this app come from a fully-crossed factorial experiment of '
+            '<strong>960 adversarial AI debates</strong>. Every cell of the design grid was run, '
+            'with each debate judged by an independent model (<strong>Grok-3</strong>) to avoid '
+            'in-family judge bias.'
+            '</p>',
+            unsafe_allow_html=True,
+        )
+
+        st.markdown("""
+        <div class="hp-stat-row">
+            <div class="hp-stat">
+                <div class="hp-stat-num">4</div>
+                <div class="hp-stat-label">Models tested as spreader &amp; fact-checker (GPT-4o-mini, Claude Haiku 4.5, Gemini 2.5 Flash, Grok-3 Mini)</div>
+            </div>
+            <div class="hp-stat">
+                <div class="hp-stat-num" style="color:#D4A843;">20</div>
+                <div class="hp-stat-label">Misinformation claims spanning Health, Political, Tech, Environmental, Conspiracy</div>
+            </div>
+            <div class="hp-stat">
+                <div class="hp-stat-num" style="color:#4A7FA5;">5</div>
+                <div class="hp-stat-label">Domains for cross-topic comparison</div>
+            </div>
+            <div class="hp-stat">
+                <div class="hp-stat-num" style="color:#7BAF6D;">3</div>
+                <div class="hp-stat-label">Turn lengths (2, 4, 6 exchanges) to capture short and long debate dynamics</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown(
+            '<p class="hp-prose" style="font-size:0.92rem;">'
+            '4 spreaders &times; 4 fact-checkers &times; 20 claims &times; 3 turn lengths = '
+            '<strong>960 episodes</strong>. Each episode produces a structured judge verdict, '
+            'a per-turn strategy trace, and a citation log &mdash; the raw material for every '
+            'finding and every analytics view in this platform.'
+            '</p>',
+            unsafe_allow_html=True,
+        )
+
+        st.markdown('<hr class="hp-divider">', unsafe_allow_html=True)
+
+        st.markdown('<h2 class="hp-h2">The five findings</h2>', unsafe_allow_html=True)
+        st.markdown(
+            '<p class="hp-prose">'
+            'Ordered by causal logic. The claim sets the difficulty &rarr; each model brings a fixed toolkit '
+            '&rarr; interactions are reactive but predictable &rarr; evidence quality varies by domain &rarr; '
+            'the side that deepens its argument wins.'
+            '</p>',
+            unsafe_allow_html=True,
+        )
+
+        st.markdown("""
+        <div class="hp-nav-row">
+            <div class="hp-nav-card">
+                <div class="hp-nav-title">F1 &mdash; Falsifiability</div>
+                <div class="hp-nav-body">Falsifiable claims collapse for spreaders; unfalsifiable claims stay competitive. The single biggest determinant of who wins.</div>
+            </div>
+            <div class="hp-nav-card">
+                <div class="hp-nav-title">F2 &mdash; Fingerprints</div>
+                <div class="hp-nav-body">Each model has a signature tactic mix. Claude leans on appeal-to-trust; GPT-4o-mini on emotional framing; Gemini on mechanism.</div>
+            </div>
+            <div class="hp-nav-card">
+                <div class="hp-nav-title">F3 &mdash; Game Theory</div>
+                <div class="hp-nav-body">Strategy choice is reactive to the opponent&rsquo;s last turn. Co-occurrence and lag-1 transitions are highly structured.</div>
+            </div>
+            <div class="hp-nav-card">
+                <div class="hp-nav-title">F4 &mdash; Source Weaponization</div>
+                <div class="hp-nav-body">9,050 citations, 0 fabricated. Both sides cite the same institutions &mdash; spreaders just hedge 2.4&times; more.</div>
+            </div>
+            <div class="hp-nav-card">
+                <div class="hp-nav-title">F5 &mdash; Adaptability</div>
+                <div class="hp-nav-body">Tactical evolution across turns is the strongest predictor of winning (r = 0.753). Bottom-quartile adaptability wins only 28% of the time.</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown('<hr class="hp-divider">', unsafe_allow_html=True)
 
         st.markdown('<h2 class="hp-h2">Why are certain things fixed?</h2>', unsafe_allow_html=True)
         st.markdown(
@@ -509,22 +720,22 @@ def render_guide_page():
         st.markdown("""
         <div class="hp-fixed-row">
             <div class="hp-fixed">
-                <div class="hp-fixed-title">Prompts are fixed</div>
+                <div class="hp-fixed-title">Free-will prompts</div>
                 <div class="hp-fixed-body">
-                    The IME507 prompts are grounded in misinformation research literature.
-                    Varying prompts would make it impossible to isolate whether outcome
-                    differences come from the prompt or the model.
+                    Both agents receive roughly 180 characters of instruction &mdash; just the
+                    role assignment. No prescribed tactics, no strategy lists. This is a
+                    deliberate methodological choice: rhetorical patterns we observe come from
+                    the model&rsquo;s training, not from prompt engineering by the researcher.
                 </div>
-                <div class="hp-fixed-value">IME507 Spreader (3,022 chars) &middot; IME507 Debunker (4,178 chars)</div>
+                <div class="hp-fixed-value">~180 chars each &middot; identical structure for both sides</div>
             </div>
             <div class="hp-fixed">
                 <div class="hp-fixed-title">Temperatures are fixed</div>
                 <div class="hp-fixed-body">
-                    High spreader creativity mirrors real misinformation variability.
-                    Low debunker temperature ensures consistent evidence-grounded responses.
-                    Near-zero judge temperature minimizes scoring randomness.
+                    Same temperature on both sides keeps the playing field even. The judge runs
+                    near-zero to minimise scoring noise across repeated evaluations.
                 </div>
-                <div class="hp-fixed-value">Spreader 0.85 &middot; Debunker 0.40 &middot; Judge 0.10</div>
+                <div class="hp-fixed-value">Spreader 0.85 &middot; Fact-checker 0.40 &middot; Judge 0.10</div>
             </div>
         </div>
         <div class="hp-fixed-row">
@@ -535,16 +746,16 @@ def render_guide_page():
                     A sensitivity analysis showed zero outcome flips across 7 different weight
                     schemes &mdash; the score gaps are large enough to be robust.
                 </div>
-                <div class="hp-fixed-value">All 6 dimensions &times; 1/6 weight</div>
+                <div class="hp-fixed-value">All 8 dimensions &times; 1/8 weight</div>
             </div>
             <div class="hp-fixed">
                 <div class="hp-fixed-title">Role-relative scoring</div>
                 <div class="hp-fixed-body">
                     The spreader is evaluated on persuasive execution, not factual accuracy.
-                    Without this, the debunker wins by default on every dimension &mdash;
+                    Without this, the fact-checker wins by default on every dimension &mdash;
                     which tells you nothing about how misinformation actually works.
                 </div>
-                <div class="hp-fixed-value">Spreader scored on persuasion &middot; Debunker scored on evidence</div>
+                <div class="hp-fixed-value">Spreader scored on persuasion &middot; Fact-checker scored on evidence</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -554,16 +765,24 @@ def render_guide_page():
         st.markdown('<h2 class="hp-h2">Literature grounding</h2>', unsafe_allow_html=True)
         st.markdown(
             '<p class="hp-prose">'
-            '<strong>Scoring dimensions:</strong> Wachsmuth et al. (2017) &ldquo;Argumentation Quality Assessment&rdquo; (ACL) '
-            '&middot; D2D: Debate-to-Detect (EMNLP 2025)'
+            '<strong>Scoring dimensions (Wachsmuth axes):</strong> Wachsmuth et al. (2017) &ldquo;Argumentation Quality Assessment&rdquo; (ACL) '
+            '&mdash; cogency, reasonableness, effectiveness'
+            '</p>'
+            '<p class="hp-prose">'
+            '<strong>Factuality, source reputability, hallucination index:</strong> D2D &mdash; Debate-to-Detect (EMNLP 2025) '
+            '&middot; LLM-as-judge literature (Zheng et al. 2023)'
+            '</p>'
+            '<p class="hp-prose">'
+            '<strong>Manipulation awareness:</strong> Inoculation theory &mdash; Roozenbeek &amp; van der Linden (2022) '
+            '&middot; Cook et al. (2017) &ldquo;Neutralizing misinformation through inoculation&rdquo; (PLOS ONE)'
             '</p>'
             '<p class="hp-prose">'
             '<strong>Strategy taxonomy:</strong> FLICC &mdash; Cook &amp; Lewandowsky (2020) '
             '&middot; SemEval-2023 Task 3 &mdash; persuasion technique detection'
             '</p>'
             '<p class="hp-prose">'
-            '<strong>Inoculation theory:</strong> Roozenbeek &amp; van der Linden (2022) '
-            '&middot; Cook et al. (2017) &ldquo;Neutralizing misinformation through inoculation&rdquo; (PLOS ONE)'
+            '<strong>Open-coded labels:</strong> Grounded Theory &mdash; Glaser &amp; Strauss (1967). '
+            'Strategy labels are emergent from the debates themselves, not assigned from a fixed list.'
             '</p>',
             unsafe_allow_html=True,
         )
@@ -573,10 +792,11 @@ def render_guide_page():
         st.markdown('<h3 class="hp-h3">Known limitations</h3>', unsafe_allow_html=True)
         st.markdown(
             '<p class="hp-prose" style="font-size:0.88rem;">'
-            'Keyword-based concession detection (false positives on polite language) &middot; '
             'Safety-aligned models may soften the spreader role &middot; '
-            'No absolute quality baseline (scores are relative) &middot; '
-            'Non-deterministic judge (slight variance across repeated evaluations)'
+            'No absolute quality baseline (scores are relative within each debate) &middot; '
+            'Non-deterministic judge (slight variance across repeated evaluations) &middot; '
+            'Findings are LLM-on-LLM &mdash; human-evaluation baseline not yet conducted &middot; '
+            'English-language claims only'
             '</p>'
             '<p class="hp-prose" style="font-size:0.82rem;color:#555;">'
             'Full discussion: docs/known_limitations.md'

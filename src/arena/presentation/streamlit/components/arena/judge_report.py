@@ -475,6 +475,16 @@ def render_judge_report():
         unsafe_allow_html=True,
     )
 
+    # ── How this compares to the study (result vs. baseline) ─────────────────
+    try:
+        from arena.presentation.streamlit.components.arena.baseline_panels import (
+            render_result_vs_baseline,
+        )
+        _claim_for_baseline = (st.session_state.get("claim_text") or "").strip()
+        render_result_vs_baseline(_claim_for_baseline, winner, margin)
+    except Exception:
+        pass
+
     # ── "Why this verdict?" — research-anchored explainer (F1/F4/F5) ─────────
     _why_html = _build_verdict_explainer(decision, winner)
     if _why_html:

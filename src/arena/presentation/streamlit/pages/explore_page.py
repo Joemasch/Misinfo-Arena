@@ -326,6 +326,19 @@ def _render_verdict(ep):
             unsafe_allow_html=True,
         )
 
+    # ── How this compares to the study (result vs. baseline) ─────────────────
+    try:
+        from arena.presentation.streamlit.components.arena.baseline_panels import (
+            render_result_vs_baseline,
+        )
+        render_result_vs_baseline(
+            ep.get("claim", ""),
+            (winner or "").lower(),
+            abs(margin),
+        )
+    except Exception:
+        pass
+
     if scorecard:
         st.markdown('<div class="rp-section-label">Score breakdown</div>', unsafe_allow_html=True)
         sorted_sc = sorted(scorecard, key=lambda x: abs(x.get("debunker", 0) - x.get("spreader", 0)), reverse=True)
@@ -1749,50 +1762,213 @@ def _render_comparison(selected_ep, all_episodes):
         return  # don't fall through to same-claim widgets
 
     # ──────────────────────────────────────────────────────────────────
-    # Tactic-by-tactic comparison strip
+    # Tactic-by-tactic comparison strip — every tactic, every turn,
+    # every chip clickable. Turn chips jump to the matching transcript
+    # block below for that exact episode.
     # ──────────────────────────────────────────────────────────────────
     _grid_eps = [ep for ep, _ in grid]
     st.markdown(
         '<div class="rp-section-label" style="margin-top:1.4rem">Tactic comparison</div>',
         unsafe_allow_html=True,
     )
-    st.caption("Primary and secondary tactics for each side, across the selected matchups.")
+    st.caption(
+        "Every tactic each side used across the selected matchups. "
+        "Click any turn chip to jump to where that tactic appeared."
+    )
 
-    def _top_n(strats, n=2):
-        plain = [_label_plain(s) for s in (strats or []) if s]
-        return plain[:n] or ["—"]
+    def _per_turn_tactics_for_side(ep, sa_key):
+        """Build {tactic_plain: sorted[turn_ints]} from per_turn_strategies."""
+        out: dict[str, set] = {}
+        for entry in (ep.get("per_turn_strategies") or []):
+            t = entry.get("turn", entry.get("turn_index"))
+            try:
+                t_int = int(t)
+            except (TypeError, ValueError):
+                continue
+            for s in (entry.get(sa_key) or []):
+                plain = _label_plain(s)
+                if not plain:
+                    continue
+                out.setdefault(plain, set()).add(t_int)
+        return {k: sorted(v) for k, v in out.items()}
 
-    # Build a small table: rows = Spreader#1, Spreader#2, FC#1, FC#2; cols = episodes
-    _tac_rows_labels = [
-        ("Spreader's #1", SPREADER_COLOR, "spreader_strategies", 0),
-        ("Spreader's #2", SPREADER_COLOR, "spreader_strategies", 1),
-        ("Fact-checker's #1", DEBUNKER_COLOR, "debunker_strategies", 0),
-        ("Fact-checker's #2", DEBUNKER_COLOR, "debunker_strategies", 1),
-    ]
-    _hdr = '<th style="text-align:left;padding:0.4rem 0.6rem;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.07em;color:#9ca3af;font-weight:700;border-bottom:2px solid var(--color-border,#2A2A2A)"></th>'
-    for ep, label in grid:
-        _hdr += (
-            f'<th style="text-align:left;padding:0.4rem 0.6rem;font-size:0.7rem;text-transform:uppercase;'
-            f'letter-spacing:0.07em;color:#9ca3af;font-weight:700;border-bottom:2px solid var(--color-border,#2A2A2A)">{label}</th>'
+    def _agg_tactics_for_side(ep, sa_key):
+        """Plain-label set from the episode-level strategy_analysis aggregate."""
+        sa = ep.get("strategy_analysis") or {}
+        return {_label_plain(s) for s in (sa.get(sa_key) or []) if s}
+
+    def _render_all_tactics_table(role_label, sa_key, color):
+        ep_per_turn = [_per_turn_tactics_for_side(ep, sa_key) for ep, _ in grid]
+        ep_agg = [_agg_tactics_for_side(ep, sa_key) for ep, _ in grid]
+
+        # Source of truth = per_turn_strategies. Aggregate-only labels get
+        # filtered out because they have no turn anchor to jump to.
+        all_tactics: set[str] = set()
+        for m in ep_per_turn:
+            all_tactics.update(m.keys())
+
+        # Legacy fallback: if NOTHING in the grid has per-turn data,
+        # fall back to the aggregate set so the table isn't empty for
+        # older episodes.
+        any_per_turn = any(ep_per_turn)
+        if not any_per_turn:
+            for s in ep_agg:
+                all_tactics.update(s)
+
+        if not all_tactics:
+            st.caption(f"No tactics recorded for {role_label.lower()}.")
+            return
+
+        def _total_count(tac):
+            return sum(len(m.get(tac, [])) for m in ep_per_turn)
+
+        sorted_tactics = sorted(all_tactics, key=lambda t: (-_total_count(t), t.lower()))
+
+        hdr_html = (
+            f'<th style="text-align:left;padding:0.45rem 0.65rem;font-size:0.72rem;'
+            f'text-transform:uppercase;letter-spacing:0.07em;color:{color};font-weight:700;'
+            f'border-bottom:2px solid var(--color-border,#2A2A2A);min-width:220px">'
+            f'{role_label} tactic</th>'
         )
-    _rows_html = ""
-    for row_label, color, sa_key, idx in _tac_rows_labels:
-        _rows_html += f'<tr><td style="padding:0.45rem 0.6rem;color:{color};font-size:0.84rem;font-weight:600;border-bottom:1px solid var(--color-border,#2A2A2A)">{row_label}</td>'
-        for ep, _label_h in grid:
-            sa = ep.get("strategy_analysis") or {}
-            top = _top_n(sa.get(sa_key, []), n=2)
-            val = top[idx] if idx < len(top) else "—"
-            _rows_html += (
-                f'<td style="padding:0.45rem 0.6rem;font-size:0.86rem;'
-                f'color:var(--color-text-primary,#E8E4D9);border-bottom:1px solid var(--color-border,#2A2A2A)">{val}</td>'
+        for ep, label in grid:
+            hdr_html += (
+                f'<th style="text-align:left;padding:0.45rem 0.65rem;font-size:0.7rem;'
+                f'text-transform:uppercase;letter-spacing:0.07em;color:#9ca3af;font-weight:700;'
+                f'border-bottom:2px solid var(--color-border,#2A2A2A)">{label}</th>'
             )
-        _rows_html += '</tr>'
+
+        rows_html = ""
+        for tactic in sorted_tactics:
+            rows_html += (
+                f'<tr><td style="padding:0.45rem 0.65rem;color:var(--color-text-primary,#E8E4D9);'
+                f'font-size:0.86rem;font-weight:500;border-bottom:1px solid var(--color-border,#2A2A2A)">{tactic}</td>'
+            )
+            for ep_i, (ep, _lbl) in enumerate(grid):
+                turns = ep_per_turn[ep_i].get(tactic, [])
+                if turns:
+                    chips = " ".join(
+                        f'<a href="#cmp-ep{ep_i}-t{t}" '
+                        f'style="display:inline-block;padding:0.1rem 0.5rem;margin:0.08rem 0.18rem 0.08rem 0;'
+                        f'background:{color}22;color:{color};border:1px solid {color}66;border-radius:3px;'
+                        f'font-family:\'IBM Plex Mono\',monospace;font-size:0.74rem;font-weight:700;'
+                        f'text-decoration:none;cursor:pointer">T{t}</a>'
+                        for t in turns
+                    )
+                    cell = chips
+                else:
+                    cell = '<span style="color:#3a3a3a;font-size:0.95rem">·</span>'
+                rows_html += (
+                    f'<td style="padding:0.35rem 0.65rem;'
+                    f'border-bottom:1px solid var(--color-border,#2A2A2A)">{cell}</td>'
+                )
+            rows_html += '</tr>'
+
+        st.markdown(
+            f'<table style="width:100%;border-collapse:collapse;background:var(--color-surface,#111);'
+            f'border-radius:6px;overflow:hidden;margin:0 0 0.9rem 0">'
+            f'<thead><tr>{hdr_html}</tr></thead><tbody>{rows_html}</tbody></table>',
+            unsafe_allow_html=True,
+        )
+
+    _render_all_tactics_table("Spreader", "spreader_strategies", SPREADER_COLOR)
+    _render_all_tactics_table("Fact-checker", "debunker_strategies", DEBUNKER_COLOR)
+
+    # ──────────────────────────────────────────────────────────────────
+    # Citation comparison — every cited institution, every turn it was
+    # mentioned, every chip clickable. Mirrors the Tactic table.
+    # ──────────────────────────────────────────────────────────────────
     st.markdown(
-        f'<table style="width:100%;border-collapse:collapse;background:var(--color-surface,#111);'
-        f'border-radius:6px;overflow:hidden">'
-        f'<thead><tr>{_hdr}</tr></thead><tbody>{_rows_html}</tbody></table>',
+        '<div class="rp-section-label" style="margin-top:1.4rem">Citation comparison</div>',
         unsafe_allow_html=True,
     )
+    st.caption(
+        "Every named institution each side cited, with the turns it appeared in. "
+        "Click any turn chip to jump to where it was cited."
+    )
+
+    def _per_turn_citations_for_side(ep, side_key):
+        """{canonical_source: sorted[turn_ints]} by scanning each turn's text."""
+        out: dict[str, set] = {}
+        for i, p in enumerate(_normalize_turn_pairs(ep)):
+            try:
+                t_int = int(p.get("pair_idx", i + 1))
+            except (TypeError, ValueError):
+                t_int = i + 1
+            text = (p.get(f"{side_key}_text") or "")
+            if not text:
+                continue
+            cited = set()
+            for src, pat in _SOURCE_PATTERNS.items():
+                if pat.search(text):
+                    cited.add(_canonical_source(src))
+            for c in cited:
+                out.setdefault(c, set()).add(t_int)
+        return {k: sorted(v) for k, v in out.items()}
+
+    def _render_all_citations_table(role_label, side_key, color):
+        ep_data = [_per_turn_citations_for_side(ep, side_key) for ep, _ in grid]
+
+        all_cites: set[str] = set()
+        for m in ep_data:
+            all_cites.update(m.keys())
+
+        if not all_cites:
+            st.caption(f"No named institutions cited by {role_label.lower()}.")
+            return
+
+        def _total_count(c):
+            return sum(len(m.get(c, [])) for m in ep_data)
+
+        sorted_cites = sorted(all_cites, key=lambda c: (-_total_count(c), c.lower()))
+
+        hdr_html = (
+            f'<th style="text-align:left;padding:0.45rem 0.65rem;font-size:0.72rem;'
+            f'text-transform:uppercase;letter-spacing:0.07em;color:{color};font-weight:700;'
+            f'border-bottom:2px solid var(--color-border,#2A2A2A);min-width:220px">'
+            f'{role_label} citation</th>'
+        )
+        for ep, label in grid:
+            hdr_html += (
+                f'<th style="text-align:left;padding:0.45rem 0.65rem;font-size:0.7rem;'
+                f'text-transform:uppercase;letter-spacing:0.07em;color:#9ca3af;font-weight:700;'
+                f'border-bottom:2px solid var(--color-border,#2A2A2A)">{label}</th>'
+            )
+
+        rows_html = ""
+        for src in sorted_cites:
+            rows_html += (
+                f'<tr><td style="padding:0.45rem 0.65rem;color:var(--color-text-primary,#E8E4D9);'
+                f'font-size:0.86rem;font-weight:500;border-bottom:1px solid var(--color-border,#2A2A2A)">{src}</td>'
+            )
+            for ep_i, _ in enumerate(grid):
+                turns = ep_data[ep_i].get(src, [])
+                if turns:
+                    chips = " ".join(
+                        f'<a href="#cmp-ep{ep_i}-t{t}" '
+                        f'style="display:inline-block;padding:0.1rem 0.5rem;margin:0.08rem 0.18rem 0.08rem 0;'
+                        f'background:{color}22;color:{color};border:1px solid {color}66;border-radius:3px;'
+                        f'font-family:\'IBM Plex Mono\',monospace;font-size:0.74rem;font-weight:700;'
+                        f'text-decoration:none;cursor:pointer">T{t}</a>'
+                        for t in turns
+                    )
+                    cell = chips
+                else:
+                    cell = '<span style="color:#3a3a3a;font-size:0.95rem">·</span>'
+                rows_html += (
+                    f'<td style="padding:0.35rem 0.65rem;'
+                    f'border-bottom:1px solid var(--color-border,#2A2A2A)">{cell}</td>'
+                )
+            rows_html += '</tr>'
+
+        st.markdown(
+            f'<table style="width:100%;border-collapse:collapse;background:var(--color-surface,#111);'
+            f'border-radius:6px;overflow:hidden;margin:0 0 0.9rem 0">'
+            f'<thead><tr>{hdr_html}</tr></thead><tbody>{rows_html}</tbody></table>',
+            unsafe_allow_html=True,
+        )
+
+    _render_all_citations_table("Spreader", "spreader", SPREADER_COLOR)
+    _render_all_citations_table("Fact-checker", "debunker", DEBUNKER_COLOR)
 
     # ──────────────────────────────────────────────────────────────────
     # Per-dimension delta heatmap
@@ -1903,8 +2079,16 @@ def _render_comparison(selected_ep, all_episodes):
                 unsafe_allow_html=True,
             )
             _row_cols = st.columns(len(_grid_pairs))
-            for col, g in zip(_row_cols, _grid_pairs):
+            for ep_i, (col, g) in enumerate(zip(_row_cols, _grid_pairs)):
                 with col:
+                    # Anchor target for the tactic-comparison links above —
+                    # one anchor per (episode, turn) pair. scroll-margin gives
+                    # the jump a little breathing room beneath the sticky header.
+                    _anchor = f"cmp-ep{ep_i}-t{turn_idx + 1}"
+                    st.markdown(
+                        f'<div id="{_anchor}" style="scroll-margin-top:80px"></div>',
+                        unsafe_allow_html=True,
+                    )
                     if turn_idx >= len(g["pairs"]):
                         st.markdown(
                             f'<div style="font-size:0.82rem;color:#6b7280;font-style:italic;'
@@ -1913,23 +2097,21 @@ def _render_comparison(selected_ep, all_episodes):
                         )
                         continue
                     _p = g["pairs"][turn_idx]
-                    _spr_t = (_p.get("spreader_text") or "").strip()
-                    _deb_t = (_p.get("debunker_text") or "").strip()
-                    _spr_preview = _spr_t[:360] + ("…" if len(_spr_t) > 360 else "")
-                    _deb_preview = _deb_t[:360] + ("…" if len(_deb_t) > 360 else "")
+                    _spr_t = (_p.get("spreader_text") or "").strip() or "—"
+                    _deb_t = (_p.get("debunker_text") or "").strip() or "—"
                     st.markdown(
                         f'<div style="font-size:0.7rem;color:{SPREADER_COLOR};font-weight:700;'
                         f'text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.15rem">Spreader</div>'
-                        f'<div style="font-size:0.84rem;line-height:1.5;background:rgba(212,168,67,0.05);'
+                        f'<div style="font-size:0.84rem;line-height:1.55;background:rgba(212,168,67,0.05);'
                         f'border-left:3px solid {SPREADER_COLOR};border-radius:0 4px 4px 0;'
-                        f'padding:0.55rem 0.7rem;margin-bottom:0.5rem;color:var(--color-text-primary,#E8E4D9)">'
-                        f'{_spr_preview or "—"}</div>'
+                        f'padding:0.55rem 0.7rem;margin-bottom:0.5rem;color:var(--color-text-primary,#E8E4D9);'
+                        f'white-space:pre-wrap">{_spr_t}</div>'
                         f'<div style="font-size:0.7rem;color:{DEBUNKER_COLOR};font-weight:700;'
                         f'text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.15rem">Fact-checker</div>'
-                        f'<div style="font-size:0.84rem;line-height:1.5;background:rgba(74,127,165,0.05);'
+                        f'<div style="font-size:0.84rem;line-height:1.55;background:rgba(74,127,165,0.05);'
                         f'border-left:3px solid {DEBUNKER_COLOR};border-radius:0 4px 4px 0;'
-                        f'padding:0.55rem 0.7rem;color:var(--color-text-primary,#E8E4D9)">'
-                        f'{_deb_preview or "—"}</div>',
+                        f'padding:0.55rem 0.7rem;color:var(--color-text-primary,#E8E4D9);'
+                        f'white-space:pre-wrap">{_deb_t}</div>',
                         unsafe_allow_html=True,
                     )
 

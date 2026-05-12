@@ -1,0 +1,289 @@
+{
+  "metadata": {
+    "source": "experiment_v2_archived_20260511_171256",
+    "total_episodes": 937,
+    "judge_model": "grok-3"
+  },
+  "overall": {
+    "n": 937,
+    "fc_win_rate": 0.614,
+    "sp_win_rate": 0.352,
+    "draw_rate": 0.034,
+    "avg_confidence": 0.764,
+    "avg_margin": 2.596
+  },
+  "by_domain_falsifiability": {
+    "Economic|falsifiable": {
+      "n": 93,
+      "fc_win_rate": 0.301,
+      "sp_win_rate": 0.634,
+      "draw_rate": 0.065,
+      "avg_confidence": 0.759,
+      "avg_margin": 2.542,
+      "turn_breakdown": {
+        "2": {
+          "n": 32,
+          "fc_win_rate": 0.281,
+          "sp_win_rate": 0.719,
+          "draw_rate": 0.0,
+          "avg_confidence": 0.764,
+          "avg_margin": 2.512
+        },
+        "6": {
+          "n": 30,
+          "fc_win_rate": 0.333,
+          "sp_win_rate": 0.567,
+          "draw_rate": 0.1,
+          "avg_confidence": 0.757,
+          "avg_margin": 2.623
+        },
+        "10": {
+          "n": 31,
+          "fc_win_rate": 0.29,
+          "sp_win_rate": 0.613,
+          "draw_rate": 0.097,
+          "avg_confidence": 0.755,
+          "avg_margin": 2.494
+        }
+      }
+    },
+    "Economic|unfalsifiable": {
+      "n": 94,
+      "fc_win_rate": 0.532,
+      "sp_win_rate": 0.33,
+      "draw_rate": 0.138,
+      "avg_confidence": 0.7,
+      "avg_margin": 1.633,
+      "turn_breakdown": {
+        "2": {
+          "n": 32,
+          "fc_win_rate": 0.594,
+          "sp_win_rate": 0.344,
+          "draw_rate": 0.062,
+          "avg_confidence": 0.697,
+          "avg_margin": 1.652
+        },
+        "6": {
+          "n": 31,
+          "fc_win_rate": 0.484,
+          "sp_win_rate": 0.323,
+          "draw_rate": 0.194,
+          "avg_confidence": 0.699,
+          "avg_margin": 1.643
+        },
+        "10": {
+          "n": 31,
+          "fc_win_rate": 0.516,
+          "sp_win_rate": 0.323,
+          "draw_rate": 0.161,
+          "avg_confidence": 0.705,
+          "avg_margin": 1.603
+        }
+      }
+    },
+    "Environmental|falsifiable": {
+      "n": 140,
+      "fc_win_rate": 0.879,
+      "sp_win_rate": 0.121,
+      "draw_rate": 0.0,
+      "avg_confidence": 0.742,
+      "avg_margin": 1.818,
+      "turn_breakdown": {
+        "2": {
+          "n": 48,
+          "fc_win_rate": 0.896,
+          "sp_win_rate": 0.104,
+          "draw_rate": 0.0,
+          "avg_confidence": 0.72,
+          "avg_margin": 1.621
+        },
+        "6": {
+          "n": 47,
+          "fc_win_rate": 0.872,
+          "sp_win_rate": 0.128,
+          "draw_rate": 0.0,
+          "avg_confidence": 0.754,
+          "avg_margin": 1.874
+        },
+        "10": {
+          "n": 45,
+          "fc_win_rate": 0.867,
+          "sp_win_rate": 0.133,
+          "draw_rate": 0.0,
+          "avg_confidence": 0.754,
+          "avg_margin": 1.971
+        }
+      }
+    },
+    "Health|falsifiable": {
+      "n": 189,
+      "fc_win_rate": 0.735,
+      "sp_win_rate": 0.249,
+      "draw_rate": 0.016,
+      "avg_confidence": 0.781,
+      "avg_margin": 2.958,
+      "turn_breakdown": {
+        "2": {
+          "n": 64,
+          "fc_win_rate": 0.719,
+          "sp_win_rate": 0.266,
+          "draw_rate": 0.016,
+          "avg_confidence": 0.764,
+          "avg_margin": 2.585
+        },
+        "6": {
+          "n": 63,
+          "fc_win_rate": 0.746,
+          "sp_win_rate": 0.238,
+          "draw_rate": 0.016,
+          "avg_confidence": 0.789,
+          "avg_margin": 3.12
+        },
+        "10": {
+          "n": 62,
+          "fc_win_rate": 0.742,
+          "sp_win_rate": 0.242,
+          "draw_rate": 0.016,
+          "avg_confidence": 0.79,
+          "avg_margin": 3.177
+        }
+      }
+    },
+    "Political|falsifiable": {
+      "n": 144,
+      "fc_win_rate": 0.681,
+      "sp_win_rate": 0.319,
+      "draw_rate": 0.0,
+      "avg_confidence": 0.795,
+      "avg_margin": 3.057,
+      "turn_breakdown": {
+        "2": {
+          "n": 48,
+          "fc_win_rate": 0.667,
+          "sp_win_rate": 0.333,
+          "draw_rate": 0.0,
+          "avg_confidence": 0.783,
+          "avg_margin": 2.723
+        },
+        "6": {
+          "n": 49,
+          "fc_win_rate": 0.694,
+          "sp_win_rate": 0.306,
+          "draw_rate": 0.0,
+          "avg_confidence": 0.796,
+          "avg_margin": 3.108
+        },
+        "10": {
+          "n": 47,
+          "fc_win_rate": 0.681,
+          "sp_win_rate": 0.319,
+          "draw_rate": 0.0,
+          "avg_confidence": 0.807,
+          "avg_margin": 3.344
+        }
+      }
+    },
+    "Political|unfalsifiable": {
+      "n": 46,
+      "fc_win_rate": 0.391,
+      "sp_win_rate": 0.5,
+      "draw_rate": 0.109,
+      "avg_confidence": 0.693,
+      "avg_margin": 1.535,
+      "turn_breakdown": {
+        "2": {
+          "n": 15,
+          "fc_win_rate": 0.4,
+          "sp_win_rate": 0.467,
+          "draw_rate": 0.133,
+          "avg_confidence": 0.679,
+          "avg_margin": 1.488
+        },
+        "6": {
+          "n": 16,
+          "fc_win_rate": 0.375,
+          "sp_win_rate": 0.5,
+          "draw_rate": 0.125,
+          "avg_confidence": 0.702,
+          "avg_margin": 1.566
+        },
+        "10": {
+          "n": 15,
+          "fc_win_rate": 0.4,
+          "sp_win_rate": 0.533,
+          "draw_rate": 0.067,
+          "avg_confidence": 0.698,
+          "avg_margin": 1.55
+        }
+      }
+    },
+    "Technology|falsifiable": {
+      "n": 137,
+      "fc_win_rate": 0.664,
+      "sp_win_rate": 0.336,
+      "draw_rate": 0.0,
+      "avg_confidence": 0.806,
+      "avg_margin": 3.292,
+      "turn_breakdown": {
+        "2": {
+          "n": 48,
+          "fc_win_rate": 0.667,
+          "sp_win_rate": 0.333,
+          "draw_rate": 0.0,
+          "avg_confidence": 0.794,
+          "avg_margin": 3.027
+        },
+        "6": {
+          "n": 46,
+          "fc_win_rate": 0.674,
+          "sp_win_rate": 0.326,
+          "draw_rate": 0.0,
+          "avg_confidence": 0.813,
+          "avg_margin": 3.367
+        },
+        "10": {
+          "n": 43,
+          "fc_win_rate": 0.651,
+          "sp_win_rate": 0.349,
+          "draw_rate": 0.0,
+          "avg_confidence": 0.812,
+          "avg_margin": 3.507
+        }
+      }
+    },
+    "Technology|unfalsifiable": {
+      "n": 48,
+      "fc_win_rate": 0.583,
+      "sp_win_rate": 0.312,
+      "draw_rate": 0.104,
+      "avg_confidence": 0.692,
+      "avg_margin": 1.29,
+      "turn_breakdown": {
+        "2": {
+          "n": 16,
+          "fc_win_rate": 0.625,
+          "sp_win_rate": 0.25,
+          "draw_rate": 0.125,
+          "avg_confidence": 0.671,
+          "avg_margin": 1.172
+        },
+        "6": {
+          "n": 16,
+          "fc_win_rate": 0.562,
+          "sp_win_rate": 0.312,
+          "draw_rate": 0.125,
+          "avg_confidence": 0.693,
+          "avg_margin": 1.27
+        },
+        "10": {
+          "n": 16,
+          "fc_win_rate": 0.562,
+          "sp_win_rate": 0.375,
+          "draw_rate": 0.062,
+          "avg_confidence": 0.711,
+          "avg_margin": 1.43
+        }
+      }
+    }
+  }
+}

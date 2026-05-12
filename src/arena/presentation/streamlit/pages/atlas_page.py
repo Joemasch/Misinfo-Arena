@@ -655,14 +655,35 @@ def render_atlas_page():
     token = st.session_state["runs_refresh_token"]
     run_ids = get_auto_run_ids(RUNS_DIR, refresh_token=token, limit=None) or []
 
-    strategy_index = _seed_catalogue(_scan_strategy_index(tuple(run_ids), RUNS_DIR, token))
-    citation_index = _seed_citations(_scan_citation_index(tuple(run_ids), RUNS_DIR, token))
+    # Usage-driven — Atlas only surfaces strategies and citations that
+    # have actually appeared in the user's runs. The catalogue and
+    # institution dictionaries still power descriptions and metadata,
+    # but they no longer seed empty rows.
+    strategy_index = _scan_strategy_index(tuple(run_ids), RUNS_DIR, token)
+    citation_index = _scan_citation_index(tuple(run_ids), RUNS_DIR, token)
+
+    # ── Empty state: no runs yet ─────────────────────────────────────────
+    if not run_ids:
+        st.markdown(
+            '<div style="background:var(--color-surface,#111);'
+            'border:1px solid var(--color-border,#2A2A2A);border-radius:6px;'
+            'padding:1.4rem 1.6rem;text-align:center;color:#9ca3af;font-size:0.95rem;'
+            'line-height:1.65;margin-top:0.8rem">'
+            '<div style="font-size:1.05rem;color:var(--color-text-primary,#E8E4D9);'
+            'margin-bottom:0.4rem;font-weight:600">Nothing in the Atlas yet</div>'
+            'Run a debate in the <strong>Arena</strong> tab — strategies and citations '
+            'will populate here as they appear, with links back to the turns where they '
+            'were used.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        return
 
     # ── Summary row ──────────────────────────────────────────────────────
+    strats_seen = len(strategy_index)
+    cites_seen = len(citation_index)
     total_strat_uses = sum(len(v["spreader"]) + len(v["debunker"]) for v in strategy_index.values())
-    strats_seen = sum(1 for v in strategy_index.values() if (v["spreader"] or v["debunker"]))
     total_cite_uses = sum(len(v["spreader"]) + len(v["debunker"]) for v in citation_index.values())
-    cites_seen = sum(1 for v in citation_index.values() if (v["spreader"] or v["debunker"]))
 
     _summary_card = (
         '<div style="flex:1;background:var(--color-surface,#111);'
@@ -675,10 +696,9 @@ def render_atlas_page():
     )
     st.markdown(
         '<div style="display:flex;gap:1rem;margin-bottom:1.2rem">'
-        + _summary_card.format(title="Strategies in catalogue", value=len(_STRATEGY_CATALOG))
-        + _summary_card.format(title="Strategies seen in your debates", value=strats_seen)
-        + _summary_card.format(title="Institutions in catalogue", value=len(_INSTITUTION_INFO))
-        + _summary_card.format(title="Institutions seen in your debates", value=cites_seen)
+        + _summary_card.format(title="Runs scanned", value=len(run_ids))
+        + _summary_card.format(title="Unique strategies observed", value=strats_seen)
+        + _summary_card.format(title="Unique citations observed", value=cites_seen)
         + '</div>',
         unsafe_allow_html=True,
     )
@@ -700,11 +720,10 @@ def render_atlas_page():
         '<h2 style="font-family:\'Playfair Display\',Georgia,serif;font-size:1.4rem;'
         'font-weight:700;margin:1.5rem 0 0.4rem 0">Strategies</h2>'
         '<p style="font-size:0.85rem;color:#9ca3af;margin:0 0 0.8rem 0">'
-        'Rhetorical tactics observed in adversarial AI debate, grouped by how each was used: '
+        'Rhetorical tactics observed in your debates, grouped by how each was used: '
         '<span style="color:#D4A843;font-weight:600">spreader-only</span>, '
         '<span style="color:#16a34a;font-weight:600">used by both sides</span>, or '
-        '<span style="color:#4A7FA5;font-weight:600">fact-checker-only</span>. '
-        'Catalogue tactics with no usage yet appear in their canonical column.'
+        '<span style="color:#4A7FA5;font-weight:600">fact-checker-only</span>.'
         '</p>',
         unsafe_allow_html=True,
     )
@@ -757,11 +776,7 @@ def render_atlas_page():
             n_spr = len(data["spreader"])
             n_deb = len(data["debunker"])
             n_total = n_spr + n_deb
-            usage_suffix = (
-                f" · {n_total} ep{'s' if n_total != 1 else ''}"
-                if n_total else " · not yet seen"
-            )
-            header = f":{color_tag}[**{plain}**]{usage_suffix}"
+            header = f":{color_tag}[**{plain}**] · {n_total} ep{'s' if n_total != 1 else ''}"
             with st.expander(header):
                 # Prominent "About this tactic" definition section
                 st.markdown(
@@ -804,13 +819,6 @@ def render_atlas_page():
             "— no fact-checker-only tactics yet —",
         )
 
-    if total_strat_uses == 0:
-        st.info(
-            "No tactic data from your debates yet. Run a debate in the Arena tab "
-            "and the strategies will populate here. Definitions are already visible "
-            "to give you a head start."
-        )
-
     # ────────────────────────────────────────────────────────────────────
     # Section 2 — Citations (split by usage side: cited by spreader / fact-checker)
     # ────────────────────────────────────────────────────────────────────
@@ -835,28 +843,30 @@ def render_atlas_page():
 
     def _render_citation_column(side_key, side_label, accent_color):
         accent_rgb = _hex_to_rgb(accent_color)
-        # Only include institutions actually cited by this side, OR catalogued
-        # ones with zero uses (so the dictionary remains visible at cold start).
-        items = sorted(citation_index.items(), key=_cite_sort_key_for(side_key))
-        seen_count = sum(1 for _, d in items if d[side_key])
+        # Only institutions this side actually cited in the user's runs.
+        items = [
+            (src, data) for src, data in citation_index.items()
+            if data[side_key]
+        ]
+        items.sort(key=_cite_sort_key_for(side_key))
 
         st.markdown(
             f'<div style="font-size:0.72rem;color:{accent_color};font-weight:700;'
             f'text-transform:uppercase;letter-spacing:0.07em;margin:0.2rem 0 0.5rem 0;'
             f'padding-bottom:0.35rem;border-bottom:2px solid rgba({accent_rgb},0.4)">'
-            f'Cited by {side_label} · {seen_count}'
+            f'Cited by {side_label} · {len(items)}'
             f'</div>',
             unsafe_allow_html=True,
         )
 
+        if not items:
+            st.caption(f"— no citations from the {side_label.lower()} yet —")
+            return
+
         for src, data in items:
             n_this_side = len(data[side_key])
             info = _INSTITUTION_INFO.get(src, "Institution recognised by the citation detector.")
-            usage_suffix = (
-                f" · {n_this_side} ep{'s' if n_this_side != 1 else ''}"
-                if n_this_side else " · not cited"
-            )
-            header = f":green[**{src}**]{usage_suffix}"
+            header = f":green[**{src}**] · {n_this_side} ep{'s' if n_this_side != 1 else ''}"
             with st.expander(header):
                 # Prominent "About this institution" definition section
                 st.markdown(
@@ -878,9 +888,3 @@ def render_atlas_page():
         _render_citation_column("spreader", "Spreader", SPREADER_COLOR)
     with _cc2:
         _render_citation_column("debunker", "Fact-checker", DEBUNKER_COLOR)
-
-    if total_cite_uses == 0:
-        st.info(
-            "No citations from your debates yet — institution definitions are still "
-            "visible above so you can familiarise yourself with what they are."
-        )

@@ -42,6 +42,21 @@ class Turn:
             self.created_at = datetime.now()
 
 
+# Module-level v2 weight table — 8 dimensions, equal weights of 1/8.
+# The v2 judge prompt (src/arena/prompts/judge_static_prompt.py) instructs
+# the LLM to return exactly these metric names.
+V2_DEFAULT_WEIGHTS = {
+    "factuality": 0.125,
+    "source_reputability": 0.125,
+    "hallucination_index": 0.125,
+    "reasoning_quality": 0.125,
+    "responsiveness": 0.125,
+    "persuasion": 0.125,
+    "manipulation_awareness": 0.125,
+    "adaptability": 0.125,
+}
+
+
 class HeuristicJudge(BaseJudge):
     """
     Evaluates the outcome of a completed debate match using heuristic scoring.
@@ -68,6 +83,10 @@ class HeuristicJudge(BaseJudge):
     }
 
     # Backward compatibility: map old metric names to new
+    # NOTE: source_credibility is the legacy v1 name; the v2 prompt uses
+    # source_reputability. The parser detects which schema the LLM returned
+    # and routes to the right name space — these aliases bridge edge cases
+    # where an old prompt variant is still in use.
     _METRIC_ALIASES = {
         "truthfulness_proxy": "factuality",
         "evidence_quality": "source_credibility",
@@ -885,34 +904,51 @@ class AgentJudge(BaseJudge):
         reason = data.get("reason", "LLM evaluation completed")
         scorecard_data = data.get("scorecard", [])
 
-        # Build MetricScore objects
-        scorecard = []
-        expected_metrics = set(HeuristicJudge.DEFAULT_WEIGHTS.keys())
-
+        # Build MetricScore objects — schema-aware (v2 or v1)
         aliases = getattr(HeuristicJudge, '_METRIC_ALIASES', {})
+        v1_set = set(HeuristicJudge.DEFAULT_WEIGHTS.keys())
+        v2_set = set(V2_DEFAULT_WEIGHTS.keys())
+
+        # First pass: collect resolved metric names to detect schema
+        resolved_items: list[tuple[str, dict]] = []
         for item in scorecard_data:
             if isinstance(item, dict) and "metric" in item:
-                metric_name = item["metric"]
-                # Resolve old metric names to new ones
-                metric_name = aliases.get(metric_name, metric_name)
-                if metric_name in expected_metrics:
-                    weight = HeuristicJudge.DEFAULT_WEIGHTS.get(metric_name, 0.0)
-                    scorecard.append(MetricScore(
-                        metric=metric_name,
-                        spreader=float(item.get("spreader", 0.0)),
-                        debunker=float(item.get("debunker", 0.0)),
-                        weight=weight
-                    ))
+                raw_name = item["metric"]
+                resolved = aliases.get(raw_name, raw_name)
+                resolved_items.append((resolved, item))
 
-        # Ensure we have all 6 metrics (fill missing with zeros)
+        returned_names = {name for name, _ in resolved_items}
+        v2_matches = len(returned_names & v2_set)
+        v1_matches = len(returned_names & v1_set)
+        # Prefer v2 when it matches at least as many — v2 is the active prompt
+        use_v2 = v2_matches >= v1_matches and v2_matches > 0
+        active_set = v2_set if use_v2 else v1_set
+        active_weights = V2_DEFAULT_WEIGHTS if use_v2 else HeuristicJudge.DEFAULT_WEIGHTS
+
+        scorecard = []
+        for name, item in resolved_items:
+            # When v1 schema is active and the LLM returned the v2 name for the
+            # same concept (source_reputability), bridge it back to v1
+            # source_credibility so the score isn't lost.
+            if not use_v2 and name == "source_reputability":
+                name = "source_credibility"
+            if name in active_set:
+                scorecard.append(MetricScore(
+                    metric=name,
+                    spreader=float(item.get("spreader", 0.0)),
+                    debunker=float(item.get("debunker", 0.0)),
+                    weight=active_weights.get(name, 0.0),
+                ))
+
+        # Fill any missing metrics in the active schema with zeros so the
+        # downstream UI always sees a complete card.
         existing_metrics = {ms.metric for ms in scorecard}
-        for missing_metric in expected_metrics - existing_metrics:
-            weight = HeuristicJudge.DEFAULT_WEIGHTS.get(missing_metric, 0.0)
+        for missing_metric in active_set - existing_metrics:
             scorecard.append(MetricScore(
                 metric=missing_metric,
                 spreader=0.0,
                 debunker=0.0,
-                weight=weight
+                weight=active_weights.get(missing_metric, 0.0),
             ))
 
         # Calculate totals from scorecard (weighted sum)

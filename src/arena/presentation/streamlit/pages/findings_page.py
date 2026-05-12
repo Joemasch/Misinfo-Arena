@@ -219,8 +219,19 @@ def _render_fingerprints():
         "with institutions. Least identifiable (3% recall)."
     )
 
-    _label("Spreader strategy distribution by model")
-    _svg("pv4_spr_stacked.svg")
+    _label("Strategy distribution by model — both sides")
+    _prose(
+        "Each model uses tactics in distinctly different proportions, on both sides of the role. "
+        "<strong>Appeal to (Dis)trust</strong> is Claude's spreader signature; "
+        "<strong>Anecdotal Evidence</strong> is GPT-4o-mini's; "
+        "<strong>Pseudo-Scientific Claim</strong> is Gemini's. Each model uses tactics in distinctly "
+        "different proportions — on both sides of the debate."
+    )
+    col_a, col_b = st.columns(2)
+    with col_a:
+        _svg("pv4_spr_stacked.svg")
+    with col_b:
+        _svg("pv4_deb_stacked.svg")
 
     _divider()
     _label("Detection results")
@@ -229,18 +240,22 @@ def _render_fingerprints():
         "from strategy counts alone — nearly double the 25% baseline. The classifier used raw tactic "
         "counts per episode with stratified k-fold cross-validation."
     )
-
-    col1, col2 = st.columns(2)
-    with col1:
-        _svg("s2f_accuracy_comparison.svg")
-    with col2:
-        _svg("s2f_feature_importance.svg")
+    _svg("s2f_accuracy_comparison.svg")
 
     _prose(
         "<strong>Binary Claude vs Others:</strong> 81% accuracy. Claude's institutional distrust pattern "
         "makes it distinctive by a wide margin.<br>"
         "<strong>Provider-level:</strong> GPT-4o and GPT-4o-mini are nearly indistinguishable (56 cross-misclassifications) "
         "but collectively identifiable as OpenAI at 86% recall. Fingerprints operate at the provider level."
+    )
+
+    _callout(
+        "<strong>A methodological note on feature importance:</strong> A Gini importance plot on this "
+        "classifier surfaces &lsquo;total&rsquo; (raw tactic count) and &lsquo;Domain-Specific&rsquo; (the "
+        "fall-through bucket for unmatched labels) as the top features. Those features mostly capture "
+        "volume and unclassified residue rather than rhetorical content — so we use the stacked-bar "
+        "distributions above as the substantive fingerprint evidence and treat the classifier accuracy "
+        "as the headline result."
     )
 
     _insight(
@@ -369,15 +384,38 @@ def _render_source_weaponization():
         "alone predicts the winner with near-perfect accuracy across all 5 domains."
     )
 
+    # ── Hero-stat callout that mirrors the slide ─────────────────────
+    st.markdown(
+        '<div style="display:flex;gap:1.2rem;align-items:stretch;margin:0.8rem 0 1.2rem 0">'
+        '<div style="flex:1;background:rgba(46,204,113,0.10);border:1px solid rgba(46,204,113,0.4);'
+        'border-radius:6px;padding:0.9rem 1.2rem;text-align:center">'
+        '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:2.2rem;font-weight:700;color:#2ECC71;line-height:1">9,050</div>'
+        '<div style="font-size:0.78rem;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;margin-top:0.3rem;font-weight:600">citations across 931 episodes</div>'
+        '</div>'
+        '<div style="flex:1;background:rgba(46,204,113,0.10);border:1px solid rgba(46,204,113,0.4);'
+        'border-radius:6px;padding:0.9rem 1.2rem;text-align:center">'
+        '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:2.2rem;font-weight:700;color:#2ECC71;line-height:1">0</div>'
+        '<div style="font-size:0.78rem;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;margin-top:0.3rem;font-weight:600">fabricated sources</div>'
+        '</div>'
+        '<div style="flex:1;background:rgba(212,168,67,0.10);border:1px solid rgba(212,168,67,0.4);'
+        'border-radius:6px;padding:0.9rem 1.2rem;text-align:center">'
+        '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:2.2rem;font-weight:700;color:#D4A843;line-height:1">2.4&times;</div>'
+        '<div style="font-size:0.78rem;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;margin-top:0.3rem;font-weight:600">spreader hedges more than fact-checker</div>'
+        '</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
     _prose(
         "Across <strong>9,050 citations</strong> from 931 episodes, <strong>zero were fabricated</strong>. "
         "Both sides cite the same institutions — WHO, CDC, Nature, Federal Reserve. "
-        "The difference is framing: spreaders <strong>hedge 2.4x more</strong> than debunkers "
-        "(χ² = 258, P &lt; 0.001)."
+        "The difference is framing: spreaders <strong>hedge 2.4&times; more</strong> than fact-checkers "
+        "(χ² = 258, P &lt; 0.001). AI misinformation doesn&rsquo;t invent sources — it reframes real ones."
     )
 
     _label("Both sides cite the same institutions")
     _svg("s8c_weaponization.svg")
+    st.caption("WHO and \"World Health Organization\" mentions are now consolidated into a single canonical WHO entry — the chart reflects the corrected counts.")
 
     _divider()
     _label("Three framing mechanisms")
@@ -481,10 +519,27 @@ def _render_adaptability():
     _divider()
     _label("Adaptability gap determines outcomes")
     _prose(
-        "When the debunker's adaptability advantage falls to the bottom quartile, win rate drops "
-        "from <strong>100% to 28%</strong> (n=140). Adaptability isn't just correlated — it's nearly a binary switch."
+        "When the fact-checker&rsquo;s adaptability advantage falls to the bottom quartile, win rate drops "
+        "from <strong>100% to 28%</strong> (n=140). Adaptability isn&rsquo;t just correlated — it&rsquo;s nearly a binary switch."
     )
     _svg("s8b_adapt_quartiles.svg")
+
+    # Hero stat row for the quartile gap — mirrors the slide
+    st.markdown(
+        '<div style="display:flex;gap:1rem;margin:0.8rem 0 1.2rem 0">'
+        '<div style="flex:1;background:rgba(212,168,67,0.10);border:1px solid rgba(212,168,67,0.4);'
+        'border-radius:6px;padding:0.9rem 1rem;text-align:center">'
+        '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:2rem;font-weight:700;color:#D4A843;line-height:1">28%</div>'
+        '<div style="font-size:0.74rem;color:#9ca3af;text-transform:uppercase;letter-spacing:0.07em;margin-top:0.3rem;font-weight:600">bottom-quartile adaptability win rate</div>'
+        '</div>'
+        '<div style="flex:1;background:rgba(46,204,113,0.10);border:1px solid rgba(46,204,113,0.4);'
+        'border-radius:6px;padding:0.9rem 1rem;text-align:center">'
+        '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:2rem;font-weight:700;color:#2ECC71;line-height:1">100%</div>'
+        '<div style="font-size:0.74rem;color:#9ca3af;text-transform:uppercase;letter-spacing:0.07em;margin-top:0.3rem;font-weight:600">top-three-quartile win rate</div>'
+        '</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
     _divider()
     _label("The paradox: fewer label changes = higher adaptability score")

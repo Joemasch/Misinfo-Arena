@@ -98,7 +98,6 @@ def _render_sidebar():
 
     # ── Judge Configuration ───────────────────────────────────────────────
     st.sidebar.markdown("**Judge**")
-    st.sidebar.caption("The judge evaluates each debate using a 6-dimension rubric.")
 
     _judge_models = [m for m in AVAILABLE_MODELS if "turbo" not in m and "3.5" not in m and "2.0" not in m]
     st.sidebar.selectbox(
@@ -109,30 +108,9 @@ def _render_sidebar():
         help="Which model scores the debate. Supports OpenAI, Anthropic, Google, and xAI models.",
     )
 
-    st.sidebar.selectbox(
-        "Reliability runs",
-        options=[1, 3, 5],
-        index=0,
-        key="judge_consistency_runs",
-        help=(
-            "How many times the judge scores each debate. "
-            "At 1× (default), the judge runs once. "
-            "At 3× or 5×, it runs multiple times and averages the scores "
-            "to reduce randomness from the LLM. "
-            "Higher = more reliable scores but slower and more expensive."
-        ),
-    )
-    _jcr = st.session_state.get("judge_consistency_runs", 1)
-    if _jcr and int(_jcr) > 1:
-        st.sidebar.caption(f"Each debate will be judged **{_jcr} times** and scores averaged.")
-
-    # ── Temperature (fixed) ───────────────────────────────────────────────
+    # Fixed temperatures (no UI — kept here because the agents need the values).
     st.session_state["spreader_temperature"] = DEFAULT_SPREADER_TEMPERATURE
     st.session_state["debunker_temperature"] = DEFAULT_DEBUNKER_TEMPERATURE
-    st.sidebar.caption(
-        f"Temperature: Spreader {DEFAULT_SPREADER_TEMPERATURE} · "
-        f"FC {DEFAULT_DEBUNKER_TEMPERATURE} · Judge 0.10 (fixed)"
-    )
 
     st.sidebar.divider()
 
@@ -170,13 +148,6 @@ def _render_sidebar():
 
     # -- Data management ───────────────────────────────────────────────────
     st.sidebar.markdown("**Data**")
-
-    if st.sidebar.button("Load sample data", key="load_sample_btn", help="Generate 60 sample episodes across 5 domains and 3 models to explore all features."):
-        from arena.sample_data import generate_sample_data
-        result = generate_sample_data()
-        st.session_state["runs_refresh_token"] = st.session_state.get("runs_refresh_token", 0) + 1
-        st.sidebar.success(f"Loaded {result['episodes']} sample episodes across {result['runs']} runs")
-        st.rerun()
 
     if st.sidebar.button("Clear all runs", key="clear_all_runs_btn", help="Archive all runs to runs_archive/ and start fresh."):
         st.session_state["_confirm_clear_runs"] = True
@@ -782,6 +753,12 @@ def render_arena_page():
                 '</span>',
                 unsafe_allow_html=True,
             )
+
+        # ── Predicted Outcome panel (study baseline for this claim's cell) ──
+        from arena.presentation.streamlit.components.arena.baseline_panels import (
+            render_predicted_outcome_panel,
+        )
+        render_predicted_outcome_panel(_current_claim_text)
 
     st.markdown('<div class="ar-section">Episodes & Models</div>', unsafe_allow_html=True)
     st.caption(
