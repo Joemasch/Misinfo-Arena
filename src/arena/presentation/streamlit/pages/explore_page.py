@@ -1728,6 +1728,26 @@ def _render_comparison(selected_ep, all_episodes):
         with col:
             _render_compare_card(ep, label)
 
+    # The three widgets below (tactic-by-tactic table, dimension heatmap,
+    # turn-by-turn transcript alignment) only make sense for same-claim
+    # comparisons — they assume tactics, dimensions, and turn positions
+    # are directly comparable. In same-domain mode the claims differ,
+    # so we swap in cross-claim-appropriate views instead.
+    if comparison_mode == "same_domain":
+        _render_same_domain_widgets(grid)
+        _summary = _build_comparison_summary(grid, mode=comparison_mode)
+        if _summary:
+            st.markdown(
+                f'<div style="background:var(--color-surface-alt,#1A1A1A);border:1px solid var(--color-border,#2A2A2A);'
+                f'border-radius:6px;padding:0.9rem 1.1rem;margin-top:1rem;">'
+                f'<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;'
+                f'color:#9ca3af;font-weight:700;margin-bottom:0.4rem;">What this comparison shows</div>'
+                f'<div style="font-size:0.92rem;line-height:1.55;color:var(--color-text-primary,#E8E4D9)">{_summary}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        return  # don't fall through to same-claim widgets
+
     # ──────────────────────────────────────────────────────────────────
     # Tactic-by-tactic comparison strip
     # ──────────────────────────────────────────────────────────────────
@@ -1927,6 +1947,279 @@ def _render_comparison(selected_ep, all_episodes):
             f'</div>',
             unsafe_allow_html=True,
         )
+
+
+def _render_same_domain_widgets(grid: list) -> None:
+    """Cross-claim within-domain widgets.
+
+    Replaces the model-fingerprint widgets (which assume same claim) with
+    views that answer the questions a user actually has when looking at
+    two different claims in the same domain:
+        1. Tactic consistency / divergence per side
+        2. Citation continuity per side
+        3. Per-side fingerprint metrics (hedge rate, citations, etc.)
+    """
+    grid_labels = [lbl for _ep, lbl in grid]
+    grid_eps    = [ep for ep, _lbl in grid]
+
+    # ── 1. Tactic consistency ─────────────────────────────────────────
+    st.markdown(
+        '<div class="rp-section-label" style="margin-top:1.4rem">'
+        'Tactic consistency — what each side did on each claim'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    st.caption(
+        "Each tactic the side used in any of the selected claims. ✓ marks where "
+        "they used it. Tactics with ✓ in every column are domain-consistent; "
+        "tactics in only one column are claim-specific."
+    )
+
+    def _render_tactic_consistency(side_key, side_label, color):
+        # Collect tactics per episode for this side
+        tactics_per_ep = []
+        for ep in grid_eps:
+            sa = ep.get("strategy_analysis") or {}
+            raws = sa.get(f"{side_key}_strategies") or []
+            tactics_per_ep.append({_label_plain(t) for t in raws if t})
+        all_tactics = sorted({t for s in tactics_per_ep for t in s})
+        if not all_tactics:
+            st.caption(f"— no {side_label.lower()} tactics recorded —")
+            return
+        consistent = [t for t in all_tactics if all(t in s for s in tactics_per_ep)]
+        unique = [t for t in all_tactics if sum(1 for s in tactics_per_ep if t in s) == 1]
+
+        # Header chip with counts
+        st.markdown(
+            f'<div style="font-size:0.74rem;color:{color};font-weight:700;'
+            f'text-transform:uppercase;letter-spacing:0.07em;margin:0.4rem 0 0.3rem 0">'
+            f'{side_label} · {len(all_tactics)} unique tactic{"s" if len(all_tactics) != 1 else ""} · '
+            f'<span style="color:#16a34a">{len(consistent)} consistent</span> · '
+            f'<span style="color:#D4A843">{len(unique)} claim-specific</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        _hdr = '<th style="text-align:left;padding:0.4rem 0.5rem;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.07em;color:#9ca3af;font-weight:700;border-bottom:2px solid var(--color-border,#2A2A2A)">Tactic</th>'
+        for lbl in grid_labels:
+            _hdr += (
+                f'<th style="text-align:center;padding:0.4rem 0.5rem;font-size:0.7rem;'
+                f'text-transform:uppercase;letter-spacing:0.07em;color:#9ca3af;font-weight:700;'
+                f'border-bottom:2px solid var(--color-border,#2A2A2A)">{lbl}</th>'
+            )
+        _rows = ""
+        for tac in all_tactics:
+            uses = [tac in s for s in tactics_per_ep]
+            all_use = all(uses)
+            row_bg = "rgba(22,163,74,0.06)" if all_use else "transparent"
+            _rows += f'<tr style="background:{row_bg}"><td style="padding:0.35rem 0.5rem;color:{color};font-size:0.85rem;font-weight:500;border-bottom:1px solid var(--color-border,#2A2A2A)">{tac}</td>'
+            for u in uses:
+                if u:
+                    _rows += (
+                        f'<td style="padding:0.35rem 0.5rem;text-align:center;'
+                        f'color:#16a34a;font-weight:700;font-size:0.95rem;'
+                        f'border-bottom:1px solid var(--color-border,#2A2A2A)">✓</td>'
+                    )
+                else:
+                    _rows += (
+                        f'<td style="padding:0.35rem 0.5rem;text-align:center;'
+                        f'color:#3a3a3a;font-size:0.95rem;'
+                        f'border-bottom:1px solid var(--color-border,#2A2A2A)">·</td>'
+                    )
+            _rows += '</tr>'
+        st.markdown(
+            f'<table style="width:100%;border-collapse:collapse;background:var(--color-surface,#111);'
+            f'border-radius:6px;overflow:hidden;margin-bottom:0.8rem">'
+            f'<thead><tr>{_hdr}</tr></thead><tbody>{_rows}</tbody></table>',
+            unsafe_allow_html=True,
+        )
+
+    _render_tactic_consistency("spreader", "Spreader", SPREADER_COLOR)
+    _render_tactic_consistency("debunker", "Fact-checker", DEBUNKER_COLOR)
+
+    # ── 2. Citation continuity ────────────────────────────────────────
+    st.markdown(
+        '<div class="rp-section-label" style="margin-top:1.4rem">'
+        'Citation continuity — what each side cited on each claim'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    st.caption(
+        "Each named institution that side mentioned in any of the selected claims. "
+        "Sources cited in every column = consistent reliance. Only one column = "
+        "claim-specific sourcing."
+    )
+
+    def _render_citation_continuity(side_key, side_label, color):
+        cites_per_ep = []
+        for ep in grid_eps:
+            pairs = _normalize_turn_pairs(ep)
+            text = " ".join((p.get(f"{side_key}_text") or "") for p in pairs)
+            cited = set()
+            for src, pat in _SOURCE_PATTERNS.items():
+                if pat.search(text):
+                    cited.add(_canonical_source(src))
+            cites_per_ep.append(cited)
+        all_cites = sorted({c for s in cites_per_ep for c in s})
+        if not all_cites:
+            st.caption(f"— no named institutions cited by {side_label.lower()} —")
+            return
+        consistent = [c for c in all_cites if all(c in s for s in cites_per_ep)]
+        unique = [c for c in all_cites if sum(1 for s in cites_per_ep if c in s) == 1]
+
+        st.markdown(
+            f'<div style="font-size:0.74rem;color:{color};font-weight:700;'
+            f'text-transform:uppercase;letter-spacing:0.07em;margin:0.4rem 0 0.3rem 0">'
+            f'{side_label} · {len(all_cites)} unique institution{"s" if len(all_cites) != 1 else ""} · '
+            f'<span style="color:#16a34a">{len(consistent)} consistent</span> · '
+            f'<span style="color:#D4A843">{len(unique)} claim-specific</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        _hdr = '<th style="text-align:left;padding:0.4rem 0.5rem;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.07em;color:#9ca3af;font-weight:700;border-bottom:2px solid var(--color-border,#2A2A2A)">Institution</th>'
+        for lbl in grid_labels:
+            _hdr += (
+                f'<th style="text-align:center;padding:0.4rem 0.5rem;font-size:0.7rem;'
+                f'text-transform:uppercase;letter-spacing:0.07em;color:#9ca3af;font-weight:700;'
+                f'border-bottom:2px solid var(--color-border,#2A2A2A)">{lbl}</th>'
+            )
+        _rows = ""
+        for src in all_cites:
+            uses = [src in s for s in cites_per_ep]
+            all_use = all(uses)
+            row_bg = "rgba(22,163,74,0.06)" if all_use else "transparent"
+            _rows += (
+                f'<tr style="background:{row_bg}">'
+                f'<td style="padding:0.35rem 0.5rem;color:var(--color-text-primary,#E8E4D9);'
+                f'font-size:0.85rem;font-weight:500;border-bottom:1px solid var(--color-border,#2A2A2A)">{src}</td>'
+            )
+            for u in uses:
+                if u:
+                    _rows += (
+                        f'<td style="padding:0.35rem 0.5rem;text-align:center;'
+                        f'color:#16a34a;font-weight:700;font-size:0.95rem;'
+                        f'border-bottom:1px solid var(--color-border,#2A2A2A)">✓</td>'
+                    )
+                else:
+                    _rows += (
+                        f'<td style="padding:0.35rem 0.5rem;text-align:center;'
+                        f'color:#3a3a3a;font-size:0.95rem;'
+                        f'border-bottom:1px solid var(--color-border,#2A2A2A)">·</td>'
+                    )
+            _rows += '</tr>'
+        st.markdown(
+            f'<table style="width:100%;border-collapse:collapse;background:var(--color-surface,#111);'
+            f'border-radius:6px;overflow:hidden;margin-bottom:0.8rem">'
+            f'<thead><tr>{_hdr}</tr></thead><tbody>{_rows}</tbody></table>',
+            unsafe_allow_html=True,
+        )
+
+    _render_citation_continuity("spreader", "Spreader", SPREADER_COLOR)
+    _render_citation_continuity("debunker", "Fact-checker", DEBUNKER_COLOR)
+
+    # ── 3. Per-side fingerprint metrics ───────────────────────────────
+    st.markdown(
+        '<div class="rp-section-label" style="margin-top:1.4rem">'
+        'Per-side fingerprint metrics'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    st.caption(
+        "Behavioural metrics that should be stable if the model has a domain-level "
+        "playbook. Values that track tightly across claims = consistent style; values "
+        "that diverge = claim-specific adaptation."
+    )
+
+    def _metrics_for(ep, side_key):
+        pairs = _normalize_turn_pairs(ep)
+        text = " ".join((p.get(f"{side_key}_text") or "") for p in pairs).strip()
+        word_count = max(len(text.split()), 1)
+        hedges = len(_HEDGING.findall(text))
+        hedge_per_1k = hedges / word_count * 1000
+        cited = set()
+        for src, pat in _SOURCE_PATTERNS.items():
+            if pat.search(text):
+                cited.add(_canonical_source(src))
+        sa = ep.get("strategy_analysis") or {}
+        tac_set = {_label_plain(t) for t in (sa.get(f"{side_key}_strategies") or []) if t}
+        pts = ep.get("per_turn_strategies") or []
+        if pts and len(pts) > 1:
+            adapt_count = sum(1 for t in pts if t.get(f"{side_key}_adapted"))
+            adapt_rate = adapt_count / max(len(pts) - 1, 1)
+        else:
+            adapt_rate = None
+        res = ep.get("results", {})
+        totals = res.get("totals", {}) or {}
+        my_score = float(totals.get("spreader" if side_key == "spreader" else "debunker", 0) or 0)
+        their_score = float(totals.get("debunker" if side_key == "spreader" else "spreader", 0) or 0)
+        margin = my_score - their_score
+        return {
+            "hedge_per_1k": hedge_per_1k,
+            "citations":   len(cited),
+            "tactic_div":  len(tac_set),
+            "adapt_rate":  adapt_rate,
+            "margin":      margin,
+        }
+
+    _METRIC_ROWS = [
+        ("Hedge rate",       "hedge_per_1k", lambda v: f"{v:.1f}/1k"),
+        ("Institutions cited", "citations",  lambda v: f"{v}"),
+        ("Tactic diversity", "tactic_div",   lambda v: f"{v}"),
+        ("Adaptation rate",  "adapt_rate",   lambda v: f"{v*100:.0f}%" if v is not None else "—"),
+        ("Score margin",     "margin",       lambda v: f"{v:+.1f}"),
+    ]
+
+    def _render_fingerprint_block(side_key, side_label, color):
+        st.markdown(
+            f'<div style="font-size:0.74rem;color:{color};font-weight:700;'
+            f'text-transform:uppercase;letter-spacing:0.07em;margin:0.5rem 0 0.3rem 0">'
+            f'{side_label}</div>',
+            unsafe_allow_html=True,
+        )
+        metrics_per_ep = [_metrics_for(ep, side_key) for ep in grid_eps]
+
+        _hdr = '<th style="text-align:left;padding:0.4rem 0.6rem;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.07em;color:#9ca3af;font-weight:700;border-bottom:2px solid var(--color-border,#2A2A2A)">Metric</th>'
+        for lbl in grid_labels:
+            _hdr += (
+                f'<th style="text-align:center;padding:0.4rem 0.6rem;font-size:0.7rem;'
+                f'text-transform:uppercase;letter-spacing:0.07em;color:#9ca3af;font-weight:700;'
+                f'border-bottom:2px solid var(--color-border,#2A2A2A)">{lbl}</th>'
+            )
+        _rows = ""
+        for label_h, key, fmt in _METRIC_ROWS:
+            _rows += f'<tr><td style="padding:0.35rem 0.6rem;color:var(--color-text-primary,#E8E4D9);font-size:0.85rem;border-bottom:1px solid var(--color-border,#2A2A2A)">{label_h}</td>'
+            # Determine variance to color-code: if values span <20% of max, call it "consistent"
+            numeric_vals = [m[key] for m in metrics_per_ep if isinstance(m[key], (int, float))]
+            consistent_flag = False
+            if numeric_vals and len(numeric_vals) == len(metrics_per_ep):
+                spread = max(numeric_vals) - min(numeric_vals)
+                base = max(abs(max(numeric_vals)), abs(min(numeric_vals)), 1)
+                if spread / base < 0.20:
+                    consistent_flag = True
+            for m in metrics_per_ep:
+                val_disp = fmt(m[key])
+                cell_color = "#16a34a" if consistent_flag and isinstance(m[key], (int, float)) else "var(--color-text-primary,#E8E4D9)"
+                _rows += (
+                    f'<td style="padding:0.35rem 0.6rem;text-align:center;'
+                    f'font-family:\'IBM Plex Mono\',monospace;font-size:0.84rem;'
+                    f'color:{cell_color};border-bottom:1px solid var(--color-border,#2A2A2A)">'
+                    f'{val_disp}</td>'
+                )
+            _rows += '</tr>'
+        st.markdown(
+            f'<table style="width:100%;border-collapse:collapse;background:var(--color-surface,#111);'
+            f'border-radius:6px;overflow:hidden;margin-bottom:0.6rem">'
+            f'<thead><tr>{_hdr}</tr></thead><tbody>{_rows}</tbody></table>',
+            unsafe_allow_html=True,
+        )
+
+    _render_fingerprint_block("spreader", "Spreader", SPREADER_COLOR)
+    _render_fingerprint_block("debunker", "Fact-checker", DEBUNKER_COLOR)
+    st.caption(
+        "Values shown in green = tightly consistent across claims (variance < 20% of max). "
+        "Other values mean the metric varies meaningfully claim-to-claim."
+    )
 
 
 def _build_comparison_summary(grid: list, mode: str = "same_claim") -> str:
