@@ -1344,30 +1344,64 @@ def _render_citations(ep):
 
     # Framing section
     st.markdown('<div class="rp-section-label">Framing analysis</div>', unsafe_allow_html=True)
-    st.caption("How each side frames its references to institutions and evidence.")
+    st.caption(
+        "How each side frames its references to institutions and evidence. "
+        "Click any turn chip to jump to that turn in the transcript below."
+    )
+
+    # Per-turn framing-pattern presence — used for the click-to-jump chips.
+    # The %/count numbers are still sentence-based for stable proportions.
+    _framing_pairs = _normalize_turn_pairs(ep)
+
+    def _framing_turns(role_key, pat):
+        out = []
+        for i, p in enumerate(_framing_pairs):
+            turn_num = p.get("pair_idx", i + 1)
+            text = (p.get(role_key) or "").strip()
+            if text and pat.search(text):
+                out.append(turn_num)
+        return sorted(set(out))
+
+    def _turn_chips(turns, color):
+        if not turns:
+            return '<span style="color:#3a3a3a;font-size:0.85rem">·</span>'
+        return " ".join(
+            f'<a href="#cite-turn-{t}" '
+            f'style="display:inline-block;padding:0.08rem 0.42rem;margin:0.06rem 0.16rem 0.06rem 0;'
+            f'background:{color}22;color:{color};border:1px solid {color}66;border-radius:3px;'
+            f'font-family:\'IBM Plex Mono\',monospace;font-size:0.7rem;font-weight:700;'
+            f'text-decoration:none;cursor:pointer">T{t}</a>'
+            for t in turns
+        )
 
     framing_data = [
-        ("Hedging", "some suggest · may · concerns", spr_hedge, spr_n, deb_hedge, deb_n, SPREADER_COLOR),
-        ("Definitive", "conclusively · proven · demonstrates", spr_defin, spr_n, deb_defin, deb_n, DEBUNKER_COLOR),
-        ("Conspiratorial", "hidden · suppress · rigged", spr_consp, spr_n, deb_consp, deb_n, "#C9363E"),
+        ("Hedging",        "some suggest · may · concerns",        spr_hedge, spr_n, deb_hedge, deb_n, _HEDGING),
+        ("Definitive",     "conclusively · proven · demonstrates", spr_defin, spr_n, deb_defin, deb_n, _DEFINITIVE),
+        ("Conspiratorial", "hidden · suppress · rigged",           spr_consp, spr_n, deb_consp, deb_n, _CONSPIRATORIAL),
     ]
     f_rows = ""
-    for label, keywords, s_count, s_total, d_count, d_total, accent in framing_data:
+    for label, keywords, s_count, s_total, d_count, d_total, pat in framing_data:
         s_pct = s_count / s_total * 100
         d_pct = d_count / d_total * 100
         higher = SPREADER_COLOR if s_pct > d_pct else DEBUNKER_COLOR if d_pct > s_pct else "#888"
+        s_turns = _framing_turns("spreader_text", pat)
+        d_turns = _framing_turns("debunker_text", pat)
         f_rows += (
             f'<tr>'
-            f'<td style="padding:0.6rem 0.8rem;border-bottom:1px solid #2A2A4A">'
+            f'<td style="padding:0.6rem 0.8rem;border-bottom:1px solid #2A2A4A;vertical-align:top">'
             f'<div style="font-weight:600;color:#E8E4D9">{label}</div>'
             f'<div style="font-size:0.75rem;color:#666;font-style:italic">{keywords}</div></td>'
-            f'<td style="padding:0.6rem 0.8rem;border-bottom:1px solid #2A2A4A;text-align:center">'
+            f'<td style="padding:0.6rem 0.8rem;border-bottom:1px solid #2A2A4A;text-align:center;vertical-align:top">'
+            f'<div style="margin-bottom:0.3rem">'
             f'<span style="font-size:1.1rem;font-weight:700;color:{SPREADER_COLOR}">{s_pct:.0f}%</span>'
-            f'<span style="font-size:0.78rem;color:#666;margin-left:0.3rem">({s_count})</span></td>'
-            f'<td style="padding:0.6rem 0.8rem;border-bottom:1px solid #2A2A4A;text-align:center">'
+            f'<span style="font-size:0.78rem;color:#666;margin-left:0.3rem">({s_count})</span></div>'
+            f'<div>{_turn_chips(s_turns, SPREADER_COLOR)}</div></td>'
+            f'<td style="padding:0.6rem 0.8rem;border-bottom:1px solid #2A2A4A;text-align:center;vertical-align:top">'
+            f'<div style="margin-bottom:0.3rem">'
             f'<span style="font-size:1.1rem;font-weight:700;color:{DEBUNKER_COLOR}">{d_pct:.0f}%</span>'
-            f'<span style="font-size:0.78rem;color:#666;margin-left:0.3rem">({d_count})</span></td>'
-            f'<td style="padding:0.6rem 0.8rem;border-bottom:1px solid #2A2A4A;text-align:center">'
+            f'<span style="font-size:0.78rem;color:#666;margin-left:0.3rem">({d_count})</span></div>'
+            f'<div>{_turn_chips(d_turns, DEBUNKER_COLOR)}</div></td>'
+            f'<td style="padding:0.6rem 0.8rem;border-bottom:1px solid #2A2A4A;text-align:center;vertical-align:top">'
             f'<span style="font-size:0.85rem;font-weight:700;color:{higher}">'
             f'{"Spr" if s_pct > d_pct else "FC" if d_pct > s_pct else "—"} '
             f'{abs(s_pct - d_pct):.0f}pp</span></td>'
