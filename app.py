@@ -955,7 +955,7 @@ def main():
 
     # Footer
     st.markdown("---")
-    st.caption("Built with Streamlit • Data persisted to `runs_archive/legacy/matches.jsonl`")
+    st.caption("Built with Streamlit • Debates persist to `runs/<run_id>/episodes.jsonl`")
 
 
 def normalize_explanation(explanation):
