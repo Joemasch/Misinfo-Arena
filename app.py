@@ -102,6 +102,7 @@ from arena.state import initialize_session_state, is_concession
 
 # Page module imports
 from arena.presentation.streamlit.pages.explore_page import render_explore_page
+from arena.presentation.streamlit.pages.atlas_page import render_atlas_page
 from arena.presentation.streamlit.pages.guide_page import render_guide_page
 from arena.presentation.streamlit.pages.arena_page import render_arena_page
 from arena.presentation.streamlit.pages.findings_page import render_findings_page
@@ -926,9 +927,9 @@ def main():
     from arena.presentation.streamlit.styles import inject_global_css
     inject_global_css()
 
-    # Navigation tabs (4 tabs — conference demo layout)
-    tab_home, tab_arena, tab_replay, tab_findings = st.tabs([
-        "Home", "Arena", "Replay", "Findings",
+    # Navigation tabs (5 tabs — conference demo layout)
+    tab_home, tab_arena, tab_replay, tab_atlas, tab_findings = st.tabs([
+        "Home", "Arena", "Replay", "Atlas", "Findings",
     ])
 
     with tab_home:
@@ -939,12 +940,15 @@ def main():
             st.warning(
                 "**API keys required to run live debates.** "
                 "Set your keys in the sidebar or via environment variables. "
-                "Replay and Findings tabs work without keys."
+                "Replay, Atlas, and Findings tabs work without keys."
             )
         render_arena_page()
 
     with tab_replay:
         render_explore_page()
+
+    with tab_atlas:
+        render_atlas_page()
 
     with tab_findings:
         render_findings_page()

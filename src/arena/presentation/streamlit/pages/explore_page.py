@@ -407,23 +407,83 @@ def _render_transcript(ep):
 # ---------------------------------------------------------------------------
 
 _STRATEGY_CONTEXT = {
-    "appeal to (dis)trust": "Attacks institutional credibility — associated with Claude's spreader fingerprint on unfalsifiable claims.",
-    "anecdotal evidence": "Builds arguments around personal stories — GPT-4o-mini's default spreader tactic, especially on Health claims.",
-    "pseudo-scientific claim": "Wraps claims in technical language — Gemini's default spreader tactic.",
-    "source weaponization": "Cites real institutions to support misinformation — rises sharply on unfalsifiable claims across all models.",
-    "conspiracy theory": "Frames counter-evidence as proof of cover-up — triggers when debunkers demand verification.",
-    "historical revisionism": "Rewrites past events to support current claims — dominant Environmental spreader tactic.",
-    "appeal to emotion": "Uses fear, alarm, or concern — dominant on Political and Technology claims.",
-    "cherry picking": "Selectively uses data while ignoring contradicting evidence.",
-    "impossible expectations": "Sets unrealistic standards of proof that can never be met.",
-    "evidence citation": "Cites specific studies, data, or institutional findings — the universal debunker tactic on falsifiable claims.",
-    "scientific consensus": "Appeals to established scientific agreement — drops to 0% on unfalsifiable claims.",
-    "logical refutation": "Attacks the logical structure of the opponent's argument.",
-    "contextual analysis": "Argues 'it's more complex' — the default fallback when evidence fails. Wins only 35% of the time.",
-    "mechanism explanation": "Explains how systems actually work — Claude's unique debunker tactic on unfalsifiable claims. 95% win rate.",
-    "technical correction": "Corrects specific factual errors with precise data.",
-    "verification": "Demands accountability and transparency — triggers conspiracy pivots from spreaders.",
-    "public safety": "Appeals to health or safety risks of the misinformation.",
+    "appeal to (dis)trust": (
+        "Undermines the credibility of institutions, experts, or sources rather than "
+        "engaging with the claims they make. The implicit logic is \"you can't trust "
+        "the messenger, so you can ignore the message.\" Claude's signature spreader "
+        "tactic on unfalsifiable claims."
+    ),
+    "anecdotal evidence": (
+        "Uses individual stories or single examples as evidence for a general claim, "
+        "in place of systematic data or population-level statistics. The vividness "
+        "substitutes for representativeness. GPT-4o-mini's default tactic on Health claims."
+    ),
+    "pseudo-scientific claim": (
+        "Presents non-scientific or unsupported claims using scientific-sounding "
+        "terminology, technical formatting, or surface markers of expertise — without "
+        "the underlying methodology or peer review. Gemini's signature spreader tactic."
+    ),
+    "source weaponization": (
+        "Cites real, credible institutions but misrepresents what they actually said — "
+        "selective excerpting, authority transfer, or scope manipulation. Rises sharply "
+        "on unfalsifiable claims."
+    ),
+    "conspiracy theory": (
+        "Frames a pattern as the deliberate, coordinated action of a hidden powerful "
+        "group. Self-sealing: counter-evidence becomes proof of the cover-up. Triggers "
+        "when debunkers demand verification."
+    ),
+    "historical revisionism": (
+        "Reinterprets, downplays, or denies established historical events to support a "
+        "present-day claim. Dominant Environmental spreader tactic."
+    ),
+    "appeal to emotion": (
+        "Uses fear, alarm, outrage, sympathy, or moral urgency to drive belief — "
+        "displacing reason and evidence with affect. Dominant on Political and Technology claims."
+    ),
+    "cherry picking": (
+        "Presents only the data or sources that support a position while ignoring "
+        "contradicting evidence that is equally available."
+    ),
+    "impossible expectations": (
+        "Sets a standard of proof that no realistic evidence could meet, then dismisses "
+        "existing evidence for failing it. \"You can't prove X with 100% certainty.\""
+    ),
+    "evidence citation": (
+        "Supports a claim by referring to specific, named studies, datasets, or "
+        "peer-reviewed publications the audience could verify. The universal debunker "
+        "tactic on falsifiable claims."
+    ),
+    "scientific consensus": (
+        "Appeals to established agreement among qualified experts or major scientific "
+        "bodies. Drops to ~0% on unfalsifiable claims, where no formal consensus exists."
+    ),
+    "logical refutation": (
+        "Exposes flaws in the opponent's reasoning — invalid inferences, contradictions, "
+        "or unstated assumptions — without necessarily disputing the underlying facts."
+    ),
+    "contextual analysis": (
+        "Argues the opponent's claim oversimplifies a more complex situation, "
+        "introducing factors or qualifiers that change the bottom line. The fallback "
+        "when direct evidence fails — wins only 35% of the time."
+    ),
+    "mechanism explanation": (
+        "Explains the underlying causal process so the audience can evaluate the claim "
+        "against how things actually work. Claude's unique tactic on unfalsifiable "
+        "claims; 95% win rate."
+    ),
+    "technical correction": (
+        "Identifies and corrects specific factual errors — wrong numbers, misattributed "
+        "quotes, mistaken dates — with precise verifiable values."
+    ),
+    "verification": (
+        "Asks the opponent to provide checkable sources or methodology rather than "
+        "accepting unsupported assertions. Triggers conspiracy pivots from spreaders."
+    ),
+    "public safety": (
+        "Frames the dispute in terms of harm — health risk, institutional erosion, "
+        "social trust — arguing the stakes, not just the facts."
+    ),
 }
 
 
@@ -1489,12 +1549,15 @@ def _render_compare_card(ep: dict, label: str):
     deb_primary = _label_plain(sa.get("debunker_primary", ""))
 
     winner_color = "#2ECC71" if winner == "Debunker" else SPREADER_COLOR
+    from arena.claim_metadata import domain_badge_html
+    _dom_chip = domain_badge_html(ep.get("claim_type", ""), size="sm")
     st.markdown(
         f'<div class="rp-strat-card">'
         f'<div style="font-size:0.68rem;color:#9ca3af;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">{label}</div>'
         f'<div style="font-size:0.95rem;font-weight:700;color:var(--color-text-primary,#E8E4D9);margin-top:0.2rem;">'
         f'{spr_m} vs {deb_m}</div>'
-        f'<div style="font-size:0.78rem;color:#9ca3af;margin-top:0.15rem;font-style:italic;">'
+        f'<div style="margin-top:0.3rem">{_dom_chip}</div>'
+        f'<div style="font-size:0.78rem;color:#9ca3af;margin-top:0.3rem;font-style:italic;">'
         f'&ldquo;{claim[:60]}{"…" if len(claim) > 60 else ""}&rdquo;</div>'
         f'<div style="font-size:0.85rem;color:#9ca3af;margin-top:0.4rem">'
         f'Winner: <strong style="color:{winner_color}">{winner}</strong> '
@@ -1921,14 +1984,17 @@ def render_explore_page():
         st.info("No episodes found.")
         return
 
-    # ── Episode table (simplified — 5 columns)
+    # ── Episode table (6 columns including Domain)
+    from arena.claim_metadata import get_domain_display
     table_rows = []
     for i, ep in enumerate(episodes):
         t = ep.get("results", {}).get("totals", {})
         margin = (t.get("debunker", 0) or 0) - (t.get("spreader", 0) or 0)
         cfg = ep.get("config_snapshot", {}).get("agents", {})
+        domain_display, _domain_color = get_domain_display(ep.get("claim_type", ""))
         table_rows.append({
             "idx": i,
+            "Domain": domain_display,
             "Claim": ep.get("claim", "")[:40] + ("..." if len(ep.get("claim", "")) > 40 else ""),
             "Spreader": _short(cfg.get("spreader", {}).get("model", "")),
             "Fact-checker": _short(cfg.get("debunker", {}).get("model", "")),
@@ -1970,10 +2036,14 @@ def render_explore_page():
     claim = selected_ep.get("claim", "")
     winner = selected_ep.get("results", {}).get("winner", "").title()
 
+    from arena.claim_metadata import domain_badge_html
+    _domain_chip = domain_badge_html(selected_ep.get("claim_type", ""), size="md")
     st.markdown(f'<p class="rp-detail-header">{spr_m} vs {deb_m} · {winner} wins</p>',
                 unsafe_allow_html=True)
-    st.markdown(f'<div class="rp-claim-box"><b>Claim:</b> {claim}</div>',
-                unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="rp-claim-box"><b>Claim:</b> {claim} &nbsp; {_domain_chip}</div>',
+        unsafe_allow_html=True,
+    )
 
     # Detail tabs
     dt_verdict, dt_transcript, dt_strategy, dt_citations, dt_compare = st.tabs([

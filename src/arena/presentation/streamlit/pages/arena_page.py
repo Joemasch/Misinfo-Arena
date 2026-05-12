@@ -276,6 +276,190 @@ def _update_chat_display(chat_placeholder, status_placeholder, progress_bar, tur
 # Main page renderer
 # ---------------------------------------------------------------------------
 
+def _reset_live_insights():
+    """Clear the live citation + strategy accumulators when a new debate starts."""
+    for k in ("live_citations", "live_strategies", "_live_toasted_ids", "_live_detect_last_turn"):
+        st.session_state.pop(k, None)
+
+
+def _run_live_detection():
+    """After each turn pair completes, detect new citations and strategies.
+
+    Citations: regex scan, instant. Strategies: LLM call (~1-2s latency).
+    Fires st.toast for each new event and appends to session state lists
+    that drive the Live Insights panel.
+    """
+    ss = st.session_state
+    pairs_done = int(ss.get("completed_turn_pairs", 0) or 0)
+    last_done  = int(ss.get("_live_detect_last_turn", 0) or 0)
+    if pairs_done <= last_done:
+        return
+
+    ss.setdefault("live_citations", [])
+    ss.setdefault("live_strategies", [])
+    toasted_ids = ss.setdefault("_live_toasted_ids", set())
+
+    # ── Group debate_messages into turn pairs (only fully-final ones) ───
+    msgs = ss.get("debate_messages", [])
+    turns_by_idx = {}
+    for m in msgs:
+        if not isinstance(m, dict):
+            continue
+        if m.get("status") != "final":
+            continue
+        t_idx = int(m.get("turn") or 0)
+        side = (m.get("speaker") or m.get("role") or "").lower()
+        if side not in ("spreader", "debunker"):
+            continue
+        turns_by_idx.setdefault(t_idx, {})[side] = (m.get("content") or "").strip()
+
+    new_turn_indices = sorted(t for t in turns_by_idx if t > last_done
+                              and turns_by_idx[t].get("spreader")
+                              and turns_by_idx[t].get("debunker"))
+    if not new_turn_indices:
+        return
+
+    # ── Citation detection (regex, instant) ─────────────────────────────
+    try:
+        from arena.presentation.streamlit.pages.explore_page import _SOURCE_PATTERNS
+    except Exception:
+        _SOURCE_PATTERNS = {}
+
+    for t_idx in new_turn_indices:
+        pair = turns_by_idx[t_idx]
+        for side_name in ("spreader", "debunker"):
+            text = pair.get(side_name, "")
+            for src, pat in _SOURCE_PATTERNS.items():
+                if not pat.search(text):
+                    continue
+                event_id = f"cite::{t_idx}::{side_name}::{src}"
+                if event_id in toasted_ids:
+                    continue
+                ss["live_citations"].append({
+                    "turn": t_idx, "side": side_name, "source": src,
+                })
+                toasted_ids.add(event_id)
+                side_label = "Spreader" if side_name == "spreader" else "Fact-checker"
+                icon = "📎"
+                st.toast(f"{src} cited by {side_label} (Turn {t_idx})", icon=icon)
+
+    # ── Strategy detection (LLM call on accumulated turns) ──────────────
+    try:
+        from arena.strategy_analyst import analyze_per_turn_strategies
+        from arena.presentation.streamlit.pages.atlas_page import _plain_name_for
+
+        # Build flat-format turns list for the analyst
+        turns_for_analyst = []
+        for t_idx in sorted(turns_by_idx.keys()):
+            pair = turns_by_idx[t_idx]
+            if pair.get("spreader"):
+                turns_for_analyst.append({"name": "spreader", "content": pair["spreader"],
+                                           "turn_index": t_idx - 1})
+            if pair.get("debunker"):
+                turns_for_analyst.append({"name": "debunker", "content": pair["debunker"],
+                                           "turn_index": t_idx - 1})
+
+        claim = ss.get("topic", "") or ss.get("claim_text", "")
+        results = analyze_per_turn_strategies(claim=claim, transcript_turns=turns_for_analyst) or []
+
+        for r in results:
+            t_idx = int(r.get("turn", 0) or 0)
+            if t_idx not in new_turn_indices:
+                continue
+            for side_name in ("spreader", "debunker"):
+                raws = r.get(f"{side_name}_strategies") or []
+                for j, raw in enumerate(raws):
+                    plain = _plain_name_for(raw) or raw.replace("_", " ").title()
+                    event_id = f"strat::{t_idx}::{side_name}::{plain}"
+                    if event_id in toasted_ids:
+                        continue
+                    ss["live_strategies"].append({
+                        "turn": t_idx, "side": side_name,
+                        "tactic": plain, "raw": raw,
+                    })
+                    toasted_ids.add(event_id)
+                    # Only toast the PRIMARY tactic per side per turn (avoid spam).
+                    if j == 0:
+                        side_label = "Spreader" if side_name == "spreader" else "Fact-checker"
+                        icon = "🎯"
+                        st.toast(f"{side_label} used: {plain} (Turn {t_idx})", icon=icon)
+    except Exception as e:
+        print(f"[LIVE_DETECT] strategy analysis skipped: {e}")
+
+    ss["_live_detect_last_turn"] = pairs_done
+
+
+def _render_live_insights_panel():
+    """Show accumulated live insights below the transcript."""
+    cites = st.session_state.get("live_citations") or []
+    strats = st.session_state.get("live_strategies") or []
+    if not cites and not strats:
+        return
+
+    st.markdown(
+        '<div style="font-size:0.72rem;color:#9ca3af;font-weight:700;'
+        'text-transform:uppercase;letter-spacing:0.07em;margin:1.5rem 0 0.5rem 0;'
+        'padding-bottom:0.3rem;border-bottom:1px solid var(--color-border,#2A2A2A)">'
+        'Live insights — what we spotted in this debate</div>',
+        unsafe_allow_html=True,
+    )
+    st.caption(
+        "Citations are detected instantly via text matching. Strategies are scored "
+        "by an LLM after each turn pair. Both link to fuller definitions in the Atlas tab."
+    )
+
+    cols = st.columns(2)
+    with cols[0]:
+        st.markdown(
+            f'<div style="font-size:0.7rem;color:#16a34a;font-weight:700;'
+            f'text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.4rem">'
+            f'Citations spotted · {len(cites)}</div>',
+            unsafe_allow_html=True,
+        )
+        if not cites:
+            st.caption("— none yet —")
+        for ev in cites[-15:]:
+            color = "#D4A843" if ev["side"] == "spreader" else "#4A7FA5"
+            side_label = "Spr" if ev["side"] == "spreader" else "FC"
+            st.markdown(
+                f'<div style="font-size:0.84rem;margin:0.2rem 0;'
+                f'padding:0.3rem 0.6rem;border-left:3px solid #16a34a;'
+                f'background:rgba(22,163,74,0.05);border-radius:0 4px 4px 0;'
+                f'color:var(--color-text-primary,#E8E4D9)">'
+                f'<span style="color:{color};font-weight:600">{side_label}</span> · '
+                f'<b>{ev["source"]}</b> '
+                f'<span style="color:#9ca3af;font-family:\'IBM Plex Mono\',monospace;font-size:0.78rem">'
+                f'Turn {ev["turn"]}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+    with cols[1]:
+        st.markdown(
+            f'<div style="font-size:0.7rem;color:#D4A843;font-weight:700;'
+            f'text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.4rem">'
+            f'Tactics detected · {len(strats)}</div>',
+            unsafe_allow_html=True,
+        )
+        if not strats:
+            st.caption("— LLM analysing the most recent turn… —")
+        for ev in strats[-15:]:
+            color = "#D4A843" if ev["side"] == "spreader" else "#4A7FA5"
+            side_label = "Spr" if ev["side"] == "spreader" else "FC"
+            st.markdown(
+                f'<div style="font-size:0.84rem;margin:0.2rem 0;'
+                f'padding:0.3rem 0.6rem;border-left:3px solid {color};'
+                f'background:rgba(255,255,255,0.02);border-radius:0 4px 4px 0;'
+                f'color:var(--color-text-primary,#E8E4D9)">'
+                f'<span style="color:{color};font-weight:600">{side_label}</span> · '
+                f'<b>{ev["tactic"]}</b> '
+                f'<span style="color:#9ca3af;font-family:\'IBM Plex Mono\',monospace;font-size:0.78rem">'
+                f'Turn {ev["turn"]}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+
 def render_arena_page():
     """Render the full Arena tab content."""
     from arena.presentation.streamlit.styles import inject_global_css
@@ -485,6 +669,9 @@ def render_arena_page():
         ss["completed_turn_pairs"] = 0
         ss["turn_idx"]             = 0
         ss["debate_phase"]         = "spreader"
+
+        # Reset live insights accumulators for the new episode
+        _reset_live_insights()
 
         apply_turn_plan_to_episode(ss, 1)
 
@@ -839,6 +1026,9 @@ def render_arena_page():
             ss["turn_idx"] = 0
             ss["debate_phase"] = "spreader"
 
+            # Reset live insights accumulators for the new debate
+            _reset_live_insights()
+
             apply_turn_plan_to_episode(ss, ss.get("episode_idx", 1))
 
             ss["match_in_progress"] = True
@@ -1086,6 +1276,11 @@ def render_arena_page():
     if st.session_state.get("debug_mode", False):
         print(f"[ARENA] RENDER episode_idx={st.session_state.get('episode_idx')} episodes_completed={st.session_state.get('episodes_completed')} len(debate_messages)={len(st.session_state.get('debate_messages', []))} debate_running={st.session_state.get('debate_running')} _pending_chain={st.session_state.get('_pending_chain')}")
     render_debate_chat(st.session_state.debate_messages)
+
+    # Detect newly-completed turn pairs → fire toasts + accumulate panel events.
+    _run_live_detection()
+    # Show the accumulated panel beneath the transcript.
+    _render_live_insights_panel()
 
     # Run debate step if active or pending deferred chain
     if st.session_state.get("debate_running", False) or st.session_state.get("_pending_chain", False):

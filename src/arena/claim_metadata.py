@@ -287,6 +287,67 @@ def infer_claim_metadata_from_text(claim: str) -> dict[str, str]:
         return {}
 
 
+# ── Domain display + colors ──────────────────────────────────────────────
+# Maps the canonical claim_type strings (both classify_claim() outputs and
+# the study's CSV-spec labels) to (display_name, color). Visually distinct
+# from the spreader/debunker side colors so domain badges never conflict
+# with role indicators in the UI.
+
+_DOMAIN_DISPLAY: dict[str, tuple[str, str]] = {
+    # classify_claim() taxonomy
+    "Health / Vaccine":         ("Health",        "#E91E63"),  # pink/magenta
+    "Political / Election":     ("Political",     "#9C27B0"),  # purple
+    "Institutional Conspiracy": ("Conspiracy",    "#92400E"),  # dark amber
+    "Environmental":            ("Environmental", "#84CC16"),  # lime green
+    "Economic":                 ("Economic",      "#F97316"),  # orange
+    "Hybrid":                   ("Mixed",         "#64748B"),  # slate
+    # Legacy CSV-spec labels from the study (already in archived data)
+    "Health":                   ("Health",        "#E91E63"),
+    "Political":                ("Political",     "#9C27B0"),
+    "Technology":               ("Technology",    "#00BCD4"),  # cyan
+    "Economic ":                ("Economic",      "#F97316"),  # trailing space tolerance
+}
+
+_DOMAIN_FALLBACK = ("Unclassified", "#6b7280")
+
+
+def get_domain_display(claim_type: str) -> tuple[str, str]:
+    """Return (display_name, hex_color) for a claim_type label.
+
+    Tolerates whitespace, blank input, and unknown labels — falls back to
+    (Unclassified, gray) so the UI never breaks on bad data.
+    """
+    if not claim_type or not isinstance(claim_type, str):
+        return _DOMAIN_FALLBACK
+    key = claim_type.strip()
+    return _DOMAIN_DISPLAY.get(key, (key or _DOMAIN_FALLBACK[0], _DOMAIN_FALLBACK[1]))
+
+
+def domain_badge_html(claim_type: str, *, size: str = "sm") -> str:
+    """Return a small inline HTML chip for the given claim_type.
+
+    size='sm' for inline badges in tables/cards, 'md' for slightly larger
+    standalone badges in panel headers.
+    """
+    display, color = get_domain_display(claim_type)
+    px = "0.05rem 0.5rem" if size == "sm" else "0.12rem 0.6rem"
+    fs = "0.7rem" if size == "sm" else "0.78rem"
+    h = color.lstrip("#")
+    if len(h) == 3:
+        h = h[0] * 2 + h[1] * 2 + h[2] * 2
+    try:
+        r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    except ValueError:
+        r, g, b = 128, 128, 128
+    return (
+        f'<span style="display:inline-block;padding:{px};border-radius:10px;'
+        f'background:rgba({r},{g},{b},0.18);border:1px solid rgba({r},{g},{b},0.55);'
+        f'color:{color};font-size:{fs};font-weight:600;font-family:\'IBM Plex Mono\',monospace;'
+        f'letter-spacing:0.04em;text-transform:uppercase;'
+        f'line-height:1.2;vertical-align:middle">{display}</span>'
+    )
+
+
 # ── Falsifiability classification ─────────────────────────────────────────
 #
 # Falsifiability is whether a claim can in principle be disproven by empirical
