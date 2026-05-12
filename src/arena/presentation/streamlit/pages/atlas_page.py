@@ -290,15 +290,30 @@ def _plain_name_for(raw_label: str) -> str:
     return key.title()
 
 
-def _side_for(plain_name: str, raw_label: str) -> str:
-    """Return the canonical side ('spreader' or 'debunker') for a strategy."""
+def _side_for(plain_name: str, raw_label: str, data: dict | None = None) -> str:
+    """Return the canonical side ('spreader' or 'debunker') for a strategy.
+
+    Resolution order:
+      1. Raw label is in the catalogue → use catalogue side
+      2. Plain name matches a catalogue entry → use that entry's side
+      3. ``data`` provided → classify by which side actually used it
+         (open-coded labels from the LLM analyst end up here)
+      4. Fall back to 'spreader' only as a last resort
+    """
     key = (raw_label or "").lower().replace("_", " ").strip()
     if key in _STRATEGY_CATALOG:
         return _STRATEGY_CATALOG[key][2]
     for _raw, (plain, _desc, side) in _STRATEGY_CATALOG.items():
         if plain == plain_name:
             return side
-    return "spreader"  # safe default if unknown
+    if data is not None:
+        n_spr = len(data.get("spreader") or [])
+        n_deb = len(data.get("debunker") or [])
+        if n_deb > n_spr:
+            return "debunker"
+        if n_spr > n_deb:
+            return "spreader"
+    return "spreader"
 
 
 def _short_model(model: str) -> str:
@@ -408,15 +423,39 @@ def _seed_catalogue(index: dict) -> dict:
     return index
 
 
-def _description_for(plain_name: str, raw_label: str) -> str:
-    """Resolve the description for a strategy from the catalogue."""
+def _description_for(plain_name: str, raw_label: str, data: dict | None = None) -> str:
+    """Resolve the description for a strategy from the catalogue.
+
+    Falls back to a usage-aware synthetic description for open-coded labels
+    that aren't part of the research catalogue.
+    """
     key = (raw_label or "").lower().replace("_", " ").strip()
     if key in _STRATEGY_CATALOG:
         return _STRATEGY_CATALOG[key][1]
     for _raw, (plain, desc, _side) in _STRATEGY_CATALOG.items():
         if plain == plain_name:
             return desc
-    return "Open-coded strategy label from the per-turn analyst — no canonical definition yet."
+
+    # Open-coded label — synthesize a useful note from usage data if we have it.
+    if data is not None:
+        n_spr = len(data.get("spreader") or [])
+        n_deb = len(data.get("debunker") or [])
+        parts = []
+        if n_spr:
+            parts.append(f"by the spreader in {n_spr} episode{'s' if n_spr != 1 else ''}")
+        if n_deb:
+            parts.append(f"by the fact-checker in {n_deb} episode{'s' if n_deb != 1 else ''}")
+        if parts:
+            return (
+                "Open-coded label introduced by the LLM strategy analyst — not part of "
+                "the canonical research catalogue. Used " + " and ".join(parts) + ". "
+                "The plain-English name is auto-derived from the raw label below."
+            )
+
+    return (
+        "Open-coded label from the LLM strategy analyst. Not part of the canonical "
+        "research catalogue — no fixed definition yet."
+    )
 
 
 @st.cache_data(show_spinner=False)
@@ -663,11 +702,12 @@ def render_atlas_page():
             return (plain.lower(), 0)
         return (-n_uses, plain.lower())
 
-    # Bucket the catalogue by canonical side
+    # Bucket each entry by canonical-or-usage side. Open-coded LLM labels that
+    # aren't in the catalogue fall back to whichever side actually used them.
     strat_items = sorted(strategy_index.items(), key=_strat_sort_key)
     strat_by_side = {"spreader": [], "debunker": []}
     for plain, data in strat_items:
-        side = _side_for(plain, data.get("raw_label", ""))
+        side = _side_for(plain, data.get("raw_label", ""), data)
         strat_by_side.setdefault(side, []).append((plain, data))
 
     def _render_strategy_column(side_key, side_label, color_tag, accent_color):
@@ -685,7 +725,7 @@ def render_atlas_page():
             return
         for plain, data in strat_by_side[side_key]:
             raw = data.get("raw_label", "")
-            desc = _description_for(plain, raw)
+            desc = _description_for(plain, raw, data)
             n_spr = len(data["spreader"])
             n_deb = len(data["debunker"])
             n_total = n_spr + n_deb

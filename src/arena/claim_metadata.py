@@ -323,6 +323,35 @@ def get_domain_display(claim_type: str) -> tuple[str, str]:
     return _DOMAIN_DISPLAY.get(key, (key or _DOMAIN_FALLBACK[0], _DOMAIN_FALLBACK[1]))
 
 
+def falsifiability_badge_html(claim: str, *, size: str = "sm") -> str:
+    """Return a small inline HTML chip showing falsifiable / unfalsifiable status.
+
+    Pairs naturally with domain_badge_html() in headers (e.g. Replay).
+    """
+    fals, _src = classify_falsifiability(claim)
+    if fals == "falsifiable":
+        display, color = "Falsifiable", "#16a34a"     # green
+    elif fals == "unfalsifiable":
+        display, color = "Unfalsifiable", "#D4A843"   # amber
+    else:
+        display, color = "Falsifiability unknown", "#6b7280"
+
+    px = "0.05rem 0.5rem" if size == "sm" else "0.12rem 0.6rem"
+    fs = "0.7rem" if size == "sm" else "0.78rem"
+    h = color.lstrip("#")
+    try:
+        r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    except ValueError:
+        r, g, b = 128, 128, 128
+    return (
+        f'<span style="display:inline-block;padding:{px};border-radius:10px;'
+        f'background:rgba({r},{g},{b},0.18);border:1px solid rgba({r},{g},{b},0.55);'
+        f'color:{color};font-size:{fs};font-weight:600;font-family:\'IBM Plex Mono\',monospace;'
+        f'letter-spacing:0.04em;text-transform:uppercase;'
+        f'line-height:1.2;vertical-align:middle">{display}</span>'
+    )
+
+
 def domain_badge_html(claim_type: str, *, size: str = "sm") -> str:
     """Return a small inline HTML chip for the given claim_type.
 

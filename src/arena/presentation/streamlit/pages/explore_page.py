@@ -1592,72 +1592,39 @@ def _render_compare_card(ep: dict, label: str):
 
 
 def _render_comparison(selected_ep, all_episodes):
-    """Side-by-side comparison with 3 modes:
+    """Side-by-side comparison restricted to the same claim.
 
-       1. Same claim, different models — does the model matter?
-       2. Same model, different claims — does the topic matter? (model fingerprint check)
-       3. Free pick — choose any two other episodes
+    Cross-claim comparison was removed because it confounds two variables
+    (model AND topic) — you can't tell which caused any score difference.
+    Same-claim comparison isolates model behavior cleanly.
     """
     cur_claim = selected_ep.get("claim", "")
-    cur_cfg = selected_ep.get("config_snapshot", {}).get("agents", {})
-    cur_spr_m = cur_cfg.get("spreader", {}).get("model", "")
-    cur_deb_m = cur_cfg.get("debunker", {}).get("model", "")
     cur_key = (selected_ep.get("run_id"), selected_ep.get("episode_id"))
 
-    # Mode toggle
-    mode = st.radio(
-        "Compare mode",
-        options=[
-            "Same claim, different models",
-            "Same model, different claims",
-            "Free pick",
-        ],
-        index=0,
-        horizontal=True,
-        key="compare_mode",
-        help=(
-            "Same claim / different models: does the model matter on this topic? · "
-            "Same model / different claims: does this model shift strategies by topic? · "
-            "Free pick: choose any episodes."
-        ),
-    )
-
-    # Filter the candidate pool by mode
-    if mode == "Same claim, different models":
-        if not cur_claim:
-            st.info("No claim data on the current episode.")
-            return
-        pool = [
-            e for e in all_episodes
-            if e.get("claim") == cur_claim
-            and (e.get("run_id"), e.get("episode_id")) != cur_key
-        ]
-        empty_msg = "No other episodes found for this claim. Run the same claim with different models to compare."
-    elif mode == "Same model, different claims":
-        if not (cur_spr_m or cur_deb_m):
-            st.info("No model data on the current episode.")
-            return
-        pool = []
-        for e in all_episodes:
-            if (e.get("run_id"), e.get("episode_id")) == cur_key:
-                continue
-            ecfg = e.get("config_snapshot", {}).get("agents", {})
-            e_spr = ecfg.get("spreader", {}).get("model", "")
-            e_deb = ecfg.get("debunker", {}).get("model", "")
-            if e_spr == cur_spr_m or e_deb == cur_deb_m:
-                if e.get("claim") != cur_claim:
-                    pool.append(e)
-        empty_msg = "No other episodes found that share a model with this one on a different claim."
-    else:  # Free pick
-        pool = [e for e in all_episodes if (e.get("run_id"), e.get("episode_id")) != cur_key]
-        empty_msg = "No other episodes available to compare."
-
-    if not pool:
-        st.info(empty_msg)
+    if not cur_claim:
+        st.info("No claim data on the current episode.")
         return
 
+    pool = [
+        e for e in all_episodes
+        if e.get("claim") == cur_claim
+        and (e.get("run_id"), e.get("episode_id")) != cur_key
+    ]
+    if not pool:
+        st.info(
+            "No other episodes found for this claim. Run the same claim with different "
+            "models — or use **Run Showdown** in the Arena tab — to populate this view."
+        )
+        return
+
+    st.caption(
+        "Showing other episodes on this exact claim. Comparing across claims would "
+        "confound the model and the topic, so cross-claim comparison is intentionally disabled."
+    )
+
     st.markdown(
-        f'<div class="rp-section-label">{len(pool)} candidate episodes</div>',
+        f'<div class="rp-section-label">{len(pool)} other episode'
+        f'{"s" if len(pool) != 1 else ""} on this claim</div>',
         unsafe_allow_html=True,
     )
 
@@ -1668,7 +1635,7 @@ def _render_comparison(selected_ep, all_episodes):
         options=options,
         default=options[:1],
         max_selections=2,
-        key=f"compare_multi_{mode}",
+        key="compare_multi_same_claim",
     )
 
     if not selections:
@@ -1872,7 +1839,7 @@ def _render_comparison(selected_ep, all_episodes):
     # ──────────────────────────────────────────────────────────────────
     # Auto-generated interpretation footer
     # ──────────────────────────────────────────────────────────────────
-    _summary = _build_comparison_summary(mode, grid)
+    _summary = _build_comparison_summary(grid)
     if _summary:
         st.markdown(
             f'<div style="background:var(--color-surface-alt,#1A1A1A);border:1px solid var(--color-border,#2A2A2A);'
@@ -1885,8 +1852,8 @@ def _render_comparison(selected_ep, all_episodes):
         )
 
 
-def _build_comparison_summary(mode: str, grid: list) -> str:
-    """Generate a one-paragraph interpretation of the selected comparison."""
+def _build_comparison_summary(grid: list) -> str:
+    """Generate a one-paragraph interpretation of a same-claim comparison."""
     if len(grid) < 2:
         return ""
     sentences = []
@@ -1906,34 +1873,23 @@ def _build_comparison_summary(mode: str, grid: list) -> str:
     elif debunker_wins > 0 and spreader_wins > 0:
         sentences.append(f"Outcomes split: {debunker_wins} fact-checker / {spreader_wins} spreader.")
 
-    # Tactic differences (mode-specific)
-    if mode == "Same claim, different models":
-        tactics = []
-        for ep, lbl in grid:
-            sa = ep.get("strategy_analysis") or {}
-            tac = _label_plain(sa.get("spreader_primary", "")) or "—"
-            cfg = ep.get("config_snapshot", {}).get("agents", {})
-            spr_m = _short(cfg.get("spreader", {}).get("model", "?"))
-            tactics.append(f"<b>{spr_m}</b> leaned on <b>{tac}</b>")
-        if len(set(t.split("<b>")[2] for t in tactics if "<b>" in t)) > 1:
-            sentences.append(
-                "On the same claim, different models picked different opening tactics: "
-                + "; ".join(tactics) + "."
-            )
-            sentences.append(
-                "This is the model-fingerprint effect (F2): training shapes which rhetorical "
-                "patterns a model defaults to, even with identical instructions."
-            )
-    elif mode == "Same model, different claims":
-        for ep, lbl in grid:
-            sa = ep.get("strategy_analysis") or {}
-            tac_spr = _label_plain(sa.get("spreader_primary", "")) or "—"
-            claim_short = (ep.get("claim") or "")[:50]
-            sentences.append(f"On <i>&ldquo;{claim_short}…&rdquo;</i> the spreader used <b>{tac_spr}</b>.")
+    # Tactic-by-model fingerprints (the whole point of same-claim comparison)
+    tactics = []
+    for ep, lbl in grid:
+        sa = ep.get("strategy_analysis") or {}
+        tac = _label_plain(sa.get("spreader_primary", "")) or "—"
+        cfg = ep.get("config_snapshot", {}).get("agents", {})
+        spr_m = _short(cfg.get("spreader", {}).get("model", "?"))
+        tactics.append(f"<b>{spr_m}</b> leaned on <b>{tac}</b>")
+    distinct_tactics = set(t.split("<b>")[2] for t in tactics if t.count("<b>") >= 2)
+    if len(distinct_tactics) > 1:
         sentences.append(
-            "If the tactics differ across claims, you're seeing the model shifting its playbook "
-            "by topic — typically falsifiable claims pull toward evidence/anecdote, "
-            "unfalsifiable claims pull toward distrust/pseudo-science."
+            "Different models picked different opening tactics: "
+            + "; ".join(tactics) + "."
+        )
+        sentences.append(
+            "This is the model-fingerprint effect (F2): training shapes which rhetorical "
+            "patterns a model defaults to, even with identical instructions on the same claim."
         )
 
     # Margin spread
@@ -1984,17 +1940,24 @@ def render_explore_page():
         st.info("No episodes found.")
         return
 
-    # ── Episode table (6 columns including Domain)
-    from arena.claim_metadata import get_domain_display
+    # ── Episode table (7 columns: Domain + Falsifiability up front)
+    from arena.claim_metadata import get_domain_display, classify_falsifiability
+    _FALS_DISPLAY = {
+        "falsifiable":   "Falsifiable",
+        "unfalsifiable": "Unfalsifiable",
+        "unknown":       "—",
+    }
     table_rows = []
     for i, ep in enumerate(episodes):
         t = ep.get("results", {}).get("totals", {})
         margin = (t.get("debunker", 0) or 0) - (t.get("spreader", 0) or 0)
         cfg = ep.get("config_snapshot", {}).get("agents", {})
         domain_display, _domain_color = get_domain_display(ep.get("claim_type", ""))
+        fals_label, _ = classify_falsifiability(ep.get("claim", ""))
         table_rows.append({
             "idx": i,
             "Domain": domain_display,
+            "Falsifiable?": _FALS_DISPLAY.get(fals_label, "—"),
             "Claim": ep.get("claim", "")[:40] + ("..." if len(ep.get("claim", "")) > 40 else ""),
             "Spreader": _short(cfg.get("spreader", {}).get("model", "")),
             "Fact-checker": _short(cfg.get("debunker", {}).get("model", "")),
@@ -2005,14 +1968,82 @@ def render_explore_page():
     table_df = pd.DataFrame(table_rows)
     display_df = table_df.drop(columns=["idx"])
 
+    # ── Build a colored Styler so the categorical columns read at a glance ──
+    from arena.claim_metadata import _DOMAIN_DISPLAY as _DOMAIN_MAP
+    # Build a {display_name: hex_color} lookup from the (display, color) tuples
+    _domain_color_by_display = {disp: col for disp, col in _DOMAIN_MAP.values()}
+
+    def _rgb_tuple(hex_color: str):
+        h = hex_color.lstrip("#")
+        if len(h) == 3:
+            h = h[0]*2 + h[1]*2 + h[2]*2
+        try:
+            return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+        except ValueError:
+            return 128, 128, 128
+
+    def _style_domain_cell(val):
+        color = _domain_color_by_display.get(val)
+        if not color:
+            return ""
+        r, g, b = _rgb_tuple(color)
+        return (
+            f"background-color: rgba({r},{g},{b},0.18); color: {color}; "
+            f"font-weight: 600; text-align: center;"
+        )
+
+    def _style_falsifiable_cell(val):
+        if val == "Falsifiable":
+            return ("background-color: rgba(22,163,74,0.18); color: #16a34a; "
+                    "font-weight: 600; text-align: center;")
+        if val == "Unfalsifiable":
+            return ("background-color: rgba(212,168,67,0.18); color: #D4A843; "
+                    "font-weight: 600; text-align: center;")
+        return "color: #6b7280; text-align: center;"
+
+    def _style_winner_cell(val):
+        if val == "Debunker":
+            return "color: #16a34a; font-weight: 600;"
+        if val == "Spreader":
+            return "color: #D4A843; font-weight: 600;"
+        if val == "Draw":
+            return "color: #9ca3af; font-style: italic;"
+        return ""
+
+    def _style_margin_cell(val):
+        try:
+            v = float(val)
+        except (ValueError, TypeError):
+            return ""
+        if v >= 1.0:
+            return "color: #16a34a; font-weight: 600; font-family: 'IBM Plex Mono', monospace;"
+        if v <= -1.0:
+            return "color: #D4A843; font-weight: 600; font-family: 'IBM Plex Mono', monospace;"
+        return "color: #9ca3af; font-family: 'IBM Plex Mono', monospace;"
+
+    styled = (display_df.style
+              .map(_style_domain_cell,      subset=["Domain"])
+              .map(_style_falsifiable_cell, subset=["Falsifiable?"])
+              .map(_style_winner_cell,      subset=["Winner"])
+              .map(_style_margin_cell,      subset=["Margin"]))
+
     event = st.dataframe(
-        display_df,
+        styled,
         use_container_width=True,
         hide_index=True,
         on_select="rerun",
         selection_mode="single-row",
         height=min(350, 60 + len(table_rows) * 35),
         key="rp_episode_table",
+        column_config={
+            "Domain": st.column_config.TextColumn("Domain", width="small"),
+            "Falsifiable?": st.column_config.TextColumn("Falsifiable?", width="small"),
+            "Claim": st.column_config.TextColumn("Claim", width="medium"),
+            "Spreader": st.column_config.TextColumn("Spreader", width="small"),
+            "Fact-checker": st.column_config.TextColumn("Fact-checker", width="small"),
+            "Winner": st.column_config.TextColumn("Winner", width="small"),
+            "Margin": st.column_config.TextColumn("Margin", width="small"),
+        },
     )
 
     # ── Episode detail
@@ -2036,12 +2067,16 @@ def render_explore_page():
     claim = selected_ep.get("claim", "")
     winner = selected_ep.get("results", {}).get("winner", "").title()
 
-    from arena.claim_metadata import domain_badge_html
+    from arena.claim_metadata import domain_badge_html, falsifiability_badge_html
     _domain_chip = domain_badge_html(selected_ep.get("claim_type", ""), size="md")
+    _fals_chip   = falsifiability_badge_html(claim, size="md")
     st.markdown(f'<p class="rp-detail-header">{spr_m} vs {deb_m} · {winner} wins</p>',
                 unsafe_allow_html=True)
     st.markdown(
-        f'<div class="rp-claim-box"><b>Claim:</b> {claim} &nbsp; {_domain_chip}</div>',
+        f'<div class="rp-claim-box"><b>Claim:</b> {claim}<br>'
+        f'<div style="margin-top:0.45rem;display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">'
+        f'{_domain_chip}{_fals_chip}'
+        f'</div></div>',
         unsafe_allow_html=True,
     )
 
