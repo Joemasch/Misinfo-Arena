@@ -361,7 +361,9 @@ Also note whether each side ADAPTED their approach from the previous turn (chang
 
 Be CONSISTENT with labels across turns — if the same tactic appears in turn 1 and turn 3, use the same label.
 
-Return strict JSON only — a single object with a "turns" array containing one object per turn:
+For EVERY unique label you introduce, also write a one-sentence definition (40-65 words) describing what the tactic is. Plain English. No hedging, no preamble. Put all definitions in a top-level "definitions" map; do not repeat them per turn.
+
+Return strict JSON only — a single object with "turns" and "definitions":
 {
   "turns": [
     {
@@ -372,7 +374,12 @@ Return strict JSON only — a single object with a "turns" array containing one 
       "debunker_adapted": false
     },
     ...
-  ]
+  ],
+  "definitions": {
+    "label1": "One-sentence definition of label1.",
+    "label2": "One-sentence definition of label2.",
+    ...
+  }
 }
 
 For turn 1, adapted is always false.
@@ -410,8 +417,16 @@ Analyze each of the {len(pairs)} turns. Return a JSON object with a "turns" arra
 
         parsed = json.loads(text)
         # Accept either {"turns": [...]} or a bare list (older format)
+        definitions: dict[str, str] = {}
         if isinstance(parsed, dict):
             result = parsed.get("turns") or parsed.get("data") or []
+            raw_defs = parsed.get("definitions") or {}
+            if isinstance(raw_defs, dict):
+                for k, v in raw_defs.items():
+                    norm = str(k).strip().lower().replace(" ", "_")
+                    text_v = str(v).strip() if v else ""
+                    if norm and text_v:
+                        definitions[norm] = text_v
         elif isinstance(parsed, list):
             result = parsed
         else:
@@ -435,6 +450,11 @@ Analyze each of the {len(pairs)} turns. Return a JSON object with a "turns" arra
                 "spreader_adapted": bool(entry.get("spreader_adapted", False)),
                 "debunker_adapted": bool(entry.get("debunker_adapted", False)),
             })
+        # Stash the episode-wide definitions on the first turn entry so the
+        # caller (episode_persister) can roll them up to the episode root
+        # without changing this function's return signature.
+        if normalized and definitions:
+            normalized[0]["_episode_definitions"] = definitions
         return normalized
 
     except Exception as e:

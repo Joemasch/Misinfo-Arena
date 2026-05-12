@@ -1,0 +1,314 @@
+{
+  "acknowledgment": {
+    "debunker_count": 0,
+    "definition": "This tactic involves acknowledging a partial truth or valid point within a broader argument to create an appearance of credibility and balance, which can make the overall misleading claim seem more reasonable and acceptable to the audience, thereby increasing its persuasive power and reducing resistance to the misinformation being presented.",
+    "model": "gpt-4o-mini",
+    "plain": "Acknowledgment",
+    "raw": "acknowledgment",
+    "spreader_count": 2
+  },
+  "adaptation_focus": {
+    "debunker_count": 1,
+    "definition": "This tactic involves emphasizing the complexity and nuance of a claim to counter oversimplifications or exaggerations, often by providing more accurate or detailed information. It is used to clarify misunderstandings and present a more balanced perspective, helping audiences grasp the reality of a situation rather than succumbing to alarmist narratives.",
+    "model": "gpt-4o-mini",
+    "plain": "Adaptation Focus",
+    "raw": "adaptation_focus",
+    "spreader_count": 0
+  },
+  "appeal_to_authority": {
+    "debunker_count": 0,
+    "definition": "Citing the opinions or endorsements of respected figures or institutions to lend credibility to a claim, this tactic aims to persuade the audience by leveraging perceived authority rather than presenting direct evidence, making it a common strategy for spreaders to bolster their arguments and gain trust without substantiating their assertions.",
+    "model": "gpt-4o-mini",
+    "plain": "Appeal To Authority",
+    "raw": "appeal_to_authority",
+    "spreader_count": 1
+  },
+  "balanced_perspective": {
+    "debunker_count": 2,
+    "definition": "This tactic involves presenting a nuanced view that acknowledges valid concerns while countering exaggerated claims, aiming to foster rational discourse and mitigate alarmism. It is often used by fact-checkers to emphasize the importance of scientific consensus and encourage a more measured understanding of complex issues, thereby reducing misinformation and promoting informed decision-making.",
+    "model": "gpt-4o-mini",
+    "plain": "Balanced Perspective",
+    "raw": "balanced_perspective",
+    "spreader_count": 0
+  },
+  "bureaucratic_inertia": {
+    "debunker_count": 0,
+    "definition": "This tactic involves emphasizing the slow and resistant nature of bureaucratic systems to suggest that hidden influences or agendas can operate without public oversight, making it appealing to those who want to promote conspiracy theories or distrust in government by framing established processes as inherently flawed or manipulated.",
+    "model": "gpt-4o-mini",
+    "plain": "Bureaucratic Inertia",
+    "raw": "bureaucratic_inertia",
+    "spreader_count": 1
+  },
+  "climate_change_acceleration": {
+    "debunker_count": 0,
+    "definition": "This tactic emphasizes the urgency and rapid progression of climate change to support claims about imminent environmental disasters, often using scientific projections to highlight potential worst-case scenarios; it is employed to provoke concern and urgency, aiming to persuade audiences of the need for immediate action or acknowledgment of the threat posed by climate change.",
+    "model": "gpt-4o-mini",
+    "plain": "Climate Change Acceleration",
+    "raw": "climate_change_acceleration",
+    "spreader_count": 1
+  },
+  "complex_structures": {
+    "debunker_count": 0,
+    "definition": "Using complex structures involves presenting convoluted explanations or theories that suggest intricate relationships and influences, making the argument seem more sophisticated and credible. This tactic is employed to obscure the simplicity of a claim, thereby appealing to an audience's desire for depth and nuance, which can lend an air of legitimacy to potentially unfounded assertions.",
+    "model": "gpt-4o-mini",
+    "plain": "Complex Structures",
+    "raw": "complex_structures",
+    "spreader_count": 1
+  },
+  "complexity_explanation": {
+    "debunker_count": 1,
+    "definition": "This tactic involves highlighting the intricate and multifaceted nature of a topic to counter oversimplified claims, aiming to demonstrate that complex issues cannot be easily explained by conspiracy theories or single narratives; it is often used to encourage critical thinking and promote a more nuanced understanding of the subject matter.",
+    "model": "gpt-4o-mini",
+    "plain": "Complexity Explanation",
+    "raw": "complexity_explanation",
+    "spreader_count": 0
+  },
+  "corporate_influence": {
+    "debunker_count": 0,
+    "definition": "This tactic involves suggesting that powerful corporations or influential groups manipulate government policies and decisions behind the scenes, aiming to create distrust in official narratives and promote conspiracy theories; it is often used to validate claims of hidden agendas and to rally support for alternative explanations by appealing to a sense of injustice and lack of transparency.",
+    "model": "gpt-4o-mini",
+    "plain": "Corporate Influence",
+    "raw": "corporate_influence",
+    "spreader_count": 1
+  },
+  "counter_evidence": {
+    "debunker_count": 1,
+    "definition": "This tactic involves presenting evidence that directly contradicts a claim, aiming to undermine the credibility of the misinformation by highlighting facts or data that support a different conclusion. It is often used by fact-checkers to clarify misunderstandings and reinforce the truth, thereby promoting informed decision-making and public awareness on critical issues.",
+    "model": "gpt-4o-mini",
+    "plain": "Counter Evidence",
+    "raw": "counter_evidence",
+    "spreader_count": 0
+  },
+  "current_consensus": {
+    "debunker_count": 1,
+    "definition": "This tactic involves referencing the prevailing scientific agreement or expert opinion on a topic to counter misinformation, aiming to establish credibility and authority by aligning with widely accepted views, thereby persuading the audience to trust the fact-checker's perspective over sensational claims that deviate from established knowledge.",
+    "model": "gpt-4o-mini",
+    "plain": "Current Consensus",
+    "raw": "current_consensus",
+    "spreader_count": 0
+  },
+  "disproportionate_influence": {
+    "debunker_count": 0,
+    "definition": "This tactic involves emphasizing the significance or impact of a particular group or idea to suggest that it has more power or control than is warranted, often to provoke fear or distrust; it is used to manipulate perceptions by framing complex issues in a way that highlights hidden influences, thereby persuading others to accept a more conspiratorial viewpoint.",
+    "model": "gpt-4o-mini",
+    "plain": "Disproportionate Influence",
+    "raw": "disproportionate_influence",
+    "spreader_count": 1
+  },
+  "evidence_challenge": {
+    "debunker_count": 1,
+    "definition": "This tactic involves questioning the validity or existence of supporting evidence for a claim, aiming to undermine its credibility by highlighting a lack of substantiation or misinterpretation of facts. It is often used by fact-checkers to clarify misconceptions and encourage critical thinking, emphasizing the importance of reliable information in discussions.",
+    "model": "gpt-4o-mini",
+    "plain": "Evidence Challenge",
+    "raw": "evidence_challenge",
+    "spreader_count": 0
+  },
+  "exaggeration_claim": {
+    "debunker_count": 1,
+    "definition": "This tactic involves highlighting an exaggerated claim by contrasting it with more accurate or nuanced information to undermine its credibility, often used by fact-checkers to clarify misconceptions and promote a more balanced understanding of complex issues, thereby reinforcing the importance of relying on scientifically supported data rather than sensationalized statements.",
+    "model": "gpt-4o-mini",
+    "plain": "Exaggeration Claim",
+    "raw": "exaggeration_claim",
+    "spreader_count": 0
+  },
+  "expertise_emphasis": {
+    "debunker_count": 1,
+    "definition": "This tactic involves highlighting authoritative knowledge or expertise to counter misinformation, aiming to establish credibility and provide a more nuanced understanding of complex issues, thereby persuading the audience to reconsider simplistic or sensational claims. It is often used by fact-checkers to reinforce the validity of their arguments and diminish the appeal of misleading narratives.",
+    "model": "gpt-4o-mini",
+    "plain": "Expertise Emphasis",
+    "raw": "expertise_emphasis",
+    "spreader_count": 0
+  },
+  "historical_context": {
+    "debunker_count": 0,
+    "definition": "This tactic involves referencing historical events or patterns to provide context for a current issue, suggesting that the present situation is part of a larger, often cyclical narrative. It is used to downplay the significance of contemporary problems by framing them as natural occurrences, thereby undermining urgency and responsibility for action.",
+    "model": "gpt-4o-mini",
+    "plain": "Historical Context",
+    "raw": "historical_context",
+    "spreader_count": 3
+  },
+  "human_impact": {
+    "debunker_count": 3,
+    "definition": "This tactic emphasizes the significant role of human activities in contributing to issues like climate change, countering claims that attribute such phenomena solely to natural cycles; it aims to highlight the urgency and responsibility of human actions, thereby reinforcing the need for accountability and action in addressing environmental challenges.",
+    "model": "gpt-4o-mini",
+    "plain": "Human Impact",
+    "raw": "human_impact",
+    "spreader_count": 0
+  },
+  "institutional_inertia": {
+    "debunker_count": 2,
+    "definition": "This tactic highlights the tendency of established institutions to maintain their influence and continuity over time, countering claims of hidden conspiracies by emphasizing the complexities of governance and the legitimate roles of institutional processes, thereby reinforcing trust in democratic systems and discouraging oversimplified narratives that attribute policy persistence to shadowy forces.",
+    "model": "gpt-4o-mini",
+    "plain": "Institutional Inertia",
+    "raw": "institutional_inertia",
+    "spreader_count": 0
+  },
+  "institutional_influence": {
+    "debunker_count": 0,
+    "definition": "This tactic involves suggesting that powerful institutions or hidden networks exert control over political and social outcomes, often to imply that official narratives are misleading or incomplete; it is used to foster distrust in established authorities and to validate conspiracy theories by highlighting perceived inconsistencies or continuities in policy regardless of changes in leadership or public sentiment.",
+    "model": "gpt-4o-mini",
+    "plain": "Institutional Influence",
+    "raw": "institutional_influence",
+    "spreader_count": 1
+  },
+  "institutional_stability": {
+    "debunker_count": 1,
+    "definition": "This tactic emphasizes the inherent stability and complexity of institutional systems to counteract claims of hidden conspiracies, arguing that the continuity of policies across administrations reflects normal bureaucratic processes rather than secretive manipulation. It is used to reinforce trust in established institutions and to debunk oversimplified narratives that suggest a lack of transparency or accountability.",
+    "model": "gpt-4o-mini",
+    "plain": "Institutional Stability",
+    "raw": "institutional_stability",
+    "spreader_count": 0
+  },
+  "long_term_interests": {
+    "debunker_count": 1,
+    "definition": "This tactic involves emphasizing the broader, more complex realities of a situation to counter oversimplified or conspiratorial claims, highlighting that while various influences exist, they do not amount to a singular, hidden force controlling outcomes. It is used to promote a nuanced understanding of governance and discourage the acceptance of misleading narratives.",
+    "model": "gpt-4o-mini",
+    "plain": "Long Term Interests",
+    "raw": "long_term_interests",
+    "spreader_count": 0
+  },
+  "misconstrued_complexities": {
+    "debunker_count": 1,
+    "definition": "This tactic involves highlighting the oversimplification of complex issues to counter misleading claims, emphasizing that real-world situations often involve multiple factors and nuances that cannot be reduced to a single narrative. It is used to clarify misunderstandings and reinforce the importance of recognizing the intricacies of governance or other multifaceted topics.",
+    "model": "gpt-4o-mini",
+    "plain": "Misconstrued Complexities",
+    "raw": "misconstrued_complexities",
+    "spreader_count": 0
+  },
+  "narrative_building": {
+    "debunker_count": 0,
+    "definition": "This tactic involves creating a compelling and cohesive story that frames a particular viewpoint or conspiracy theory as credible, often by linking it to broader themes or fears, in order to persuade the audience and gain their acceptance of the narrative as a plausible explanation for complex issues.",
+    "model": "gpt-4o-mini",
+    "plain": "Narrative Building",
+    "raw": "narrative_building",
+    "spreader_count": 1
+  },
+  "narrative_reframing": {
+    "debunker_count": 1,
+    "definition": "This tactic involves reshaping the context or interpretation of a narrative to highlight its complexities or inaccuracies, often to counter oversimplified or misleading claims; it is used to encourage critical thinking and provide a more nuanced understanding of issues, thereby undermining the persuasive power of the original misinformation.",
+    "model": "gpt-4o-mini",
+    "plain": "Narrative Reframing",
+    "raw": "narrative_reframing",
+    "spreader_count": 0
+  },
+  "oversimplification": {
+    "debunker_count": 1,
+    "definition": "Oversimplification involves reducing complex issues or arguments to overly simplistic terms, which can distort the truth and mislead audiences; fact-checkers use this tactic to highlight the nuances and intricacies of a topic, demonstrating that the original claim fails to account for the broader context or multiple contributing factors.",
+    "model": "gpt-4o-mini",
+    "plain": "Oversimplification",
+    "raw": "oversimplification",
+    "spreader_count": 0
+  },
+  "oversimplification_argument": {
+    "debunker_count": 1,
+    "definition": "This tactic involves reducing a complex issue to a simplistic explanation, often to make a point more relatable or persuasive, while ignoring the nuances and intricacies involved; it is typically used by fact-checkers to highlight the shortcomings of a misleading claim and emphasize the need for a more comprehensive understanding of the topic.",
+    "model": "gpt-4o-mini",
+    "plain": "Oversimplification Argument",
+    "raw": "oversimplification_argument",
+    "spreader_count": 0
+  },
+  "pattern_recognition": {
+    "debunker_count": 0,
+    "definition": "This tactic involves identifying and emphasizing recurring themes or behaviors to suggest a hidden agenda or conspiracy, making it appear as though there is a deliberate and coordinated effort behind certain events or policies; it is often used to create a sense of urgency or distrust in established institutions by framing them as part of a larger, sinister pattern.",
+    "model": "gpt-4o-mini",
+    "plain": "Pattern Recognition",
+    "raw": "pattern_recognition",
+    "spreader_count": 1
+  },
+  "policy_persistence": {
+    "debunker_count": 0,
+    "definition": "This tactic involves emphasizing the persistence of certain policies or bureaucratic practices to suggest that hidden influences, like a \"deep state,\" are at play, thereby framing complex governance issues as evidence of covert manipulation rather than democratic processes, which can resonate with audiences seeking explanations for perceived inconsistencies in policy outcomes.",
+    "model": "gpt-4o-mini",
+    "plain": "Policy Persistence",
+    "raw": "policy_persistence",
+    "spreader_count": 1
+  },
+  "questioning_decision_making": {
+    "debunker_count": 0,
+    "definition": "This tactic involves raising doubts about the legitimacy or transparency of decision-making processes, suggesting that hidden influences or conspiracies shape outcomes, which can manipulate public perception by fostering distrust in established institutions and encouraging belief in alternative narratives.",
+    "model": "gpt-4o-mini",
+    "plain": "Questioning Decision Making",
+    "raw": "questioning_decision_making",
+    "spreader_count": 1
+  },
+  "rate_difference": {
+    "debunker_count": 2,
+    "definition": "This tactic highlights the differences in the rate or magnitude of a phenomenon to counter misinformation, emphasizing that while some claims may contain a kernel of truth, the current situation is significantly different from historical precedents, thereby reinforcing the urgency or severity of the issue at hand.",
+    "model": "gpt-4o-mini",
+    "plain": "Rate Difference",
+    "raw": "rate_difference",
+    "spreader_count": 0
+  },
+  "scientific_data": {
+    "debunker_count": 0,
+    "definition": "Using scientific data involves presenting factual information, statistics, or research findings to lend credibility to an argument, often to persuade the audience that a claim is valid and based on objective evidence. This tactic aims to bolster the spreader's position by appealing to authority and rationality, making it harder for opponents to refute the argument.",
+    "model": "gpt-4o-mini",
+    "plain": "Scientific Data",
+    "raw": "scientific_data",
+    "spreader_count": 1
+  },
+  "scientific_evidence": {
+    "debunker_count": 0,
+    "definition": "Citing scientific evidence involves referencing established research or historical data to support a claim, aiming to lend credibility and authority to the argument; this tactic is often used by those spreading misinformation to create a false sense of legitimacy and persuade audiences by appealing to their trust in scientific consensus, even when the evidence may be misinterpreted or selectively presented.",
+    "model": "gpt-4o-mini",
+    "plain": "Scientific Evidence",
+    "raw": "scientific_evidence",
+    "spreader_count": 1
+  },
+  "scientific_models": {
+    "debunker_count": 1,
+    "definition": "Using scientific models involves referencing established research and data projections to challenge exaggerated claims, providing a more accurate understanding of complex issues like climate change. This tactic is employed to enhance credibility, clarify misconceptions, and promote informed discussions by grounding arguments in empirical evidence rather than speculation or sensationalism.",
+    "model": "gpt-4o-mini",
+    "plain": "Scientific Models",
+    "raw": "scientific_models",
+    "spreader_count": 0
+  },
+  "serious_consideration": {
+    "debunker_count": 0,
+    "definition": "This tactic involves presenting a controversial or fringe idea as worthy of serious thought, often to lend it credibility and provoke further discussion, thereby encouraging the audience to reconsider its validity despite its questionable basis. It is used to normalize conspiracy theories or unverified claims by framing them as legitimate topics for debate.",
+    "model": "gpt-4o-mini",
+    "plain": "Serious Consideration",
+    "raw": "serious_consideration",
+    "spreader_count": 1
+  },
+  "storm_intensity": {
+    "debunker_count": 0,
+    "definition": "This tactic emphasizes the severity and immediacy of a threat to provoke an emotional response and rally support, often by highlighting specific vulnerabilities or dire consequences, making the issue seem more urgent than it may be according to scientific consensus. It is used to persuade audiences by amplifying fears and concerns surrounding a topic.",
+    "model": "gpt-4o-mini",
+    "plain": "Storm Intensity",
+    "raw": "storm_intensity",
+    "spreader_count": 1
+  },
+  "systemic_nature": {
+    "debunker_count": 0,
+    "definition": "This tactic emphasizes the underlying, pervasive structures or patterns within systems to suggest that certain events or policies are not random but instead orchestrated by hidden forces, which can lend an air of legitimacy to conspiracy theories and persuade audiences by framing complex issues as part of a larger, systemic problem.",
+    "model": "gpt-4o-mini",
+    "plain": "Systemic Nature",
+    "raw": "systemic_nature",
+    "spreader_count": 1
+  },
+  "topography_risk": {
+    "debunker_count": 0,
+    "definition": "This tactic involves emphasizing the complexity and uncertainties of scientific predictions to cast doubt on specific claims, suggesting that while a statement may seem exaggerated, the broader context of ongoing changes in climate science warrants concern. It is used to shift the focus from the claim's validity to the potential risks associated with ignoring scientific warnings.",
+    "model": "gpt-4o-mini",
+    "plain": "Topography Risk",
+    "raw": "topography_risk",
+    "spreader_count": 1
+  },
+  "urgency_emphasis": {
+    "debunker_count": 0,
+    "definition": "This tactic involves highlighting the immediate and severe consequences of an issue to create a sense of urgency, prompting audiences to act quickly or accept a claim without thorough scrutiny; it is often used by spreaders to galvanize support or provoke fear, making the issue seem more pressing than it may be based on evidence alone.",
+    "model": "gpt-4o-mini",
+    "plain": "Urgency Emphasis",
+    "raw": "urgency_emphasis",
+    "spreader_count": 1
+  },
+  "vulnerability_emphasis": {
+    "debunker_count": 0,
+    "definition": "Highlighting the vulnerabilities of a subject or situation serves to amplify concerns and fears, making the argument more persuasive by appealing to emotions and urgency; this tactic is often used to reinforce claims about potential threats, as it draws attention to the risks involved, thereby swaying opinions in favor of the spreader's viewpoint.",
+    "model": "gpt-4o-mini",
+    "plain": "Vulnerability Emphasis",
+    "raw": "vulnerability_emphasis",
+    "spreader_count": 1
+  }
+}

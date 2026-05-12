@@ -167,7 +167,14 @@ def _persist_completed_match(ss) -> None:
         concession_data, strategy_analysis, arena_mode,
     )
     if per_turn_strategies:
+        # Pull the episode-wide definitions map out of the first turn entry
+        # (where analyze_per_turn_strategies stashes it) and persist it
+        # separately at the episode root so the Atlas can resolve definitions
+        # for any open-coded label this debate introduced.
+        ep_defs = per_turn_strategies[0].pop("_episode_definitions", None) if per_turn_strategies else None
         episode_obj["per_turn_strategies"] = per_turn_strategies
+        if ep_defs and isinstance(ep_defs, dict):
+            episode_obj["strategy_definitions"] = ep_defs
 
     # Persist to disk
     try:

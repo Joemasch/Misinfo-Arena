@@ -350,6 +350,8 @@ def _scan_strategy_index(run_ids: tuple, runs_dir: str, refresh_token: float) ->
         }
     """
     index = {}
+    # episode-emitted definitions keyed by normalized raw label
+    episode_definitions: dict[str, str] = {}
 
     def _ensure(plain, raw):
         if plain not in index:
@@ -362,6 +364,11 @@ def _scan_strategy_index(run_ids: tuple, runs_dir: str, refresh_token: float) ->
         except Exception:
             continue
         for ep in eps:
+            # Collect definitions emitted by this episode's strategy analyst
+            for k, v in (ep.get("strategy_definitions") or {}).items():
+                norm = (k or "").strip().lower().replace(" ", "_")
+                if norm and v and norm not in episode_definitions:
+                    episode_definitions[norm] = v
             pts = ep.get("per_turn_strategies") or []
             if not pts:
                 continue
@@ -413,6 +420,12 @@ def _scan_strategy_index(run_ids: tuple, runs_dir: str, refresh_token: float) ->
                     "deb_model":  deb_model,
                     "turns":      sorted(set(turns)),
                 })
+    # Attach episode-emitted definitions to each tactic entry so the
+    # description resolver can find them without re-scanning runs.
+    for plain, entry in index.items():
+        norm = (entry.get("raw_label") or "").strip().lower().replace(" ", "_")
+        if norm in episode_definitions:
+            entry["episode_definition"] = episode_definitions[norm]
     return index
 
 
@@ -424,11 +437,32 @@ def _seed_catalogue(index: dict) -> dict:
     return index
 
 
-def _description_for(plain_name: str, raw_label: str, data: dict | None = None) -> str:
-    """Resolve the description for a strategy from the catalogue.
+_STRATEGY_DEFINITIONS_PATH = Path(__file__).resolve().parents[3] / "data" / "strategy_definitions.json"
 
-    Falls back to a usage-aware synthetic description for open-coded labels
-    that aren't part of the research catalogue.
+
+@st.cache_data(show_spinner=False)
+def _load_cached_definitions() -> dict:
+    """Cached open-coded label definitions produced by
+    scripts/backfill_strategy_definitions.py."""
+    if not _STRATEGY_DEFINITIONS_PATH.exists():
+        return {}
+    try:
+        import json as _json
+        return _json.loads(_STRATEGY_DEFINITIONS_PATH.read_text())
+    except Exception:
+        return {}
+
+
+def _description_for(plain_name: str, raw_label: str, data: dict | None = None) -> str:
+    """Resolve a description for a tactic from, in priority order:
+
+      1. The hand-curated catalogue (_STRATEGY_CATALOG)
+      2. The cached LLM-backfilled definitions (strategy_definitions.json)
+      3. Per-episode definitions emitted by the strategy analyst (if present)
+      4. A graceful fallback message
+
+    Open-coded labels routinely fall through to #2; the cache is generated
+    once by scripts/backfill_strategy_definitions.py.
     """
     key = (raw_label or "").lower().replace("_", " ").strip()
     if key in _STRATEGY_CATALOG:
@@ -437,25 +471,24 @@ def _description_for(plain_name: str, raw_label: str, data: dict | None = None) 
         if plain == plain_name:
             return desc
 
-    # Open-coded label — synthesize a useful note from usage data if we have it.
+    # 2) per-episode definition emitted by the strategy analyst itself
+    # (analyst writes these for each new debate; the scanner attaches them
+    # to the tactic entry via the `episode_definition` key).
     if data is not None:
-        n_spr = len(data.get("spreader") or [])
-        n_deb = len(data.get("debunker") or [])
-        parts = []
-        if n_spr:
-            parts.append(f"by the spreader in {n_spr} episode{'s' if n_spr != 1 else ''}")
-        if n_deb:
-            parts.append(f"by the fact-checker in {n_deb} episode{'s' if n_deb != 1 else ''}")
-        if parts:
-            return (
-                "Open-coded label introduced by the LLM strategy analyst — not part of "
-                "the canonical research catalogue. Used " + " and ".join(parts) + ". "
-                "The plain-English name is auto-derived from the raw label below."
-            )
+        ep_def = (data.get("episode_definition") or "").strip()
+        if ep_def:
+            return ep_def
 
+    # 3) cached backfilled definition (keyed by normalized raw label)
+    cache = _load_cached_definitions()
+    norm = (raw_label or "").strip().lower().replace(" ", "_")
+    if norm in cache and cache[norm].get("definition"):
+        return cache[norm]["definition"]
+
+    # 4) Soft fallback — kept short; surfaced rarely now that #2 covers most cases.
     return (
-        "Open-coded label from the LLM strategy analyst. Not part of the canonical "
-        "research catalogue — no fixed definition yet."
+        "Open-coded label from the LLM strategy analyst. No definition has been "
+        "cached for this tactic yet — re-run scripts/backfill_strategy_definitions.py."
     )
 
 
@@ -543,6 +576,122 @@ def _seed_citations(index: dict) -> dict:
         if canon not in index:
             index[canon] = {"spreader": [], "debunker": []}
     return index
+
+
+_SENT_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+
+
+def _sentences(text: str, min_len: int = 30, max_len: int = 280) -> list[str]:
+    """Split a turn text into reasonable-length sentences."""
+    if not text:
+        return []
+    out = []
+    for s in _SENT_SPLIT_RE.split(text):
+        s = s.strip()
+        if min_len <= len(s) <= max_len:
+            out.append(s)
+    return out
+
+
+def _extract_examples(events: list, side: str, runs_dir: str, max_n: int = 2) -> list[dict]:
+    """Pull up to max_n example sentences for this tactic from the actual debate
+    transcripts. Returns list of dicts: {sentence, turn, claim, run_id, spr_model, deb_model}."""
+    out: list[dict] = []
+    seen_runs: set[str] = set()
+    for ev in events or []:
+        if len(out) >= max_n:
+            break
+        run_id = ev.get("run_id")
+        if not run_id:
+            continue
+        # Cap to one example per run for diversity
+        if run_id in seen_runs and len(events) > 1:
+            continue
+        try:
+            eps, _ = load_episodes(run_id, runs_dir, 0)
+        except Exception:
+            continue
+        ep_id = ev.get("episode_id", 0)
+        target_ep = next((e for e in eps if e.get("episode_id") == ep_id), None) or (eps[0] if eps else None)
+        if not target_ep:
+            continue
+        # Index turns by turn number for the side we care about
+        side_text_by_turn: dict[int, str] = {}
+        for i, t in enumerate(target_ep.get("turns") or []):
+            name = (t.get("name") or t.get("role") or "").lower()
+            ti = t.get("turn_index")
+            if ti is None:
+                ti = i // 2
+            tnum = int(ti) + 1
+            if side == "spreader" and "spread" in name:
+                side_text_by_turn[tnum] = t.get("content") or ""
+            elif side == "debunker" and ("debunk" in name or "fact" in name):
+                side_text_by_turn[tnum] = t.get("content") or ""
+            # Legacy structured format
+            if side == "spreader" and "spreader_message" in t:
+                sm = t.get("spreader_message") or {}
+                side_text_by_turn[tnum] = sm.get("content", "") if isinstance(sm, dict) else ""
+            if side == "debunker" and "debunker_message" in t:
+                dm = t.get("debunker_message") or {}
+                side_text_by_turn[tnum] = dm.get("content", "") if isinstance(dm, dict) else ""
+
+        for tnum in (ev.get("turns") or []):
+            text = side_text_by_turn.get(int(tnum), "")
+            sents = _sentences(text)
+            if sents:
+                out.append({
+                    "sentence": sents[0],
+                    "turn":     int(tnum),
+                    "claim":    ev.get("claim", ""),
+                    "run_id":   run_id,
+                    "spr_model": ev.get("spr_model", ""),
+                    "deb_model": ev.get("deb_model", ""),
+                })
+                seen_runs.add(run_id)
+                break
+        if len(out) >= max_n:
+            break
+    return out
+
+
+def _render_examples(spreader_events: list, debunker_events: list, runs_dir: str) -> None:
+    """Render a small 'Examples from your debates' block under the definition.
+    Pulls 1-2 sentences per side from real transcripts. Silent if none found."""
+    spr_ex = _extract_examples(spreader_events, "spreader", runs_dir, max_n=2)
+    deb_ex = _extract_examples(debunker_events, "debunker", runs_dir, max_n=2)
+    if not spr_ex and not deb_ex:
+        return
+
+    st.markdown(
+        '<div style="font-size:0.66rem;text-transform:uppercase;letter-spacing:0.08em;'
+        'color:#9ca3af;font-weight:700;margin:0.5rem 0 0.35rem 0">'
+        'Examples from your debates</div>',
+        unsafe_allow_html=True,
+    )
+
+    def _block(ex: dict, color: str, role: str) -> str:
+        rgb = _hex_to_rgb(color)
+        attribution = (
+            f'{role} · turn {ex["turn"]} · '
+            f'<em>"{(ex["claim"] or "")[:60]}{"…" if len(ex.get("claim") or "") > 60 else ""}"</em>'
+        )
+        return (
+            f'<div style="background:rgba({rgb},0.05);border-left:3px solid {color};'
+            f'border-radius:0 4px 4px 0;padding:0.5rem 0.7rem;margin:0.25rem 0;'
+            f'font-size:0.85rem;line-height:1.55;color:var(--color-text-primary,#E8E4D9)">'
+            f'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:0.7rem;'
+            f'color:#9ca3af;margin-bottom:0.25rem;text-transform:uppercase;letter-spacing:0.05em">'
+            f'{attribution}</div>'
+            f'<div style="font-style:italic">&ldquo;{ex["sentence"]}&rdquo;</div>'
+            f'</div>'
+        )
+
+    html = ""
+    for ex in spr_ex:
+        html += _block(ex, SPREADER_COLOR, "Spreader")
+    for ex in deb_ex:
+        html += _block(ex, DEBUNKER_COLOR, "Fact-checker")
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def _render_episode_chip_list(events: list, color: str, role_label: str) -> None:
@@ -790,6 +939,8 @@ def render_atlas_page():
                     f'</div>',
                     unsafe_allow_html=True,
                 )
+                # Examples pulled live from real debate transcripts
+                _render_examples(data["spreader"], data["debunker"], RUNS_DIR)
                 _render_episode_chip_list(data["spreader"], SPREADER_COLOR, "Spreader")
                 _render_episode_chip_list(data["debunker"], DEBUNKER_COLOR, "Fact-checker")
                 _render_domain_footer(data["spreader"] + data["debunker"])
