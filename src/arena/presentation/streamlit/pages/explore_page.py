@@ -15,6 +15,10 @@ import streamlit as st
 from arena.io.run_store_v2_read import load_episodes
 from arena.presentation.streamlit.state.runs_refresh import get_auto_run_ids
 from arena.presentation.streamlit.components.replay_styles import inject_replay_css, verdict_card_html
+from arena.presentation.streamlit.data.definitions import (
+    get_institution_info,
+    resolve_strategy_description,
+)
 
 RUNS_DIR = "runs"
 SPREADER_COLOR = "#D4A843"
@@ -959,6 +963,20 @@ def _render_citation_drilldown(ep, _unused_spr_sents, _unused_deb_sents):
             ) or "no framing words"
             header = f"{src} — {len(events)} use{'s' if len(events) != 1 else ''} · {tag_breakdown}"
             with st.expander(header):
+                # "About this institution" — pulled from the shared
+                # institution info table. Same definition surface as Atlas.
+                info = get_institution_info(src)
+                if info:
+                    st.markdown(
+                        f'<div style="background:var(--color-surface-alt,#1A1A1A);'
+                        f'border:1px solid var(--color-border,#2A2A2A);border-radius:6px;'
+                        f'padding:0.55rem 0.75rem;margin:0.1rem 0 0.55rem 0">'
+                        f'<div style="font-size:0.66rem;text-transform:uppercase;letter-spacing:0.08em;'
+                        f'color:#9ca3af;font-weight:700;margin-bottom:0.25rem">About this institution</div>'
+                        f'<div style="font-size:0.86rem;line-height:1.55;color:var(--color-text-primary,#E8E4D9)">'
+                        f'{info}</div></div>',
+                        unsafe_allow_html=True,
+                    )
                 for turn_num, sent, tags in events:
                     chips = "".join(
                         _framing_chip(t, dict((n, c) for n, c, _ in FRAMING_PATTERNS)[t])
@@ -1010,9 +1028,10 @@ def _render_top5_panel(role_label, color, freq_counter, primary_raw, raw_for_pla
         f'letter-spacing:0.07em;margin-bottom:0.5rem">{role_label} — top tactics</div>'
     )
     for rank, (name, count) in enumerate(items, 1):
-        # Find raw label so we can look up description in _STRATEGY_CONTEXT
+        # Find raw label so we can look up description through the shared resolver
+        # (catalogue → per-episode → backfilled cache).
         raw = raw_for_plain.get(name, name.lower().replace(" ", "_"))
-        desc = _STRATEGY_CONTEXT.get(raw.lower().replace("_", " "), "")
+        desc = resolve_strategy_description(raw, primary_lookup=_STRATEGY_CONTEXT)
         pct = (count / n_turns * 100) if n_turns else 0
         is_primary = (rank == 1) or (primary_raw and _label_plain(primary_raw) == name)
         rows += (
@@ -1081,7 +1100,7 @@ def _render_tactic_drilldown(pts, pairs):
         for tactic, occurrences in sorted_tactics:
             with st.expander(f"{tactic} — {len(occurrences)} use{'s' if len(occurrences) != 1 else ''}"):
                 raw = occurrences[0][2]
-                desc = _STRATEGY_CONTEXT.get(raw.lower().replace("_", " "), "")
+                desc = resolve_strategy_description(raw, primary_lookup=_STRATEGY_CONTEXT)
                 if desc:
                     st.markdown(
                         f'<div style="font-size:0.84rem;color:#9ca3af;margin:0 0 0.5rem 0;'
@@ -1873,9 +1892,19 @@ def _render_comparison(selected_ep, all_episodes):
 
         rows_html = ""
         for tactic in sorted_tactics:
+            # Resolve a definition for this tactic so the row label can
+            # carry it as a native browser tooltip. The HTML title attr
+            # appears on hover without changing the layout.
+            tactic_raw = tactic.lower().replace(" ", "_")
+            tactic_desc = resolve_strategy_description(tactic_raw, primary_lookup=_STRATEGY_CONTEXT)
+            title_attr = (
+                f' title="{tactic_desc.replace(chr(34), chr(39))}"' if tactic_desc else ""
+            )
+            marker = ' <span style="color:#9ca3af;font-size:0.72rem">ⓘ</span>' if tactic_desc else ""
             rows_html += (
                 f'<tr><td style="padding:0.45rem 0.65rem;color:var(--color-text-primary,#E8E4D9);'
-                f'font-size:0.86rem;font-weight:500;border-bottom:1px solid var(--color-border,#2A2A2A)">{tactic}</td>'
+                f'font-size:0.86rem;font-weight:500;border-bottom:1px solid var(--color-border,#2A2A2A);'
+                f'cursor:help"{title_attr}>{tactic}{marker}</td>'
             )
             for ep_i, (ep, _lbl) in enumerate(grid):
                 turns = ep_per_turn[ep_i].get(tactic, [])
@@ -1970,9 +1999,16 @@ def _render_comparison(selected_ep, all_episodes):
 
         rows_html = ""
         for src in sorted_cites:
+            # Surface a hover tooltip with the institution blurb.
+            inst_info = get_institution_info(src)
+            title_attr = (
+                f' title="{inst_info.replace(chr(34), chr(39))}"' if inst_info else ""
+            )
+            marker = ' <span style="color:#9ca3af;font-size:0.72rem">ⓘ</span>' if inst_info else ""
             rows_html += (
                 f'<tr><td style="padding:0.45rem 0.65rem;color:var(--color-text-primary,#E8E4D9);'
-                f'font-size:0.86rem;font-weight:500;border-bottom:1px solid var(--color-border,#2A2A2A)">{src}</td>'
+                f'font-size:0.86rem;font-weight:500;border-bottom:1px solid var(--color-border,#2A2A2A);'
+                f'cursor:help"{title_attr}>{src}{marker}</td>'
             )
             for ep_i, _ in enumerate(grid):
                 turns = ep_data[ep_i].get(src, [])
